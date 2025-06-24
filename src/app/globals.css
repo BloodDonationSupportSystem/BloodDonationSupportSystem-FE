@@ -23,8 +23,20 @@
 body {
   color: var(--foreground);
   background: var(--background);
+  margin: 0;
+  padding: 0;
 }
 
+/* Override Ant Design button styles for Tailwind compatibility */
+.ant-btn-primary {
+  background-color: var(--primary) !important;
+}
+
+.ant-btn-primary:hover {
+  background-color: #b91c1c !important; /* red-700 */
+}
+
+/* Custom container class */
 .container {
   width: 100%;
   margin-left: auto;
@@ -61,4 +73,4 @@ body {
   .container {
     max-width: 1536px;
   }
-}
+} 
