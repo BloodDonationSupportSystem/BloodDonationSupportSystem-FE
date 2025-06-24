@@ -11,7 +11,7 @@ Coding standards, domain knowledge, and preferences that AI should follow.
 - Keep functions small and focused on a single task.
 - Remember this project use Ant Design.
 - Use TypeScript types and interfaces for better type safety.
-- Project's theme color should be white, light blue, light color like any medical application.
+- Project's theme color should be like any medical application.
 - Always use Tailwind CSS and Ant Design for styling.
 - Never use raw CSS or inline styles.
 - Write unit tests for critical components and logic.

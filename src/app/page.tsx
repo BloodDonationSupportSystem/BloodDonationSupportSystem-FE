@@ -183,25 +183,58 @@ export default function HomePage() {
             <div className="container mx-auto px-4 md:px-8">
               <Title level={2} className="text-center mb-12">Donor Testimonials</Title>
               <Carousel autoplay className="pb-12">
-                {[1, 2, 3].map((item) => (
-                  <div key={item}>
-                    <div className="bg-white p-8 rounded-lg shadow-sm mx-4 md:mx-16 text-center">
-                      <div className="mb-6">
-                        <img 
-                          src={`/img/testmonial/person-${item}.jpg`} 
-                          alt={`Donor ${item}`}
-                          className="w-20 h-20 rounded-full mx-auto object-cover"
-                        />
-                      </div>
-                      <Paragraph className="text-lg italic mb-6">
-                        "Donating blood has been one of the most rewarding experiences of my life. 
-                        Knowing that my small act can save someone's life gives me immense satisfaction."
-                      </Paragraph>
-                      <Title level={5} className="mb-0">John Doe</Title>
-                      <Paragraph className="text-gray-500">Regular Donor</Paragraph>
+                <div>
+                  <div className="bg-white p-8 rounded-lg shadow-sm mx-4 md:mx-16 text-center">
+                    <div className="mb-6">
+                      <img 
+                        src="/img/testmonial/people-1.jpg" 
+                        alt="Donor 1"
+                        className="w-20 h-20 rounded-full mx-auto object-cover"
+                      />
                     </div>
+                    <Paragraph className="text-lg italic mb-6">
+                      "Donating blood is incredibly fulfilling. When I learned that my rare blood type could save lives in emergency situations, 
+                      I committed to donating regularly. Seeing the gratitude in the eyes of recipients' families makes it all worthwhile."
+                    </Paragraph>
+                    <Title level={5} className="mb-0">Linh Hoang</Title>
+                    <Paragraph className="text-gray-500">Regular Donor for 5 years</Paragraph>
                   </div>
-                ))}
+                </div>
+                <div>
+                  <div className="bg-white p-8 rounded-lg shadow-sm mx-4 md:mx-16 text-center">
+                    <div className="mb-6">
+                      <img 
+                        src="/img/testmonial/people-2.jpg" 
+                        alt="Donor 2"
+                        className="w-20 h-20 rounded-full mx-auto object-cover"
+                      />
+                    </div>
+                    <Paragraph className="text-lg italic mb-6">
+                      "After my sister needed multiple transfusions during surgery, I realized how critical blood donations are. 
+                      Now I organize blood drives in my community and donate every 3 months. It's such a simple act that can literally save lives."
+                    </Paragraph>
+                    <Title level={5} className="mb-0">Thanh Tran</Title>
+                    <Paragraph className="text-gray-500">Blood Drive Organizer</Paragraph>
+                  </div>
+                </div>
+                <div>
+                  <div className="bg-white p-8 rounded-lg shadow-sm mx-4 md:mx-16 text-center">
+                    <div className="mb-6">
+                      <img 
+                        src="/img/testmonial/people-3.jpg" 
+                        alt="Donor 3"
+                        className="w-20 h-20 rounded-full mx-auto object-cover"
+                      />
+                    </div>
+                    <Paragraph className="text-lg italic mb-6">
+                      "I was hesitant to donate blood at first due to fear of needles, but the staff was incredibly 
+                      supportive and professional. Now I've donated 15 times and even encouraged my friends to join. 
+                      The feeling of contributing to saving someone's life is incomparable."
+                    </Paragraph>
+                    <Title level={5} className="mb-0">Minh Nguyen</Title>
+                    <Paragraph className="text-gray-500">First-time Donor turned Ambassador</Paragraph>
+                  </div>
+                </div>
               </Carousel>
             </div>
           </div>
