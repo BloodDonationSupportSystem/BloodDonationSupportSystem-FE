@@ -1,5 +1,6 @@
 import type { BlogPost } from "../types/blog";
 import Link from "next/link";
+import { Card, Typography, Tag } from "antd";
 
 interface BlogPostItemProps {
   post: BlogPost;
@@ -7,22 +8,27 @@ interface BlogPostItemProps {
 
 export default function BlogPostItem({ post }: BlogPostItemProps) {
   return (
-    <div className="card" style={{ display: 'flex', alignItems: 'flex-start', gap: 20, position: 'relative' }}>
-      <span style={{ fontSize: 36, color: 'var(--primary)', marginRight: 8, flexShrink: 0 }} aria-label="Blood Drop" role="img">🩸</span>
-      <div style={{ flex: 1 }}>
-        <h2 style={{ margin: 0, fontSize: 22, color: 'var(--primary)', fontWeight: 700 }}>
-          <Link href={`/blog-post/${post.id}`} style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+    <Card
+      className="!shadow-md !rounded-xl !border-blue-100 hover:!border-blue-400 transition-all"
+      bodyStyle={{ padding: 20 }}
+      title={
+        <Typography.Title level={3} className="!mb-0 !text-blue-700 !font-bold">
+          <Link href={`/blog-post/${post.id}`} className="hover:underline">
             {post.title}
           </Link>
-        </h2>
-        <p style={{ margin: '8px 0 0 0', fontWeight: 500, color: 'var(--foreground)' }}>
-          <span style={{ color: 'var(--primary)', fontWeight: 700 }}>Author:</span> {post.authorName}
-        </p>
-        <p style={{ margin: '8px 0', color: 'var(--foreground)', fontSize: 16 }}>{post.body}</p>
-        <span className={`badge ${post.isPublished ? 'badge-published' : 'badge-draft'}`}>
-          {post.isPublished ? 'Published' : 'Draft'}
-        </span>
-      </div>
-    </div>
+        </Typography.Title>
+      }
+      extra={<span className="text-3xl mr-2" role="img" aria-label="Blood Drop">🩸</span>}
+    >
+      <Typography.Paragraph className="mb-2">
+        <span className="font-semibold text-blue-600">Author:</span> {post.authorName}
+      </Typography.Paragraph>
+      <Typography.Paragraph className="mb-2 text-gray-700">
+        {post.body}
+      </Typography.Paragraph>
+      <Tag color={post.isPublished ? "red" : "default"} className="mt-2">
+        {post.isPublished ? "Published" : "Draft"}
+      </Tag>
+    </Card>
   );
 } 

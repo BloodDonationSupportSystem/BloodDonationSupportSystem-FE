@@ -69,7 +69,7 @@ export default function Footer() {
               <div>
                 <ul className="list-none p-0 m-0">
                   <li className="mb-2">
-                    <Link href="/blog" className="text-gray-300 hover:text-red-400">Blog</Link>
+                    <Link href="/blog-post" className="text-gray-300 hover:text-red-400">Blog</Link>
                   </li>
                   <li className="mb-2">
                     <Link href="/faq" className="text-gray-300 hover:text-red-400">FAQs</Link>

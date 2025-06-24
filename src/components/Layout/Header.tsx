@@ -17,7 +17,7 @@ export default function Header() {
     { key: 'about', label: <Link href="/about">About Us</Link> },
     { key: 'donate', label: <Link href="/donate">Donate</Link> },
     { key: 'events', label: <Link href="/events">Events</Link> },
-    { key: 'blog', label: <Link href="/blog">Blog</Link> },
+    { key: 'blog', label: <Link href="/blog-post">Blog</Link> },
     { key: 'contact', label: <Link href="/contact">Contact</Link> },
   ];
 
