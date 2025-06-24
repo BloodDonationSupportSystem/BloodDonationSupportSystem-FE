@@ -18,7 +18,6 @@ const { Title, Paragraph } = Typography;
 export default function HomePage() {
   return (
     <Layout className="min-h-screen">
-      <Header />
       <Content>
         <div className="min-h-screen bg-gray-50">
           {/* Hero Section */}
@@ -253,7 +252,6 @@ export default function HomePage() {
           </div>
         </div>
       </Content>
-      <Footer />
     </Layout>
   );
 } 
