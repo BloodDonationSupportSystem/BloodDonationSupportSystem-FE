@@ -2,13 +2,16 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Layout, Menu, Button, Dropdown } from 'antd';
-import { UserOutlined, MenuOutlined } from '@ant-design/icons';
+import { Layout, Menu, Button, Dropdown, Avatar, Space } from 'antd';
+import { UserOutlined, MenuOutlined, LogoutOutlined, ProfileOutlined, SettingOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
+import { useAuth } from '@/context/AuthContext';
 
 const { Header: AntHeader } = Layout;
 
 export default function Header() {
+  const { user, isLoggedIn, logout } = useAuth();
+
   const menuItems = [
     { key: 'home', label: <Link href="/">Home</Link> },
     { key: 'about', label: <Link href="/about">About Us</Link> },
@@ -19,17 +22,41 @@ export default function Header() {
   ];
 
   const userMenuItems: MenuProps['items'] = [
-    { key: 'profile', label: <Link href="/profile">My Profile</Link> },
-    { key: 'donations', label: <Link href="/donations">My Donations</Link> },
-    { key: 'appointments', label: <Link href="/appointments">My Appointments</Link> },
-    { key: 'logout', label: 'Logout' },
+    {
+      key: 'profile',
+      icon: <ProfileOutlined />,
+      label: <Link href="/profile">My Profile</Link>
+    },
+    {
+      key: 'settings',
+      icon: <SettingOutlined />,
+      label: <Link href="/settings">Settings</Link>
+    },
+    {
+      key: 'divider',
+      type: 'divider'
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: <a onClick={logout}>Logout</a>
+    },
   ];
 
   const mobileMenuItems: MenuProps['items'] = [
     ...menuItems,
     { key: 'divider', type: 'divider' },
-    { key: 'login', label: <Link href="/login">Login</Link> },
-    { key: 'register', label: <Link href="/register">Register</Link> },
+    ...(isLoggedIn
+      ? [
+          { key: 'profile', label: <Link href="/profile">My Profile</Link> },
+          { key: 'settings', label: <Link href="/settings">Settings</Link> },
+          { key: 'logout', label: <a onClick={logout}>Logout</a> }
+        ]
+      : [
+          { key: 'login', label: <Link href="/login">Login</Link> },
+          { key: 'register', label: <Link href="/register">Register</Link> }
+        ]
+    ),
   ];
 
   return (
@@ -48,21 +75,29 @@ export default function Header() {
         </div>
         
         <div className="flex items-center">
-          {/* Desktop Auth Buttons */}
+          {/* Desktop Auth Buttons or User Menu */}
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/login">
-              <Button>Login</Button>
-            </Link>
-            <Link href="/register">
-              <Button type="primary" className="bg-red-600 hover:bg-red-700">Register</Button>
-            </Link>
-            
-            {/* User dropdown - uncomment when authentication is implemented */}
-            {/* <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-              <Button icon={<UserOutlined />} className="flex items-center">
-                <span className="ml-1">My Account</span>
-              </Button>
-            </Dropdown> */}
+            {isLoggedIn ? (
+              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+                <Button type="link" className="flex items-center px-2">
+                  <Space>
+                    <Avatar icon={<UserOutlined />} />
+                    <span className="max-w-[100px] truncate">
+                      {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.userName}
+                    </span>
+                  </Space>
+                </Button>
+              </Dropdown>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button>Login</Button>
+                </Link>
+                <Link href="/register">
+                  <Button type="primary" className="bg-red-600 hover:bg-red-700">Register</Button>
+                </Link>
+              </>
+            )}
           </div>
           
           {/* Mobile Menu */}
