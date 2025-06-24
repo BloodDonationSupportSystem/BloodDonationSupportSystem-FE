@@ -2,8 +2,25 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Layout, Menu, Button, Dropdown, Avatar, Space } from 'antd';
-import { UserOutlined, MenuOutlined, LogoutOutlined, ProfileOutlined, SettingOutlined } from '@ant-design/icons';
+import { Layout, Menu, Button, Dropdown, Avatar, Space, Badge } from 'antd';
+import { 
+  UserOutlined, 
+  MenuOutlined, 
+  LogoutOutlined, 
+  ProfileOutlined, 
+  SettingOutlined, 
+  HeartOutlined, 
+  DashboardOutlined, 
+  SearchOutlined, 
+  TeamOutlined, 
+  CalendarOutlined,
+  BellOutlined,
+  HistoryOutlined,
+  MedicineBoxOutlined,
+  TrophyOutlined,
+  LineChartOutlined,
+  CommentOutlined
+} from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { useAuth } from '@/context/AuthContext';
 
@@ -15,22 +32,106 @@ export default function Header() {
   const menuItems = [
     { key: 'home', label: <Link href="/">Home</Link> },
     { key: 'about', label: <Link href="/about">About Us</Link> },
-    { key: 'donate', label: <Link href="/donate">Donate</Link> },
-    { key: 'events', label: <Link href="/events">Events</Link> },
+    { key: 'donate', label: <Link href="/donate">Donate Blood</Link> },
+    { key: 'bloodInfo', label: <Link href="/blood-info">Blood Info</Link> },
     { key: 'blog', label: <Link href="/blog-post">Blog</Link> },
     { key: 'contact', label: <Link href="/contact">Contact</Link> },
   ];
 
-  const userMenuItems: MenuProps['items'] = [
+  // Member-specific menu items if user is logged in
+  const memberMenuItems: MenuProps['items'] = [
     {
-      key: 'profile',
-      icon: <ProfileOutlined />,
-      label: <Link href="/profile">My Profile</Link>
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: <Link href="/member/dashboard">Dashboard</Link>
     },
     {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: <Link href="/settings">Settings</Link>
+      type: 'group',
+      label: 'Donation Management',
+      children: [
+        {
+          key: 'donate',
+          icon: <HeartOutlined />,
+          label: <Link href="/member/blood-registration">Schedule Donation</Link>
+        },
+        {
+          key: 'appointments',
+          icon: <CalendarOutlined />,
+          label: <Link href="/member/appointments">My Appointments</Link>
+        },
+        {
+          key: 'history',
+          icon: <HistoryOutlined />,
+          label: <Link href="/member/donation-history">Donation History</Link>
+        },
+        {
+          key: 'availability',
+          icon: <CalendarOutlined />,
+          label: <Link href="/member/availability">Availability Settings</Link>
+        }
+      ]
+    },
+    {
+      type: 'group',
+      label: 'Blood Services',
+      children: [
+        {
+          key: 'bloodInfo',
+          icon: <SearchOutlined />,
+          label: <Link href="/member/blood-info">Blood Type Info</Link>
+        },
+        {
+          key: 'nearby',
+          icon: <TeamOutlined />,
+          label: <Link href="/member/nearby-search">Find Donors/Recipients</Link>
+        },
+        {
+          key: 'emergency',
+          icon: <MedicineBoxOutlined />,
+          label: <Link href="/member/emergency-request">Emergency Request</Link>
+        },
+        {
+          key: 'requests',
+          icon: <CommentOutlined />,
+          label: <Link href="/member/my-requests">My Blood Requests</Link>
+        }
+      ]
+    },
+    {
+      type: 'group',
+      label: 'My Account',
+      children: [
+        {
+          key: 'profile',
+          icon: <ProfileOutlined />,
+          label: <Link href="/member/profile">My Profile</Link>
+        },
+        {
+          key: 'achievements',
+          icon: <TrophyOutlined />,
+          label: <Link href="/member/achievements">Achievements</Link>
+        },
+        {
+          key: 'reports',
+          icon: <LineChartOutlined />,
+          label: <Link href="/member/reports">Health Reports</Link>
+        },
+        {
+          key: 'notifications',
+          icon: <BellOutlined />,
+          label: <Link href="/member/notifications">Notifications</Link>
+        },
+        {
+          key: 'settings',
+          icon: <SettingOutlined />,
+          label: <Link href="/member/settings">Settings</Link>
+        }
+      ]
+    },
+    {
+      key: 'community',
+      icon: <TeamOutlined />,
+      label: <Link href="/member/community">Community</Link>
     },
     {
       key: 'divider',
@@ -48,8 +149,17 @@ export default function Header() {
     { key: 'divider', type: 'divider' },
     ...(isLoggedIn
       ? [
-          { key: 'profile', label: <Link href="/profile">My Profile</Link> },
-          { key: 'settings', label: <Link href="/settings">Settings</Link> },
+          { key: 'dashboard', label: <Link href="/member/dashboard">Dashboard</Link> },
+          { key: 'donate', label: <Link href="/member/blood-registration">Schedule Donation</Link> },
+          { key: 'appointments', label: <Link href="/member/appointments">My Appointments</Link> },
+          { key: 'bloodInfo', label: <Link href="/member/blood-info">Blood Type Info</Link> },
+          { key: 'nearby', label: <Link href="/member/nearby-search">Find Donors/Recipients</Link> },
+          { key: 'emergency', label: <Link href="/member/emergency-request">Emergency Request</Link> },
+          { key: 'history', label: <Link href="/member/donation-history">Donation History</Link> },
+          { key: 'profile', label: <Link href="/member/profile">My Profile</Link> },
+          { key: 'achievements', label: <Link href="/member/achievements">Achievements</Link> },
+          { key: 'notifications', label: <Link href="/member/notifications">Notifications</Link> },
+          { key: 'settings', label: <Link href="/member/settings">Settings</Link> },
           { key: 'logout', label: <a onClick={logout}>Logout</a> }
         ]
       : [
@@ -78,16 +188,28 @@ export default function Header() {
           {/* Desktop Auth Buttons or User Menu */}
           <div className="hidden md:flex items-center gap-4">
             {isLoggedIn ? (
-              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                <Button type="link" className="flex items-center px-2">
-                  <Space>
-                    <Avatar icon={<UserOutlined />} />
-                    <span className="max-w-[100px] truncate">
-                      {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.userName}
-                    </span>
-                  </Space>
-                </Button>
-              </Dropdown>
+              <>
+                <Badge count={3} size="small">
+                  <Link href="/member/notifications">
+                    <Button 
+                      type="text" 
+                      shape="circle" 
+                      icon={<BellOutlined />} 
+                      className="mr-2" 
+                    />
+                  </Link>
+                </Badge>
+                <Dropdown menu={{ items: memberMenuItems }} placement="bottomRight">
+                  <Button type="link" className="flex items-center px-2">
+                    <Space>
+                      <Avatar icon={<UserOutlined />} />
+                      <span className="max-w-[100px] truncate">
+                        {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.userName}
+                      </span>
+                    </Space>
+                  </Button>
+                </Dropdown>
+              </>
             ) : (
               <>
                 <Link href="/login">
@@ -102,6 +224,17 @@ export default function Header() {
           
           {/* Mobile Menu */}
           <div className="md:hidden">
+            {isLoggedIn && (
+              <Badge count={3} size="small" className="mr-3">
+                <Link href="/member/notifications">
+                  <Button 
+                    type="text" 
+                    shape="circle" 
+                    icon={<BellOutlined />} 
+                  />
+                </Link>
+              </Badge>
+            )}
             <Dropdown menu={{ items: mobileMenuItems }} placement="bottomRight" trigger={['click']}>
               <Button icon={<MenuOutlined />} />
             </Dropdown>

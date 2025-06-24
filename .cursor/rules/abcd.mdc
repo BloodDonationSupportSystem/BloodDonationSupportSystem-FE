@@ -67,3 +67,16 @@ Coding standards, domain knowledge, and preferences that AI should follow.
 - Molecules should be composed of atoms and organisms.
 
 - Atoms should be the smallest building blocks of t
+
+- This is functional requirement of this project:
+'Software to support blood donation for 01 medical facility.
+- Home page introduces medical facility, documents on blood types, blog sharing experiences, ...
+- Function allows users to register blood type, time ready to donate blood.
+- Function allows people who need blood to look up information on suitable blood types to donate according to whole blood transfusion (blood type). In addition, the system also allows searching for blood types that can be transfused according to blood components (red blood cells, plasma, platelets).
+- Function allows searching for people who need blood and blood donors by distance.
+- Function allows registering cases of urgent blood need.
+- Manage the blood donation process from the time of sending a blood request until the completion of the blood donation. Manage cases that occur during the blood request process: available blood units, no available blood units need to connect with blood donors, ...
+- Manage the number of blood units available to the medical facility.
+- Function to remind recovery time between blood donations.
+- Manage user profiles, blood donation history.
+- Dashboard & Report.
