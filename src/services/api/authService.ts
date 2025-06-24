@@ -60,7 +60,7 @@ export const register = async (userData: RegisterRequest): Promise<RegisterRespo
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
-      return error.response.data as AuthResponse;
+      return { ...error.response.data, data: {} } as RegisterResponse;
     }
     throw error;
   }
@@ -72,7 +72,7 @@ export const login = async (credentials: LoginRequest): Promise<LoginResponse> =
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
-      return error.response.data as AuthResponse;
+      return { ...error.response.data, data: { accessToken: '', refreshToken: '', expiration: '', user: {} as User } } as LoginResponse;
     }
     throw error;
   }
