@@ -25,6 +25,22 @@ export interface DonorProfile {
   distanceKm: number;
 }
 
+export interface PendingAppointment {
+  id: string;
+  status: string;
+  preferredDate: string;
+  preferredTimeSlot: string;
+  locationName: string;
+  notes: string;
+}
+
+export interface EligibilityResponse {
+  isEligible: boolean;
+  message: string;
+  nextAvailableDonationDate: string | null;
+  pendingAppointment: PendingAppointment | null;
+}
+
 export interface DonorProfileRequest {
   dateOfBirth: string | null | undefined;
   gender: boolean;
@@ -99,6 +115,21 @@ export const getDonorProfile = async (userId: string): Promise<ApiResponse> => {
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
       return error.response.data as ApiResponse;
+    }
+    throw error;
+  }
+};
+
+export const checkEligibility = async (userId: string): Promise<ApiResponse<EligibilityResponse>> => {
+  try {
+    console.log(`Checking eligibility for user ${userId}`);
+    const response = await apiClient.get(`/DonorProfiles/check-eligibility/${userId}`);
+    console.log('Eligibility API response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error checking eligibility:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as ApiResponse<EligibilityResponse>;
     }
     throw error;
   }

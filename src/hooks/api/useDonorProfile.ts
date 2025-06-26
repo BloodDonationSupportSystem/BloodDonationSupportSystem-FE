@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as donorProfileService from '@/services/api/donorProfileService';
-import { DonorProfileUpdateRequest, DonorProfile } from '@/services/api/donorProfileService';
+import { DonorProfileUpdateRequest, DonorProfile, EligibilityResponse } from '@/services/api/donorProfileService';
 import { useAuth } from '@/context/AuthContext';
 
 interface UseDonorProfileReturn {
@@ -10,6 +10,9 @@ interface UseDonorProfileReturn {
   refetch: () => Promise<void>;
   updateProfile: (data: DonorProfileUpdateRequest) => Promise<boolean>;
   isUpdating: boolean;
+  eligibility: EligibilityResponse | null;
+  isCheckingEligibility: boolean;
+  checkEligibility: () => Promise<EligibilityResponse | null>;
 }
 
 export function useDonorProfile(): UseDonorProfileReturn {
@@ -18,6 +21,8 @@ export function useDonorProfile(): UseDonorProfileReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [eligibility, setEligibility] = useState<EligibilityResponse | null>(null);
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
 
   const fetchDonorProfile = async () => {
     if (!user?.id) {
@@ -69,6 +74,30 @@ export function useDonorProfile(): UseDonorProfileReturn {
     }
   };
 
+  const checkEligibility = async (): Promise<EligibilityResponse | null> => {
+    if (!user?.id) return null;
+    
+    setIsCheckingEligibility(true);
+    
+    try {
+      const response = await donorProfileService.checkEligibility(user.id);
+      
+      if (response.success && response.data) {
+        setEligibility(response.data);
+        return response.data;
+      } else {
+        setError(response.message || 'Failed to check eligibility');
+        return null;
+      }
+    } catch (err) {
+      console.error('Error checking eligibility:', err);
+      setError('An error occurred while checking your eligibility');
+      return null;
+    } finally {
+      setIsCheckingEligibility(false);
+    }
+  };
+
   useEffect(() => {
     fetchDonorProfile();
   }, [user?.id]);
@@ -79,6 +108,9 @@ export function useDonorProfile(): UseDonorProfileReturn {
     error,
     refetch: fetchDonorProfile,
     updateProfile,
-    isUpdating
+    isUpdating,
+    eligibility,
+    isCheckingEligibility,
+    checkEligibility
   };
 } 

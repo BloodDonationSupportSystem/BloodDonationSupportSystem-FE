@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Typography, Card, Alert, Spin } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useForm, SubmitHandler } from 'react-hook-form';
@@ -14,9 +14,20 @@ const { Title, Paragraph } = Typography;
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
   const router = useRouter();
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginRequest>();
+
+  // Check for redirect path stored in session storage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedPath = sessionStorage.getItem('redirectAfterLogin');
+      if (storedPath) {
+        setRedirectPath(storedPath);
+      }
+    }
+  }, []);
 
   const onSubmit: SubmitHandler<LoginRequest> = async (data) => {
     setLoading(true);
@@ -42,8 +53,16 @@ export default function LoginPage() {
       saveUserData(user);
       
       toast.success('Login successful!');
-      // Redirect to dashboard or home
-      router.push('/');
+      
+      // Clear the stored redirect path
+      if (typeof window !== 'undefined') {
+        // Redirect to stored path or dashboard
+        const redirectTo = redirectPath || '/';
+        sessionStorage.removeItem('redirectAfterLogin');
+        router.push(redirectTo);
+      } else {
+        router.push('/');
+      }
     } catch (err) {
       const errorMessage = 'An error occurred during login. Please try again.';
       setError(errorMessage);
@@ -65,6 +84,15 @@ export default function LoginPage() {
           <Paragraph className="text-gray-500">
             Welcome back! Please enter your credentials to continue.
           </Paragraph>
+          {redirectPath && (
+            <Alert
+              message="Authentication Required"
+              description="Please sign in to access the requested page."
+              type="info"
+              showIcon
+              className="mb-4 mt-2"
+            />
+          )}
         </div>
         
         {error && (

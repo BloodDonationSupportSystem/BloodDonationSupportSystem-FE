@@ -4,11 +4,23 @@ import BlogPostList from "../../components/BlogPostList";
 import { useBlogPosts } from "../../hooks/useBlogPosts";
 import Header from "../../components/Layout/Header";
 import Footer from "../../components/Layout/Footer";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 const { Title, Paragraph } = Typography;
 const { Option } = Select;
 
-export default function BlogPostPage() {
+export default function BlogPostRedirect() {
+  const router = useRouter();
+  
+  useEffect(() => {
+    router.replace('/blog');
+  }, [router]);
+  
+  return null;
+}
+
+export function BlogPostPage() {
   const {
     data,
     loading,

@@ -7,10 +7,13 @@ import {
   ScheduleOutlined, 
   TeamOutlined, 
   MedicineBoxOutlined,
-  ArrowRightOutlined
+  ArrowRightOutlined,
+  UserOutlined
 } from '@ant-design/icons';
+import Link from 'next/link';
 import Header from '@/components/Layout/Header';
 import Footer from '@/components/Layout/Footer';
+import RecentBlogPosts from '@/components/RecentBlogPosts';
 
 const { Content } = Layout;
 const { Title, Paragraph } = Typography;
@@ -33,9 +36,11 @@ export default function HomePage() {
                       Your donation can make a difference in someone's life. Join our community of donors and help save lives today.
                     </Paragraph>
                     <div className="flex flex-wrap gap-4">
-                      <Button type="primary" size="large" className="bg-red-600 hover:bg-red-700">
-                        Donate Now
-                      </Button>
+                      <Link href="/donate-blood">
+                        <Button type="primary" size="large" className="bg-red-600 hover:bg-red-700">
+                          Donate Now
+                        </Button>
+                      </Link>
                       <Button size="large">
                         Learn More
                       </Button>
@@ -152,25 +157,27 @@ export default function HomePage() {
               <Row gutter={[32, 32]}>
                 {[1, 2, 3].map((item) => (
                   <Col xs={24} md={8} key={item}>
-                    <Card 
-                      hoverable 
-                      className="shadow-sm hover:shadow-md transition-shadow"
-                      cover={<img alt={`Blood Drive ${item}`} src={`/img/banner/event-${item}.jpg`} className="h-48 object-cover" />}
-                    >
-                      <div className="mb-2">
-                        <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs font-medium">
-                          {new Date(2023, 6 + item, 10 + item).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                      <Title level={4}>Community Blood Drive #{item}</Title>
-                      <Paragraph className="text-gray-600 mb-4">
-                        Join us for our community blood drive. Every donation counts!
-                      </Paragraph>
-                      <div className="flex items-center text-gray-500">
-                        <ScheduleOutlined className="mr-2" />
-                        <span>9:00 AM - 5:00 PM</span>
-                      </div>
-                    </Card>
+                    <Link href={`/blog/${item}`}>
+                      <Card 
+                        hoverable 
+                        className="shadow-sm hover:shadow-md transition-shadow"
+                        cover={<img alt={`Blood Drive ${item}`} src={`/img/banner/event-${item}.jpg`} className="h-48 object-cover" />}
+                      >
+                        <div className="mb-2">
+                          <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs font-medium">
+                            {new Date(2023, 6 + item, 10 + item).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                        <Title level={4}>Community Blood Drive #{item}</Title>
+                        <Paragraph className="text-gray-600 mb-4">
+                          Join us for our community blood drive. Every donation counts!
+                        </Paragraph>
+                        <div className="flex items-center text-gray-500">
+                          <ScheduleOutlined className="mr-2" />
+                          <span>9:00 AM - 5:00 PM</span>
+                        </div>
+                      </Card>
+                    </Link>
                   </Col>
                 ))}
               </Row>
@@ -238,6 +245,9 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Recent Blog Posts */}
+          <RecentBlogPosts />
+
           {/* CTA Section */}
           <div className="py-16 bg-red-600 text-white">
             <div className="container mx-auto px-4 md:px-8 text-center">
@@ -245,9 +255,11 @@ export default function HomePage() {
               <Paragraph className="text-lg mb-8 max-w-2xl mx-auto">
                 Your blood donation can be the lifeline for someone in need. Schedule your donation today and be a hero.
               </Paragraph>
-              <Button size="large" className="bg-white text-red-600 hover:bg-gray-100">
-                Schedule a Donation
-              </Button>
+              <Link href="/donate-blood">
+                <Button size="large" className="bg-white text-red-600 hover:bg-gray-100">
+                  Schedule a Donation
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

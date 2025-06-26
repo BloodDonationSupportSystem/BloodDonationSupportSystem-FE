@@ -37,7 +37,7 @@ export default function Header() {
     if (pathname.includes('/about')) return 'about';
     if (pathname.includes('/donate')) return 'donate';
     if (pathname.includes('/blood-info')) return 'bloodInfo';
-    if (pathname.includes('/blog-post')) return 'blog';
+    if (pathname.includes('/blog')) return 'blog';
     if (pathname.includes('/contact')) return 'contact';
     return '';
   };
@@ -47,9 +47,9 @@ export default function Header() {
   const menuItems = [
     { key: 'home', label: <Link href="/">Home</Link> },
     { key: 'about', label: <Link href="/about">About Us</Link> },
-    { key: 'donate', label: <Link href="/donate">Donate Blood</Link> },
+    { key: 'donate', label: <Link href="/donate-blood">Donate Blood</Link> },
     { key: 'bloodInfo', label: <Link href="/blood-info">Blood Info</Link> },
-    { key: 'blog', label: <Link href="/blog-post">Blog</Link> },
+    { key: 'blog', label: <Link href="/blog">Blog</Link> },
     { key: 'contact', label: <Link href="/contact">Contact</Link> },
   ];
 
@@ -67,7 +67,7 @@ export default function Header() {
         {
           key: 'donate',
           icon: <HeartOutlined />,
-          label: <Link href="/member/blood-registration">Schedule Donation</Link>
+          label: <Link href="/member/donate-blood">Schedule Donation</Link>
         },
         {
           key: 'appointments',
@@ -165,7 +165,7 @@ export default function Header() {
     ...(isLoggedIn
       ? [
           { key: 'dashboard', label: <Link href="/member/dashboard">Dashboard</Link> },
-          { key: 'donate', label: <Link href="/member/blood-registration">Schedule Donation</Link> },
+          { key: 'donate', label: <Link href="/member/donate-blood">Schedule Donation</Link> },
           { key: 'appointments', label: <Link href="/member/appointments">My Appointments</Link> },
           { key: 'bloodInfo', label: <Link href="/member/blood-info">Blood Type Info</Link> },
           { key: 'nearby', label: <Link href="/member/nearby-search">Find Donors/Recipients</Link> },

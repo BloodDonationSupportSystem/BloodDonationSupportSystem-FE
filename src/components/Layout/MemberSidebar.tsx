@@ -37,9 +37,9 @@ export default function MemberSidebar() {
       label: 'Donation Management',
       children: [
         {
-          key: 'blood-registration',
+          key: 'donate-blood',
           icon: <HeartOutlined />,
-          label: <Link href="/member/blood-registration">Schedule Donation</Link>
+          label: <Link href="/donate-blood">Schedule Donation</Link>
         },
         {
           key: 'appointments',

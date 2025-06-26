@@ -8,6 +8,9 @@ import * as notificationsService from './notificationsService';
 import * as bloodGroupsService from './bloodGroupsService';
 import * as documentsService from './documentsService';
 import * as blogService from './blogService';
+import * as donationAppointmentService from './donationAppointmentService';
+import * as locationService from './locationService';
+import * as componentTypeService from './componentTypeService';
 
 // Export the API client
 export { apiClient };
@@ -20,7 +23,10 @@ export {
   notificationsService,
   bloodGroupsService,
   documentsService,
-  blogService
+  blogService,
+  donationAppointmentService,
+  locationService,
+  componentTypeService
 };
 
 // Re-export types from services
@@ -39,7 +45,8 @@ export type {
   DonorProfile,
   DonorProfileRequest,
   DonorProfileUpdateRequest,
-  ApiResponse
+  ApiResponse,
+  EligibilityResponse
 } from './donorProfileService';
 
 export type {
@@ -73,3 +80,26 @@ export type {
   BlogPost,
   PaginatedBlogPostsResponse
 } from './blogService'; 
+
+export type {
+  // Location types
+  Location,
+  LocationsResponse,
+  OperatingHour,
+  Capacity
+} from './locationService';
+
+export type {
+  // Component type
+  ComponentType,
+  ComponentTypesResponse
+} from './componentTypeService';
+
+export type {
+  // Donation appointment types
+  AvailableTimeSlot,
+  AvailableTimeSlotResponse,
+  DonationAppointmentRequest,
+  DonationAppointmentRequestResponse,
+  PendingAppointment
+} from './donationAppointmentService'; 

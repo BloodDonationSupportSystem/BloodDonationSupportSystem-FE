@@ -5,15 +5,10 @@ import axios from 'axios';
 export interface BlogPost {
   id: string;
   title: string;
-  content: string;
-  summary: string;
-  imageUrl: string;
-  publishDate: string;
-  author: string;
+  body: string;
+  isPublished: boolean;
   authorId: string;
-  tags: string[];
-  slug: string;
-  viewCount: number;
+  authorName: string;
   createdTime: string;
   lastUpdatedTime: string;
 }
@@ -33,19 +28,64 @@ export interface PaginatedBlogPostsResponse {
   hasNextPage: boolean;
 }
 
+export interface BlogPostResponse {
+  success: boolean;
+  message: string;
+  statusCode: number;
+  errors: string[];
+  data: BlogPost;
+  count: number;
+}
+
+export interface BlogPostsQueryParams {
+  pageNumber?: number;
+  pageSize?: number;
+  authorId?: string;
+  isPublished?: boolean;
+  searchTerm?: string;
+  createdDateFrom?: string;
+  createdDateTo?: string;
+  updatedDateFrom?: string;
+  updatedDateTo?: string;
+  sortBy?: string;
+  sortAscending?: boolean;
+}
+
 /**
- * Fetches paginated blog posts
+ * Fetches paginated blog posts with optional filters
  */
-export const getBlogPosts = async (pageNumber: number = 1, pageSize: number = 10): Promise<PaginatedBlogPostsResponse> => {
+export const getBlogPosts = async (params: BlogPostsQueryParams = {}): Promise<PaginatedBlogPostsResponse> => {
   try {
-    const response = await apiClient.get<PaginatedBlogPostsResponse>('/blogPosts', {
-      params: {
-        PageNumber: pageNumber,
-        PageSize: pageSize
-      }
+    const defaultParams = {
+      PageNumber: 1,
+      PageSize: 10,
+      SortBy: 'createdTime',
+      SortAscending: false
+    };
+
+    const requestParams = {
+      ...defaultParams,
+      PageNumber: params.pageNumber || defaultParams.PageNumber,
+      PageSize: params.pageSize || defaultParams.PageSize,
+      SortBy: params.sortBy || defaultParams.SortBy,
+      SortAscending: params.sortAscending !== undefined ? params.sortAscending : defaultParams.SortAscending,
+      ...(params.authorId && { AuthorId: params.authorId }),
+      ...(params.isPublished !== undefined && { IsPublished: params.isPublished }),
+      ...(params.searchTerm && { SearchTerm: params.searchTerm }),
+      ...(params.createdDateFrom && { CreatedDateFrom: params.createdDateFrom }),
+      ...(params.createdDateTo && { CreatedDateTo: params.createdDateTo }),
+      ...(params.updatedDateFrom && { UpdatedDateFrom: params.updatedDateFrom }),
+      ...(params.updatedDateTo && { UpdatedDateTo: params.updatedDateTo }),
+    };
+
+    console.log('Fetching blog posts with params:', requestParams);
+    const response = await apiClient.get<PaginatedBlogPostsResponse>('/BlogPosts', {
+      params: requestParams
     });
+    console.log('Blog posts API response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('Error fetching blog posts:', error);
     if (axios.isAxiosError(error) && error.response) {
       return error.response.data as PaginatedBlogPostsResponse;
     }
@@ -56,13 +96,15 @@ export const getBlogPosts = async (pageNumber: number = 1, pageSize: number = 10
 /**
  * Fetches a single blog post by ID
  */
-export const getBlogPostById = async (id: string): Promise<PaginatedBlogPostsResponse> => {
+export const getBlogPostById = async (id: string): Promise<BlogPostResponse> => {
   try {
-    const response = await apiClient.get<PaginatedBlogPostsResponse>(`/blogPosts/${id}`);
+    const response = await apiClient.get<BlogPostResponse>(`/BlogPosts/${id}`);
+    console.log('Blog post detail response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('Error fetching blog post by ID:', error);
     if (axios.isAxiosError(error) && error.response) {
-      return error.response.data as PaginatedBlogPostsResponse;
+      return error.response.data as BlogPostResponse;
     }
     throw new Error(`Failed to fetch blog post with ID: ${id}`);
   }
