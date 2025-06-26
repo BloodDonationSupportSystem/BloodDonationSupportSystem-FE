@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
-import { Typography, Tabs, Select, Button, Card, Spin, Table, Image, Space, Alert } from 'antd';
-import { SearchOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Typography, Tabs, Select, Button, Card, Spin, Table, Space, Alert, Divider, List } from 'antd';
+import { SearchOutlined, InfoCircleOutlined, FileTextOutlined } from '@ant-design/icons';
+import axios from 'axios';
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
@@ -56,19 +56,56 @@ const componentCompatibility = {
   },
 };
 
+// Interface for blood type document
+interface BloodTypeDocument {
+  id: string;
+  title: string;
+  content: string;
+  documentType: string;
+  createdDate: string;
+  createdBy: string;
+  createdByName: string;
+}
+
+interface DocumentsResponse {
+  data: BloodTypeDocument[];
+  count: number;
+  success: boolean;
+  message: string;
+  statusCode: number;
+  errors: string[];
+}
+
 export default function BloodInfoPage() {
-  const { user, isLoggedIn, loading } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
   const [selectedBloodType, setSelectedBloodType] = useState<string | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<string>('redCells');
   const [activeTab, setActiveTab] = useState('whole');
+  const [documentsTab, setDocumentsTab] = useState('compatibility');
+  const [bloodTypeDocuments, setBloodTypeDocuments] = useState<BloodTypeDocument[]>([]);
+  const [selectedDocument, setSelectedDocument] = useState<BloodTypeDocument | null>(null);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
 
-  // Redirect if not logged in
+  // Fetch blood type documents
   useEffect(() => {
-    if (!loading && !isLoggedIn) {
-      router.push('/login');
-    }
-  }, [isLoggedIn, loading, router]);
+    const fetchDocuments = async () => {
+      try {
+        setLoadingDocuments(true);
+        const response = await axios.get<DocumentsResponse>('/api/Documents/all');
+        if (response.data.success) {
+          setBloodTypeDocuments(response.data.data);
+        } else {
+          console.error('Failed to fetch documents:', response.data.message);
+        }
+      } catch (error) {
+        console.error('Error fetching documents:', error);
+      } finally {
+        setLoadingDocuments(false);
+      }
+    };
+
+    fetchDocuments();
+  }, []);
 
   const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -76,6 +113,16 @@ export default function BloodInfoPage() {
     // No actual search needed as we have the data locally
     // This is just for user experience
     console.log('Searching for compatibility with blood type:', selectedBloodType);
+    
+    // If there's a document for the selected blood type, select it
+    if (selectedBloodType && documentsTab === 'documents') {
+      const document = bloodTypeDocuments.find(doc => 
+        doc.title.includes(selectedBloodType)
+      );
+      if (document) {
+        setSelectedDocument(document);
+      }
+    }
   };
 
   const getCompatibilityData = () => {
@@ -190,101 +237,232 @@ export default function BloodInfoPage() {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spin size="large" />
-      </div>
-    );
-  }
+  const renderDocumentsList = () => {
+    if (loadingDocuments) {
+      return <Spin size="large" className="my-8 flex justify-center" />;
+    }
 
-  // If not logged in (and redirecting), don't render the content
-  if (!isLoggedIn || !user) {
-    return null;
-  }
+    return (
+      <List
+        itemLayout="horizontal"
+        dataSource={bloodTypeDocuments}
+        renderItem={(document) => (
+          <List.Item
+            className="cursor-pointer hover:bg-gray-50 transition-colors"
+            onClick={() => setSelectedDocument(document)}
+          >
+            <List.Item.Meta
+              avatar={<FileTextOutlined className="text-2xl text-red-500" />}
+              title={<Text strong>{document.title}</Text>}
+              description={`Created: ${new Date(document.createdDate).toLocaleDateString()}`}
+            />
+          </List.Item>
+        )}
+      />
+    );
+  };
+
+  const renderSelectedDocument = () => {
+    if (!selectedDocument) {
+      return (
+        <Alert
+          message="No Document Selected"
+          description="Please select a blood type document from the list to view detailed information."
+          type="info"
+          showIcon
+        />
+      );
+    }
+
+    return (
+      <Card className="shadow-sm">
+        <Title level={4}>{selectedDocument.title}</Title>
+        <Divider />
+        <div 
+          className="blood-document-content"
+          dangerouslySetInnerHTML={{ __html: selectedDocument.content }}
+        />
+      </Card>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="container mx-auto max-w-5xl">
-        <div className="text-center mb-8">
-          <Title level={2}>Blood Type Compatibility</Title>
-          <Paragraph className="text-gray-500">
-            Search for compatible blood types for whole blood transfusion or specific blood components
-          </Paragraph>
-        </div>
-
-        <Card className="shadow-md mb-8">
-          <Tabs 
-            defaultActiveKey="whole" 
-            onChange={(key) => setActiveTab(key)}
-            className="mb-6"
-          >
-            <TabPane tab="Whole Blood" key="whole">
-              <Paragraph>
-                Whole blood contains all components of blood, including red cells, white cells, and plasma.
-                Compatibility is determined primarily by the ABO blood group and Rh factor.
-              </Paragraph>
-            </TabPane>
-            <TabPane tab="Blood Components" key="components">
-              <div className="mb-4">
-                <Select
-                  placeholder="Select Blood Component"
-                  style={{ width: 200 }}
-                  value={selectedComponent}
-                  onChange={(value) => setSelectedComponent(value)}
-                >
-                  <Option value="redCells">Red Blood Cells</Option>
-                  <Option value="plasma">Plasma</Option>
-                  <Option value="platelets">Platelets</Option>
-                </Select>
-              </div>
-              <Paragraph>
-                Blood components have different compatibility rules compared to whole blood.
-                Red cells follow the same rules as whole blood, but plasma and platelets have reverse compatibility.
-              </Paragraph>
-            </TabPane>
-          </Tabs>
-
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-grow">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Select Blood Type
-              </label>
-              <Select
-                placeholder="Select Blood Type"
-                style={{ width: '100%' }}
-                options={bloodTypeOptions}
-                onChange={(value) => setSelectedBloodType(value)}
-              />
-            </div>
-            <Button 
-              type="primary"
-              icon={<SearchOutlined />}
-              onClick={handleSearch}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Search Compatibility
-            </Button>
-          </div>
-        </Card>
-
-        {renderResults()}
-
-        <Card className="mt-8 bg-blue-50">
-          <div className="flex items-start">
-            <InfoCircleOutlined className="text-blue-500 text-xl mt-1 mr-3" />
-            <div>
-              <Title level={5} className="text-blue-700">Important Note</Title>
-              <Paragraph className="text-blue-600">
-                This information is provided as a general guide. In emergency situations, 
-                medical professionals will determine the most appropriate blood type for transfusion 
-                based on testing and specific patient needs. Always consult with healthcare providers 
-                for medical decisions.
-              </Paragraph>
-            </div>
-          </div>
-        </Card>
+    <>
+      <div className="text-center mb-6">
+        <Title level={2}>Blood Type Information</Title>
+        <Paragraph className="text-gray-500">
+          Learn about blood types, compatibility, and detailed medical information
+        </Paragraph>
       </div>
-    </div>
+
+      <Card className="mb-6">
+        <Tabs 
+          defaultActiveKey="compatibility" 
+          onChange={(key) => setDocumentsTab(key)}
+          className="mb-6"
+        >
+          <TabPane tab="Compatibility Calculator" key="compatibility">
+            <Tabs 
+              defaultActiveKey="whole" 
+              onChange={(key) => setActiveTab(key)}
+              className="mb-6"
+            >
+              <TabPane tab="Whole Blood" key="whole">
+                <Paragraph>
+                  Whole blood contains all components of blood, including red cells, white cells, and plasma.
+                  Compatibility is determined primarily by the ABO blood group and Rh factor.
+                </Paragraph>
+              </TabPane>
+              <TabPane tab="Blood Components" key="components">
+                <div className="mb-4">
+                  <Select
+                    placeholder="Select Blood Component"
+                    style={{ width: 200 }}
+                    value={selectedComponent}
+                    onChange={(value) => setSelectedComponent(value)}
+                  >
+                    <Option value="redCells">Red Blood Cells</Option>
+                    <Option value="plasma">Plasma</Option>
+                    <Option value="platelets">Platelets</Option>
+                  </Select>
+                </div>
+                <Paragraph>
+                  Blood components have different compatibility rules compared to whole blood.
+                  Red cells follow the same rules as whole blood, but plasma and platelets have reverse compatibility.
+                </Paragraph>
+              </TabPane>
+            </Tabs>
+          </TabPane>
+          <TabPane tab="Blood Type Documents" key="documents">
+            <Paragraph>
+              Access detailed medical information about different blood types, their characteristics, 
+              and medical significance.
+            </Paragraph>
+          </TabPane>
+        </Tabs>
+
+        <div className="flex flex-col md:flex-row gap-4 items-end">
+          <div className="flex-grow">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Select Blood Type
+            </label>
+            <Select
+              placeholder="Select Blood Type"
+              style={{ width: '100%' }}
+              options={bloodTypeOptions}
+              onChange={(value) => setSelectedBloodType(value)}
+            />
+          </div>
+          <Button 
+            type="primary"
+            icon={<SearchOutlined />}
+            onClick={handleSearch}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            {documentsTab === 'compatibility' ? 'Search Compatibility' : 'Find Document'}
+          </Button>
+        </div>
+      </Card>
+
+      {documentsTab === 'compatibility' ? (
+        renderResults()
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-1">
+            <Card title="Blood Type Documents" className="shadow-sm">
+              {renderDocumentsList()}
+            </Card>
+          </div>
+          <div className="md:col-span-2">
+            {renderSelectedDocument()}
+          </div>
+        </div>
+      )}
+
+      <Card className="mt-6 bg-blue-50">
+        <div className="flex items-start">
+          <InfoCircleOutlined className="text-blue-500 text-xl mt-1 mr-3" />
+          <div>
+            <Title level={5} className="text-blue-700">Important Note</Title>
+            <Paragraph className="text-blue-600">
+              This information is provided as a general guide. In emergency situations, 
+              medical professionals will determine the most appropriate blood type for transfusion 
+              based on testing and specific patient needs. Always consult with healthcare providers 
+              for medical decisions.
+            </Paragraph>
+          </div>
+        </div>
+      </Card>
+
+      <style jsx global>{`
+        .blood-document-content h1 {
+          font-size: 1.8rem;
+          color: #d32f2f;
+          margin-bottom: 1rem;
+        }
+        
+        .blood-document-content h2 {
+          font-size: 1.4rem;
+          color: #d32f2f;
+          margin-top: 1.5rem;
+          margin-bottom: 0.75rem;
+        }
+        
+        .blood-document-content h3 {
+          font-size: 1.2rem;
+          font-weight: 600;
+          margin-bottom: 0.5rem;
+        }
+        
+        .blood-document-content .summary {
+          background-color: #f8f8f8;
+          padding: 1rem;
+          border-radius: 0.5rem;
+          margin-bottom: 1.5rem;
+        }
+        
+        .blood-document-content ul {
+          list-style-type: disc;
+          padding-left: 1.5rem;
+          margin-bottom: 1rem;
+        }
+        
+        .blood-document-content li {
+          margin-bottom: 0.5rem;
+        }
+        
+        .blood-document-content section {
+          margin-bottom: 2rem;
+        }
+        
+        .blood-document-content .compatibility-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+        }
+        
+        .blood-document-content .can-donate,
+        .blood-document-content .can-receive {
+          background-color: #f1f5f9;
+          padding: 1rem;
+          border-radius: 0.5rem;
+        }
+        
+        .blood-document-content .can-donate {
+          border-left: 4px solid #15803d;
+        }
+        
+        .blood-document-content .can-receive {
+          border-left: 4px solid #b91c1c;
+        }
+        
+        .blood-document-content .medical-relevance {
+          background-color: #f0f9ff;
+          padding: 1rem;
+          border-radius: 0.5rem;
+          border-left: 4px solid #0369a1;
+        }
+      `}</style>
+    </>
   );
 } 

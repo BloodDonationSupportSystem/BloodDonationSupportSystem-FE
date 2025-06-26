@@ -1,9 +1,16 @@
 import { PaginatedBlogPostsResponse } from "@/types/blog";
+import apiClient from "./api/apiConfig";
 
 export async function fetchBlogPosts(pageNumber: number = 1, pageSize: number = 10): Promise<PaginatedBlogPostsResponse> {
-  const res = await fetch(`http://localhost:5222/api/BlogPosts?PageNumber=${pageNumber}&PageSize=${pageSize}`);
-  if (!res.ok) {
+  try {
+    const response = await apiClient.get(`/blogPosts`, {
+      params: {
+        PageNumber: pageNumber,
+        PageSize: pageSize
+      }
+    });
+    return response.data;
+  } catch (error) {
     throw new Error("Failed to fetch blog posts");
   }
-  return res.json();
 } 

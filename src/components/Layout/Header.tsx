@@ -23,11 +23,26 @@ import {
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { useAuth } from '@/context/AuthContext';
+import { usePathname } from 'next/navigation';
 
 const { Header: AntHeader } = Layout;
 
 export default function Header() {
   const { user, isLoggedIn, logout } = useAuth();
+  const pathname = usePathname() || '';
+
+  // Get the active menu item based on the current path
+  const getActiveMenuItem = () => {
+    if (pathname === '/') return 'home';
+    if (pathname.includes('/about')) return 'about';
+    if (pathname.includes('/donate')) return 'donate';
+    if (pathname.includes('/blood-info')) return 'bloodInfo';
+    if (pathname.includes('/blog-post')) return 'blog';
+    if (pathname.includes('/contact')) return 'contact';
+    return '';
+  };
+
+  const activeMenuItem = getActiveMenuItem();
 
   const menuItems = [
     { key: 'home', label: <Link href="/">Home</Link> },
@@ -180,7 +195,7 @@ export default function Header() {
           
           {/* Desktop Navigation */}
           <div className="hidden md:block">
-            <Menu mode="horizontal" className="border-0" selectedKeys={['home']} items={menuItems} />
+            <Menu mode="horizontal" className="border-0" selectedKeys={[activeMenuItem]} items={menuItems} />
           </div>
         </div>
         
@@ -223,7 +238,7 @@ export default function Header() {
           </div>
           
           {/* Mobile Menu */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center">
             {isLoggedIn && (
               <Badge count={3} size="small" className="mr-3">
                 <Link href="/member/notifications">

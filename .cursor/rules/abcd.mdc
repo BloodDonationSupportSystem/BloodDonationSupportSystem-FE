@@ -6,6 +6,7 @@ alwaysApply: true
 Coding standards, domain knowledge, and preferences that AI should follow.
 - Follow best practices for code organization and structure.
 - Use meaningful variable and function names.
+- Ensure this project must follow Single Page Load Application Principle.
 - Write comments to explain complex logic.
 - Always reference with template(reference-only-do-not-modify) folder.
 - Keep functions small and focused on a single task.

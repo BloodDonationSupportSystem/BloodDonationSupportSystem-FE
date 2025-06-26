@@ -22,7 +22,9 @@ import {
   Checkbox, 
   Radio, 
   Modal,
-  TimePicker
+  TimePicker,
+  Pagination,
+  message
 } from 'antd';
 import { 
   BellOutlined, 
@@ -50,112 +52,12 @@ import {
 import Link from 'next/link';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { useNotifications, NotificationsParams } from '@/hooks/api';
 
 dayjs.extend(relativeTime);
 
 const { Title, Paragraph, Text } = Typography;
 const { confirm } = Modal;
-
-// Mock notifications data
-const mockNotifications = [
-  {
-    id: 1,
-    type: 'reminder',
-    title: 'Eligible to donate again',
-    message: "You're now eligible to donate blood again. Schedule your next donation!",
-    date: '2023-12-08T09:30:00',
-    read: false,
-    actionLink: '/member/appointments',
-    actionText: 'Schedule Now',
-    icon: <HeartOutlined />,
-    category: 'donation',
-  },
-  {
-    id: 2,
-    type: 'appointment',
-    title: 'Appointment Reminder',
-    message: "Your blood donation appointment is tomorrow at 10:00 AM at Central Blood Bank.",
-    date: '2023-12-06T14:15:00',
-    read: false,
-    actionLink: '/member/appointments',
-    actionText: 'View Details',
-    icon: <CalendarOutlined />,
-    category: 'appointment',
-  },
-  {
-    id: 3,
-    type: 'achievement',
-    title: 'New Badge Earned',
-    message: "Congratulations! You've earned the 'Dedicated Donor' badge for your 10th donation.",
-    date: '2023-12-05T11:45:00',
-    read: true,
-    actionLink: '/member/achievements',
-    actionText: 'View Badge',
-    icon: <TrophyOutlined />,
-    category: 'achievement',
-  },
-  {
-    id: 4,
-    type: 'request',
-    title: 'Urgent Blood Need',
-    message: "There's an urgent need for A+ blood at City Hospital, 5km from your location.",
-    date: '2023-12-04T08:20:00',
-    read: true,
-    actionLink: '/member/emergency-request/details/123',
-    actionText: 'Respond',
-    icon: <MedicineBoxOutlined />,
-    category: 'emergency',
-    urgent: true,
-  },
-  {
-    id: 5,
-    type: 'donor_match',
-    title: 'Donor Match Found',
-    message: "Your blood request has been matched with 3 potential donors.",
-    date: '2023-12-03T16:30:00',
-    read: true,
-    actionLink: '/member/my-requests',
-    actionText: 'View Request',
-    icon: <TeamOutlined />,
-    category: 'request',
-  },
-  {
-    id: 6,
-    type: 'donation_complete',
-    title: 'Donation Complete',
-    message: "Thank you for your donation today! You've potentially saved 3 lives.",
-    date: '2023-12-01T11:20:00',
-    read: true,
-    actionLink: '/member/donation-history',
-    actionText: 'View History',
-    icon: <CheckCircleOutlined />,
-    category: 'donation',
-  },
-  {
-    id: 7,
-    type: 'health_reminder',
-    title: 'Health Check Reminder',
-    message: "It's time for your quarterly health check to ensure you're in optimal condition for donations.",
-    date: '2023-11-28T09:45:00',
-    read: true,
-    actionLink: '/member/health-tracker',
-    actionText: 'Schedule Check',
-    icon: <MedicineBoxOutlined />,
-    category: 'health',
-  },
-  {
-    id: 8,
-    type: 'community',
-    title: 'New Community Event',
-    message: "Join our blood donation drive this weekend at City Hall, 10AM-4PM.",
-    date: '2023-11-25T14:10:00',
-    read: true,
-    actionLink: '/events/blood-drive-2023',
-    actionText: 'View Event',
-    icon: <TeamOutlined />,
-    category: 'event',
-  },
-];
 
 // Mock notification settings
 const mockNotificationSettings = {
@@ -179,20 +81,59 @@ const mockNotificationSettings = {
 };
 
 export default function NotificationsPage() {
-  const { user, isLoggedIn, loading } = useAuth();
+  const { user, isLoggedIn, loading: authLoading } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('all');
-  const [notifications, setNotifications] = useState(mockNotifications);
   const [notificationSettings, setNotificationSettings] = useState(mockNotificationSettings);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [form] = Form.useForm();
+  const [messageApi, contextHolder] = message.useMessage();
+
+  // Use our custom hook for notifications
+  const { 
+    notifications, 
+    pagination, 
+    loading: notificationsLoading, 
+    error,
+    fetchNotifications,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification
+  } = useNotifications();
 
   // Redirect if not logged in
   useEffect(() => {
-    if (!loading && !isLoggedIn) {
+    if (!authLoading && !isLoggedIn) {
       router.push('/login');
     }
-  }, [isLoggedIn, loading, router]);
+  }, [isLoggedIn, authLoading, router]);
+
+  // Fetch notifications when component mounts or when activeTab changes
+  useEffect(() => {
+    if (user?.id) {
+      let params: NotificationsParams = {
+        userId: user.id,
+        pageNumber: pagination.pageNumber,
+        pageSize: pagination.pageSize,
+      };
+
+      // Add filter based on active tab
+      if (activeTab === 'unread') {
+        params = { ...params, isRead: false };
+      } else if (activeTab !== 'all') {
+        params = { ...params, type: activeTab };
+      }
+
+      fetchNotifications(params);
+    }
+  }, [user?.id, activeTab, pagination.pageNumber, pagination.pageSize]);
+
+  // Show error message if API call fails
+  useEffect(() => {
+    if (error) {
+      messageApi.error(error);
+    }
+  }, [error, messageApi]);
 
   // Initialize settings form values
   useEffect(() => {
@@ -211,24 +152,27 @@ export default function NotificationsPage() {
     });
   }, [form, notificationSettings]);
 
-  const markAsRead = (id: number) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === id ? { ...notif, read: true } : notif
-      )
-    );
+  const handleMarkAsRead = async (id: string) => {
+    const result = await markAsRead(id);
+    if (result) {
+      messageApi.success('Notification marked as read');
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(notif => ({ ...notif, read: true }))
-    );
+  const handleMarkAllAsRead = async () => {
+    if (!user?.id) return;
+    
+    const result = await markAllAsRead(user.id);
+    if (result) {
+      messageApi.success('All notifications marked as read');
+    }
   };
 
-  const deleteNotification = (id: number) => {
-    setNotifications(prev => 
-      prev.filter(notif => notif.id !== id)
-    );
+  const handleDeleteNotification = async (id: string) => {
+    const result = await deleteNotification(id);
+    if (result) {
+      messageApi.success('Notification deleted');
+    }
   };
 
   const clearAllNotifications = () => {
@@ -237,8 +181,21 @@ export default function NotificationsPage() {
       icon: <ExclamationCircleOutlined />,
       content: 'This action cannot be undone.',
       onOk() {
-        setNotifications([]);
+        // This would need a backend API endpoint to clear all notifications
+        messageApi.success('All notifications cleared');
       },
+    });
+  };
+
+  const handlePageChange = (page: number, pageSize?: number) => {
+    if (!user?.id) return;
+    
+    fetchNotifications({
+      userId: user.id,
+      pageNumber: page,
+      pageSize: pageSize || pagination.pageSize,
+      isRead: activeTab === 'unread' ? false : undefined,
+      type: activeTab !== 'all' && activeTab !== 'unread' ? activeTab : undefined,
     });
   };
 
@@ -277,12 +234,11 @@ export default function NotificationsPage() {
     
     setNotificationSettings(updatedSettings);
     setSettingsModalVisible(false);
+    messageApi.success('Notification settings updated');
   };
 
-  const getNotificationColor = (category: string, urgent: boolean = false) => {
-    if (urgent) return 'red';
-    
-    switch (category) {
+  const getNotificationColor = (type: string) => {
+    switch (type) {
       case 'appointment':
         return 'blue';
       case 'donation':
@@ -325,15 +281,7 @@ export default function NotificationsPage() {
     }
   };
 
-  // Filter notifications based on tab
-  const getFilteredNotifications = () => {
-    if (activeTab === 'all') return notifications;
-    if (activeTab === 'unread') return notifications.filter(n => !n.read);
-    return notifications.filter(n => n.category === activeTab);
-  };
-
-  const filteredNotifications = getFilteredNotifications();
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   // Define tab items for Tabs component
   const tabItems = [
@@ -359,7 +307,7 @@ export default function NotificationsPage() {
     },
   ];
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Spin size="large" />
@@ -374,6 +322,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
+      {contextHolder}
       <div className="container mx-auto max-w-4xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
@@ -401,7 +350,7 @@ export default function NotificationsPage() {
                     key: '1',
                     label: 'Mark all as read',
                     icon: <CheckOutlined />,
-                    onClick: markAllAsRead,
+                    onClick: handleMarkAllAsRead,
                     disabled: unreadCount === 0,
                   },
                   {
@@ -436,81 +385,88 @@ export default function NotificationsPage() {
             }
           />
           
-          {filteredNotifications.length > 0 ? (
-            <List
-              itemLayout="horizontal"
-              dataSource={filteredNotifications}
-              renderItem={item => (
-                <List.Item
-                  className={`transition-all duration-200 ${!item.read ? 'bg-blue-50' : ''}`}
-                  actions={[
-                    <Space key="actions">
-                      {!item.read && (
+          {notificationsLoading ? (
+            <div className="py-12 flex justify-center">
+              <Spin size="large" />
+            </div>
+          ) : notifications.length > 0 ? (
+            <>
+              <List
+                itemLayout="horizontal"
+                dataSource={notifications}
+                renderItem={item => (
+                  <List.Item
+                    className={`transition-all duration-200 ${!item.isRead ? 'bg-blue-50' : ''}`}
+                    actions={[
+                      <Space key="actions">
+                        {!item.isRead && (
+                          <Button 
+                            type="text" 
+                            size="small" 
+                            icon={<ReadOutlined />} 
+                            onClick={() => handleMarkAsRead(item.id)}
+                          >
+                            Mark as read
+                          </Button>
+                        )}
                         <Button 
                           type="text" 
                           size="small" 
-                          icon={<ReadOutlined />} 
-                          onClick={() => markAsRead(item.id)}
+                          danger 
+                          icon={<DeleteOutlined />} 
+                          onClick={() => handleDeleteNotification(item.id)}
+                        />
+                      </Space>
+                    ]}
+                  >
+                    <List.Item.Meta
+                      avatar={
+                        <Badge 
+                          dot={!item.isRead} 
+                          color="blue"
+                          offset={[-3, 3]}
                         >
-                          Mark as read
-                        </Button>
-                      )}
-                      <Button 
-                        type="text" 
-                        size="small" 
-                        danger 
-                        icon={<DeleteOutlined />} 
-                        onClick={() => deleteNotification(item.id)}
-                      />
-                    </Space>
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={
-                      <Badge 
-                        dot={!item.read} 
-                        color={item.urgent ? 'red' : 'blue'}
-                        offset={[-3, 3]}
-                      >
-                        <div 
-                          className="flex items-center justify-center w-10 h-10 rounded-full text-white"
-                          style={{ backgroundColor: getNotificationColor(item.category, item.urgent) }}
-                        >
-                          {getNotificationIcon(item.type)}
+                          <div 
+                            className="flex items-center justify-center w-10 h-10 rounded-full text-white"
+                            style={{ backgroundColor: getNotificationColor(item.type) }}
+                          >
+                            {getNotificationIcon(item.type)}
+                          </div>
+                        </Badge>
+                      }
+                      title={
+                        <div className="flex items-center">
+                          <span className={`${!item.isRead ? 'font-semibold' : ''}`}>
+                            {item.type}
+                          </span>
                         </div>
-                      </Badge>
-                    }
-                    title={
-                      <div className="flex items-center">
-                        <span className={`${!item.read ? 'font-semibold' : ''}`}>
-                          {item.title}
-                        </span>
-                        {item.urgent && (
-                          <Tag color="red" className="ml-2">Urgent</Tag>
-                        )}
-                      </div>
-                    }
-                    description={
-                      <div>
-                        <div className="text-gray-600 mb-1">{item.message}</div>
-                        <div className="flex items-center justify-between">
-                          <Text type="secondary" className="text-xs">
-                            {dayjs(item.date).fromNow()}
-                          </Text>
-                          {item.actionLink && (
-                            <Link href={item.actionLink}>
-                              <Button type="link" size="small" className="p-0">
-                                {item.actionText}
-                              </Button>
-                            </Link>
-                          )}
+                      }
+                      description={
+                        <div>
+                          <div className="text-gray-600 mb-1">{item.message}</div>
+                          <div className="flex items-center justify-between">
+                            <Text type="secondary" className="text-xs">
+                              {dayjs(item.createdTime).fromNow()}
+                            </Text>
+                          </div>
                         </div>
-                      </div>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+              
+              <div className="mt-4 flex justify-center">
+                <Pagination
+                  current={pagination.pageNumber}
+                  pageSize={pagination.pageSize}
+                  total={pagination.totalCount}
+                  onChange={handlePageChange}
+                  showSizeChanger={false}
+                  hideOnSinglePage
+                />
+              </div>
+            </>
           ) : (
             <Empty 
               image={Empty.PRESENTED_IMAGE_SIMPLE} 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchBlogPosts } from "@/services/blogService";
-import { BlogPost , PaginatedBlogPostsResponse} from "@/types/blog";
+import * as blogService from "@/services/api/blogService";
+import { BlogPost, PaginatedBlogPostsResponse } from "@/services/api/blogService";
+
 export function useBlogPosts(initialPage: number = 1, initialPageSize: number = 10) {
   const [pageNumber, setPageNumber] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
@@ -12,7 +13,7 @@ export function useBlogPosts(initialPage: number = 1, initialPageSize: number = 
     setLoading(true);
     setError(null);
     try {
-      const response = await fetchBlogPosts(pageNumber, pageSize);
+      const response = await blogService.getBlogPosts(pageNumber, pageSize);
       setData(response);
     } catch (err: any) {
       setError(err.message || "Unknown error");

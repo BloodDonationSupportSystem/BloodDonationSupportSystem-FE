@@ -1,6 +1,5 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:5222/api/Auth';
+import apiClient from './apiConfig';
+import axios, { AxiosError } from 'axios';
 
 // Types
 export interface RegisterRequest {
@@ -56,7 +55,7 @@ export interface RegisterResponse extends AuthResponse {
 // API functions
 export const register = async (userData: RegisterRequest): Promise<RegisterResponse> => {
   try {
-    const response = await axios.post(`${API_URL}/register`, userData);
+    const response = await apiClient.post('/auth/register', userData);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -68,7 +67,7 @@ export const register = async (userData: RegisterRequest): Promise<RegisterRespo
 
 export const login = async (credentials: LoginRequest): Promise<LoginResponse> => {
   try {
-    const response = await axios.post(`${API_URL}/login`, credentials);
+    const response = await apiClient.post('/auth/login', credentials);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -117,7 +116,7 @@ export const logout = () => {
 
 // Initialize axios interceptors for auth
 export const setupAuthInterceptor = () => {
-  axios.interceptors.request.use(
+  apiClient.interceptors.request.use(
     (config) => {
       const token = getAccessToken();
       if (token) {
