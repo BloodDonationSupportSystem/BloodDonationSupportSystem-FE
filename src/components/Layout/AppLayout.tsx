@@ -1,36 +1,35 @@
 'use client';
 
-import React from 'react';
-import { Layout } from 'antd';
+import { ReactNode } from 'react';
 import Header from './Header';
 import Footer from './Footer';
+import { useAuth } from '@/context/AuthContext';
 import { usePathname } from 'next/navigation';
 
-const { Content } = Layout;
-
 interface AppLayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-export default function AppLayout({ children }: AppLayoutProps) {
-  const pathname = usePathname();
+const AppLayout = ({ children }: AppLayoutProps) => {
+  const { user } = useAuth();
+  const pathname = usePathname() || '';
   
-  // Kiểm tra nếu đang ở trang login hoặc register
-  const isAuthPage = pathname === '/login' || pathname === '/register';
+  // Check if current path is admin or staff route
+  const isAdminRoute = pathname.startsWith('/admin');
+  const isStaffRoute = pathname.startsWith('/staff');
   
-  // Nếu đang ở trang login hoặc register, chỉ hiển thị nội dung
-  if (isAuthPage) {
+  // Don't show header and footer for admin and staff routes
+  if (isAdminRoute || isStaffRoute) {
     return <>{children}</>;
   }
-  
-  // Ngược lại, hiển thị đầy đủ layout với Header và Footer
+
   return (
-    <Layout className="min-h-screen flex flex-col">
+    <>
       <Header />
-      <Content className="flex-grow">
-        {children}
-      </Content>
+      <main>{children}</main>
       <Footer />
-    </Layout>
+    </>
   );
-} 
+};
+
+export default AppLayout; 

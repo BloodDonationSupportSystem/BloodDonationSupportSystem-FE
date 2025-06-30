@@ -6,17 +6,17 @@ import { SearchOutlined, InfoCircleOutlined, FileTextOutlined, ExperimentOutline
 import Link from 'next/link';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import { useBloodDocuments, BloodTypeDocument } from '@/hooks/api/useBloodDocuments';
+import { useBloodDocuments } from '@/hooks/api/useBloodDocuments';
+import { Document } from '@/services/api/documentsService';
 import { RootState } from '@/store';
 import { selectDocument } from '@/store/slices/bloodInfoSlice';
 
 const { Title, Paragraph, Text } = Typography;
-const { TabPane } = Tabs;
 
 export default function BloodInfoPage() {
   const dispatch = useDispatch();
   const { data: bloodTypeDocuments, isLoading, error } = useBloodDocuments();
-  const [selectedDoc, setSelectedDoc] = useState<BloodTypeDocument | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [activeTab, setActiveTab] = useState<string>('bloodTypes');
 
   // Filter documents by type
@@ -35,7 +35,7 @@ export default function BloodInfoPage() {
   }, [bloodTypeDocuments, selectedDoc, activeTab, bloodTypes, componentTypes]);
 
   // Handle document selection
-  const handleSelectDocument = (document: BloodTypeDocument) => {
+  const handleSelectDocument = (document: Document) => {
     setSelectedDoc(document);
     dispatch(selectDocument(document));
   };
@@ -60,7 +60,7 @@ export default function BloodInfoPage() {
     }
   }, [error]);
 
-  const renderDocumentsList = (documents: BloodTypeDocument[]) => {
+  const renderDocumentsList = (documents: Document[]) => {
     if (isLoading) {
       return <Spin size="large" className="my-8 flex justify-center" />;
     }
@@ -128,24 +128,25 @@ export default function BloodInfoPage() {
           onChange={handleTabChange}
           className="mb-6"
           type="card"
-        >
-          <TabPane 
-            tab={
-              <span>
-                <FileTextOutlined /> Blood Types
-              </span>
-            } 
-            key="bloodTypes"
-          />
-          <TabPane 
-            tab={
-              <span>
-                <ExperimentOutlined /> Blood Components
-              </span>
-            } 
-            key="components"
-          />
-        </Tabs>
+          items={[
+            {
+              key: 'bloodTypes',
+              label: (
+                <span>
+                  <FileTextOutlined /> Blood Types
+                </span>
+              )
+            },
+            {
+              key: 'components',
+              label: (
+                <span>
+                  <ExperimentOutlined /> Blood Components
+                </span>
+              )
+            }
+          ]}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="md:col-span-1">

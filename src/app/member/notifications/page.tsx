@@ -24,7 +24,7 @@ import {
   Modal,
   TimePicker,
   Pagination,
-  message
+  App
 } from 'antd';
 import { 
   BellOutlined, 
@@ -52,7 +52,8 @@ import {
 import Link from 'next/link';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useNotifications, NotificationsParams } from '@/hooks/api';
+import { useNotifications } from '@/hooks/api';
+import { NotificationsParams } from '@/services/api/notificationsService';
 
 dayjs.extend(relativeTime);
 
@@ -87,7 +88,7 @@ export default function NotificationsPage() {
   const [notificationSettings, setNotificationSettings] = useState(mockNotificationSettings);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [form] = Form.useForm();
-  const [messageApi, contextHolder] = message.useMessage();
+  const { message, modal } = App.useApp();
 
   // Use our custom hook for notifications
   const { 
@@ -131,9 +132,9 @@ export default function NotificationsPage() {
   // Show error message if API call fails
   useEffect(() => {
     if (error) {
-      messageApi.error(error);
+      message.error(error);
     }
-  }, [error, messageApi]);
+  }, [error, message]);
 
   // Initialize settings form values
   useEffect(() => {
@@ -155,7 +156,7 @@ export default function NotificationsPage() {
   const handleMarkAsRead = async (id: string) => {
     const result = await markAsRead(id);
     if (result) {
-      messageApi.success('Notification marked as read');
+      message.success('Notification marked as read');
     }
   };
 
@@ -164,25 +165,25 @@ export default function NotificationsPage() {
     
     const result = await markAllAsRead(user.id);
     if (result) {
-      messageApi.success('All notifications marked as read');
+      message.success('All notifications marked as read');
     }
   };
 
   const handleDeleteNotification = async (id: string) => {
     const result = await deleteNotification(id);
     if (result) {
-      messageApi.success('Notification deleted');
+      message.success('Notification deleted');
     }
   };
 
   const clearAllNotifications = () => {
-    confirm({
+    modal.confirm({
       title: 'Are you sure you want to clear all notifications?',
       icon: <ExclamationCircleOutlined />,
       content: 'This action cannot be undone.',
       onOk() {
         // This would need a backend API endpoint to clear all notifications
-        messageApi.success('All notifications cleared');
+        message.success('All notifications cleared');
       },
     });
   };
@@ -234,7 +235,7 @@ export default function NotificationsPage() {
     
     setNotificationSettings(updatedSettings);
     setSettingsModalVisible(false);
-    messageApi.success('Notification settings updated');
+    message.success('Notification settings updated');
   };
 
   const getNotificationColor = (type: string) => {
@@ -322,7 +323,6 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
-      {contextHolder}
       <div className="container mx-auto max-w-4xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>

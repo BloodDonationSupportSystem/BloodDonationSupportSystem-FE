@@ -93,6 +93,14 @@ const BlogPage = () => {
     return html.replace(/<[^>]*>?/gm, '').substring(0, maxLength) + '...';
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4">
       <div className="mb-8">
@@ -187,13 +195,6 @@ const BlogPage = () => {
           </div>
         )}
       </Card>
-
-      {/* Loading state */}
-      {loading && (
-        <div className="flex justify-center py-20">
-          <Spin size="large" tip="Loading blog posts..." />
-        </div>
-      )}
 
       {/* Error state */}
       {error && !loading && (

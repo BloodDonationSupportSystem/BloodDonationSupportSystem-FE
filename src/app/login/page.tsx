@@ -4,37 +4,30 @@ import React, { useState, useEffect } from 'react';
 import { Typography, Card, Alert, Spin } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { login, LoginRequest, saveAuthTokens, saveUserData } from '@/services/api/authService';
+import { LoginRequest } from '@/services/api/authService';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
+import { useAuth } from '@/context/AuthContext';
 
 const { Title, Paragraph } = Typography;
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [redirectPath, setRedirectPath] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams?.get('redirect') || '/';
+  const { login, redirectBasedOnRole } = useAuth();
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginRequest>();
-
-  // Check for redirect path stored in session storage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedPath = sessionStorage.getItem('redirectAfterLogin');
-      if (storedPath) {
-        setRedirectPath(storedPath);
-      }
-    }
-  }, []);
 
   const onSubmit: SubmitHandler<LoginRequest> = async (data) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await login(data);
+      const response = await login(data.userName, data.password);
       
       if (!response.success) {
         if (response.errors && response.errors.length > 0) {
@@ -47,21 +40,17 @@ export default function LoginPage() {
         return;
       }
 
-      // Save auth data
-      const { accessToken, refreshToken, expiration, user } = response.data;
-      saveAuthTokens(accessToken, refreshToken, expiration);
-      saveUserData(user);
-      
       toast.success('Login successful!');
       
-      // Clear the stored redirect path
-      if (typeof window !== 'undefined') {
-        // Redirect to stored path or dashboard
-        const redirectTo = redirectPath || '/';
-        sessionStorage.removeItem('redirectAfterLogin');
-        router.push(redirectTo);
+      // Check if user is admin and redirect accordingly
+      if (response.data.user.roleName === 'Admin') {
+        router.push('/admin');
+      } else if (response.data.user.roleName === 'Staff') {
+        router.push('/staff');
+      } else if (redirectPath !== '/') {
+        router.push(redirectPath);
       } else {
-        router.push('/');
+        router.push('/member/dashboard');
       }
     } catch (err) {
       const errorMessage = 'An error occurred during login. Please try again.';

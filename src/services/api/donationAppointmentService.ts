@@ -73,10 +73,20 @@ export const createDonationAppointmentRequest = async (
   requestData: DonationAppointmentRequest
 ): Promise<DonationAppointmentRequestResponse> => {
   try {
-    const response = await apiClient.post('/DonationAppointmentRequests/donor-request', requestData);
+    console.log('Sending donation request to API:', JSON.stringify(requestData, null, 2));
+    
+    // Remove undefined fields from the request
+    const cleanedData = Object.fromEntries(
+      Object.entries(requestData).filter(([_, value]) => value !== undefined)
+    );
+    
+    const response = await apiClient.post('/DonationAppointmentRequests/donor-request', cleanedData);
+    console.log('API response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('Error creating donation request:', error);
     if (axios.isAxiosError(error) && error.response) {
+      console.error('Error response data:', error.response.data);
       return error.response.data as DonationAppointmentRequestResponse;
     }
     throw error;

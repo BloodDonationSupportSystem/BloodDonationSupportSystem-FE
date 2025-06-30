@@ -8,7 +8,7 @@ interface UseDonationAppointmentReturn {
   isSubmitting: boolean;
   error: string | null;
   successMessage: string | null;
-  fetchAvailableTimeSlots: (locationId: string, date: Date) => Promise<void>;
+  fetchAvailableTimeSlots: (locationId: string, date: Date, days?: number) => Promise<void>;
   submitDonationRequest: (request: DonationAppointmentRequest) => Promise<boolean>;
 }
 
@@ -19,13 +19,13 @@ export function useDonationAppointment(): UseDonationAppointmentReturn {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const fetchAvailableTimeSlots = async (locationId: string, date: Date) => {
+  const fetchAvailableTimeSlots = async (locationId: string, date: Date, days: number = 1) => {
     try {
       setIsLoading(true);
       setError(null);
       
       const formattedDate = format(date, 'yyyy-MM-dd');
-      const response = await donationAppointmentService.getAvailableTimeSlots(locationId, formattedDate);
+      const response = await donationAppointmentService.getAvailableTimeSlots(locationId, formattedDate, days);
       
       if (response.success && response.data) {
         setAvailableTimeSlots(response.data);

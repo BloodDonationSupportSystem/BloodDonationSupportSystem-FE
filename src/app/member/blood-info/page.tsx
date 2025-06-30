@@ -8,7 +8,7 @@ import axios from 'axios';
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
-const { TabPane } = Tabs;
+
 
 // Blood compatibility data
 const wholeBloodCompatibility = {
@@ -300,46 +300,66 @@ export default function BloodInfoPage() {
           defaultActiveKey="compatibility" 
           onChange={(key) => setDocumentsTab(key)}
           className="mb-6"
-        >
-          <TabPane tab="Compatibility Calculator" key="compatibility">
-            <Tabs 
-              defaultActiveKey="whole" 
-              onChange={(key) => setActiveTab(key)}
-              className="mb-6"
-            >
-              <TabPane tab="Whole Blood" key="whole">
+          items={[
+            {
+              key: 'compatibility',
+              label: 'Compatibility Calculator',
+              children: (
+                <Tabs 
+                  defaultActiveKey="whole" 
+                  onChange={(key) => setActiveTab(key)}
+                  className="mb-6"
+                  items={[
+                    {
+                      key: 'whole',
+                      label: 'Whole Blood',
+                      children: (
+                        <Paragraph>
+                          Whole blood contains all components of blood, including red cells, white cells, and plasma.
+                          Compatibility is determined primarily by the ABO blood group and Rh factor.
+                        </Paragraph>
+                      )
+                    },
+                    {
+                      key: 'components',
+                      label: 'Blood Components',
+                      children: (
+                        <div>
+                          <div className="mb-4">
+                            <Select
+                              placeholder="Select Blood Component"
+                              style={{ width: 200 }}
+                              value={selectedComponent}
+                              onChange={(value) => setSelectedComponent(value)}
+                            >
+                              <Option value="redCells">Red Blood Cells</Option>
+                              <Option value="plasma">Plasma</Option>
+                              <Option value="platelets">Platelets</Option>
+                            </Select>
+                          </div>
+                          <Paragraph>
+                            Blood components have different compatibility rules compared to whole blood.
+                            Red cells follow the same rules as whole blood, but plasma and platelets have reverse compatibility.
+                          </Paragraph>
+                        </div>
+                      )
+                    }
+                  ]}
+                />
+              )
+            },
+            {
+              key: 'documents',
+              label: 'Blood Type Documents',
+              children: (
                 <Paragraph>
-                  Whole blood contains all components of blood, including red cells, white cells, and plasma.
-                  Compatibility is determined primarily by the ABO blood group and Rh factor.
+                  Access detailed medical information about different blood types, their characteristics, 
+                  and medical significance.
                 </Paragraph>
-              </TabPane>
-              <TabPane tab="Blood Components" key="components">
-                <div className="mb-4">
-                  <Select
-                    placeholder="Select Blood Component"
-                    style={{ width: 200 }}
-                    value={selectedComponent}
-                    onChange={(value) => setSelectedComponent(value)}
-                  >
-                    <Option value="redCells">Red Blood Cells</Option>
-                    <Option value="plasma">Plasma</Option>
-                    <Option value="platelets">Platelets</Option>
-                  </Select>
-                </div>
-                <Paragraph>
-                  Blood components have different compatibility rules compared to whole blood.
-                  Red cells follow the same rules as whole blood, but plasma and platelets have reverse compatibility.
-                </Paragraph>
-              </TabPane>
-            </Tabs>
-          </TabPane>
-          <TabPane tab="Blood Type Documents" key="documents">
-            <Paragraph>
-              Access detailed medical information about different blood types, their characteristics, 
-              and medical significance.
-            </Paragraph>
-          </TabPane>
-        </Tabs>
+              )
+            }
+          ]}
+        />
 
         <div className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-grow">

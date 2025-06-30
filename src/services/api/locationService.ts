@@ -33,6 +33,38 @@ export interface Capacity {
   lastUpdatedTime: string;
 }
 
+export interface CreateCapacityRequest {
+  locationId: string;
+  timeSlot: string;
+  totalCapacity: number;
+  dayOfWeek: number;
+  effectiveDate: string;
+  expiryDate: string;
+  notes: string;
+  isActive: boolean;
+}
+
+export interface CreateMultipleCapacitiesRequest {
+  locationId: string;
+  totalCapacity: number;
+  startDayOfWeek: number;
+  endDayOfWeek: number;
+  effectiveDate: string;
+  expiryDate: string;
+  notes: string;
+  isActive: boolean;
+}
+
+export interface UpdateCapacityRequest {
+  timeSlot: string;
+  totalCapacity: number;
+  dayOfWeek: number;
+  effectiveDate: string;
+  expiryDate: string;
+  notes: string;
+  isActive: boolean;
+}
+
 export interface StaffAssignment {
   id: string;
   locationId: string;
@@ -100,6 +132,84 @@ export const getLocationById = async (locationId: string): Promise<ApiResponse<L
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
       return error.response.data as ApiResponse<Location>;
+    }
+    throw error;
+  }
+};
+
+// Get all capacities for a location
+export const getLocationCapacities = async (locationId: string): Promise<ApiResponse<Capacity[]>> => {
+  try {
+    const response = await apiClient.get(`/Locations/${locationId}/capacities`);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as ApiResponse<Capacity[]>;
+    }
+    throw error;
+  }
+};
+
+// Create a new capacity for a location
+export const createLocationCapacity = async (
+  locationId: string, 
+  data: CreateCapacityRequest
+): Promise<ApiResponse<Capacity>> => {
+  try {
+    const response = await apiClient.post(`/Locations/${locationId}/capacities`, data);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as ApiResponse<Capacity>;
+    }
+    throw error;
+  }
+};
+
+// Update an existing capacity
+export const updateLocationCapacity = async (
+  locationId: string,
+  capacityId: string,
+  data: UpdateCapacityRequest
+): Promise<ApiResponse<Capacity>> => {
+  try {
+    const response = await apiClient.put(`/Locations/${locationId}/capacities/${capacityId}`, data);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as ApiResponse<Capacity>;
+    }
+    throw error;
+  }
+};
+
+// Delete a capacity
+export const deleteLocationCapacity = async (
+  locationId: string,
+  capacityId: string
+): Promise<ApiResponse<any>> => {
+  try {
+    const response = await apiClient.delete(`/Locations/${locationId}/capacities/${capacityId}`);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as ApiResponse<any>;
+    }
+    throw error;
+  }
+};
+
+// Create multiple capacities for a location
+export const createMultipleLocationCapacities = async (
+  locationId: string, 
+  data: CreateMultipleCapacitiesRequest
+): Promise<ApiResponse<Capacity[]>> => {
+  try {
+    const response = await apiClient.post(`/Locations/${locationId}/capacities/multiple`, data);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as ApiResponse<Capacity[]>;
     }
     throw error;
   }

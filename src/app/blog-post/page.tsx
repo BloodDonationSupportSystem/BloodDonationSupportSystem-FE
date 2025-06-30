@@ -44,8 +44,8 @@ export function BlogPostPage() {
         </div>
         <div className="max-w-4xl mx-auto">
           {loading && (
-            <div className="flex justify-center my-8">
-              <Spin size="large" tip="Loading..." />
+            <div className="flex justify-center items-center min-h-[400px]">
+              <Spin size="large" />
             </div>
           )}
           {error && (

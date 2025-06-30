@@ -60,8 +60,8 @@ export default function BlogDetailPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto p-4 flex justify-center items-center min-h-[50vh]">
-        <Spin size="large" tip="Loading blog post..." />
+      <div className="flex justify-center items-center min-h-[400px]">
+        <Spin size="large" />
       </div>
     );
   }
@@ -105,15 +105,22 @@ export default function BlogDetailPage() {
   return (
     <div className="container mx-auto p-4">
       {/* Breadcrumb navigation */}
-      <Breadcrumb className="mb-6">
-        <Breadcrumb.Item>
-          <Link href="/">Home</Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          <Link href="/blog">Blog</Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>{post.title}</Breadcrumb.Item>
-      </Breadcrumb>
+      <Breadcrumb
+        className="mb-4"
+        items={[
+          {
+            title: 'Home',
+            href: '/'
+          },
+          {
+            title: 'Blog',
+            href: '/blog'
+          },
+          {
+            title: post.title || 'Blog Post',
+          },
+        ]}
+      />
 
       {/* Back button */}
       <Button 

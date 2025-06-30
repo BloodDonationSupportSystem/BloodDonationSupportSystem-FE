@@ -11,6 +11,7 @@ import * as blogService from './blogService';
 import * as donationAppointmentService from './donationAppointmentService';
 import * as locationService from './locationService';
 import * as componentTypeService from './componentTypeService';
+import * as userService from './userService';
 
 // Export the API client
 export { apiClient };
@@ -26,7 +27,8 @@ export {
   blogService,
   donationAppointmentService,
   locationService,
-  componentTypeService
+  componentTypeService,
+  userService
 };
 
 // Re-export types from services
@@ -86,7 +88,10 @@ export type {
   Location,
   LocationsResponse,
   OperatingHour,
-  Capacity
+  Capacity,
+  CreateCapacityRequest,
+  UpdateCapacityRequest,
+  StaffAssignment
 } from './locationService';
 
 export type {
@@ -101,5 +106,16 @@ export type {
   AvailableTimeSlotResponse,
   DonationAppointmentRequest,
   DonationAppointmentRequestResponse,
-  PendingAppointment
-} from './donationAppointmentService'; 
+  PendingAppointment,
+  TimeSlot
+} from './donationAppointmentService';
+
+export type {
+  // User types
+  Staff,
+  StaffLocation,
+  UsersResponse,
+  StaffsResponse,
+  StaffResponse,
+  RegisterStaffWithLocationRequest
+} from './userService'; 

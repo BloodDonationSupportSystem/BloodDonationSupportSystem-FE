@@ -8,7 +8,7 @@ import { SearchOutlined, UserOutlined, EnvironmentOutlined, PhoneOutlined, MailO
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
-const { TabPane } = Tabs;
+
 
 // Mock data for donors and recipients
 const mockDonors = [
@@ -306,101 +306,109 @@ export default function NearbySearchPage() {
               setSearchPerformed(false);
               form.resetFields();
             }}
-          >
-            <TabPane tab="Find Donors" key="donors">
-              <Form
-                form={form}
-                layout="vertical"
-                onFinish={onFinish}
-                initialValues={{ maxDistance: 10 }}
-              >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Form.Item
-                    name="bloodType"
-                    label="Blood Type"
+            items={[
+              {
+                key: 'donors',
+                label: 'Find Donors',
+                children: (
+                  <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={onFinish}
+                    initialValues={{ maxDistance: 10 }}
                   >
-                    <Select placeholder="Select blood type">
-                      {bloodTypes.map(type => (
-                        <Option key={type} value={type}>{type}</Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Form.Item
+                        name="bloodType"
+                        label="Blood Type"
+                      >
+                        <Select placeholder="Select blood type">
+                          {bloodTypes.map(type => (
+                            <Option key={type} value={type}>{type}</Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
 
-                  <Form.Item
-                    name="maxDistance"
-                    label="Maximum Distance (km)"
-                    rules={[{ required: true, message: 'Please enter maximum distance' }]}
+                      <Form.Item
+                        name="maxDistance"
+                        label="Maximum Distance (km)"
+                        rules={[{ required: true, message: 'Please enter maximum distance' }]}
+                      >
+                        <InputNumber min={1} max={100} style={{ width: '100%' }} />
+                      </Form.Item>
+
+                      <Form.Item label=" " className="flex items-end">
+                        <Button 
+                          type="primary" 
+                          htmlType="submit"
+                          icon={<SearchOutlined />}
+                          className="bg-red-600 hover:bg-red-700 w-full"
+                        >
+                          Search Donors
+                        </Button>
+                      </Form.Item>
+                    </div>
+                  </Form>
+                )
+              },
+              {
+                key: 'recipients',
+                label: 'Find Recipients',
+                children: (
+                  <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={onFinish}
+                    initialValues={{ maxDistance: 10, urgency: 'all' }}
                   >
-                    <InputNumber min={1} max={100} style={{ width: '100%' }} />
-                  </Form.Item>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <Form.Item
+                        name="bloodType"
+                        label="Blood Type"
+                      >
+                        <Select placeholder="Select blood type">
+                          {bloodTypes.map(type => (
+                            <Option key={type} value={type}>{type}</Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
 
-                  <Form.Item label=" " className="flex items-end">
-                    <Button 
-                      type="primary" 
-                      htmlType="submit"
-                      icon={<SearchOutlined />}
-                      className="bg-red-600 hover:bg-red-700 w-full"
-                    >
-                      Search Donors
-                    </Button>
-                  </Form.Item>
-                </div>
-              </Form>
-            </TabPane>
-            
-            <TabPane tab="Find Recipients" key="recipients">
-              <Form
-                form={form}
-                layout="vertical"
-                onFinish={onFinish}
-                initialValues={{ maxDistance: 10, urgency: 'all' }}
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Form.Item
-                    name="bloodType"
-                    label="Blood Type"
-                  >
-                    <Select placeholder="Select blood type">
-                      {bloodTypes.map(type => (
-                        <Option key={type} value={type}>{type}</Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
+                      <Form.Item
+                        name="maxDistance"
+                        label="Maximum Distance (km)"
+                        rules={[{ required: true, message: 'Please enter maximum distance' }]}
+                      >
+                        <InputNumber min={1} max={100} style={{ width: '100%' }} />
+                      </Form.Item>
 
-                  <Form.Item
-                    name="maxDistance"
-                    label="Maximum Distance (km)"
-                    rules={[{ required: true, message: 'Please enter maximum distance' }]}
-                  >
-                    <InputNumber min={1} max={100} style={{ width: '100%' }} />
-                  </Form.Item>
+                      <Form.Item
+                        name="urgency"
+                        label="Urgency Level"
+                      >
+                        <Select>
+                          <Option value="all">All Levels</Option>
+                          <Option value="high">High</Option>
+                          <Option value="medium">Medium</Option>
+                          <Option value="low">Low</Option>
+                        </Select>
+                      </Form.Item>
 
-                  <Form.Item
-                    name="urgency"
-                    label="Urgency Level"
-                  >
-                    <Select>
-                      <Option value="all">All Levels</Option>
-                      <Option value="high">High</Option>
-                      <Option value="medium">Medium</Option>
-                      <Option value="low">Low</Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item label=" " className="flex items-end">
-                    <Button 
-                      type="primary" 
-                      htmlType="submit"
-                      icon={<SearchOutlined />}
-                      className="bg-red-600 hover:bg-red-700 w-full"
-                    >
-                      Search Recipients
-                    </Button>
-                  </Form.Item>
-                </div>
-              </Form>
-            </TabPane>
-          </Tabs>
+                      <Form.Item label=" " className="flex items-end">
+                        <Button 
+                          type="primary" 
+                          htmlType="submit"
+                          icon={<SearchOutlined />}
+                          className="bg-red-600 hover:bg-red-700 w-full"
+                        >
+                          Search Recipients
+                        </Button>
+                      </Form.Item>
+                    </div>
+                  </Form>
+                )
+              }
+            ]}
+          />
         </Card>
 
         {searchType === 'donors' ? (

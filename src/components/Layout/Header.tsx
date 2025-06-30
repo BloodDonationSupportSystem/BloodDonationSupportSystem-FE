@@ -155,7 +155,8 @@ export default function Header() {
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: <a onClick={logout}>Logout</a>
+      label: <span className="cursor-pointer">Logout</span>,
+      onClick: () => logout()
     },
   ];
 
@@ -175,7 +176,7 @@ export default function Header() {
           { key: 'achievements', label: <Link href="/member/achievements">Achievements</Link> },
           { key: 'notifications', label: <Link href="/member/notifications">Notifications</Link> },
           { key: 'settings', label: <Link href="/member/settings">Settings</Link> },
-          { key: 'logout', label: <a onClick={logout}>Logout</a> }
+          { key: 'logout', label: <span className="cursor-pointer">Logout</span>, onClick: () => logout() }
         ]
       : [
           { key: 'login', label: <Link href="/login">Login</Link> },

@@ -8,12 +8,14 @@ Coding standards, domain knowledge, and preferences that AI should follow.
 - Use meaningful variable and function names.
 - Ensure this project must follow Single Page Load Application Principle.
 - Write comments to explain complex logic.
+- All about time will follow Vietname timezone.
 - Always reference with template(reference-only-do-not-modify) folder.
 - Keep functions small and focused on a single task.
 - Remember this project use Ant Design.
 - Use TypeScript types and interfaces for better type safety.
 - Project's theme color should be like any medical application.
 - Always use Tailwind CSS and Ant Design for styling.
+- Never use mock data.
 - Never use raw CSS or inline styles.
 - Write unit tests for critical components and logic.
 - Follow the DRY (Don't Repeat Yourself) principle.
