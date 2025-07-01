@@ -11,18 +11,24 @@ export interface DonorProfile {
   lastHealthCheckDate: string | null;
   totalDonations: number;
   address: string;
-  latitude: string;
-  longitude: string;
+  latitude: string | null;
+  longitude: string | null;
   userId: string;
   userName: string;
-  bloodGroupId: string;
-  bloodGroupName: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  email: string;
+  bloodGroupId: string | null;
+  bloodGroupName: string | null;
   createdTime: string;
-  lastUpdatedTime: string;
+  lastUpdatedTime: string | null;
   nextAvailableDonationDate: string | null;
   isAvailableForEmergency: boolean;
-  preferredDonationTime: string;
+  preferredDonationTime: string | null;
   distanceKm: number;
+  isEligible: boolean;
+  donationType: string | null;
 }
 
 export interface PendingAppointment {
@@ -42,36 +48,29 @@ export interface EligibilityResponse {
 }
 
 export interface DonorProfileRequest {
-  dateOfBirth: string | null | undefined;
+  dateOfBirth: string;
   gender: boolean;
-  lastDonationDate: string | null | undefined;
+  lastDonationDate?: string | null;
   healthStatus: string;
-  lastHealthCheckDate: string | null | undefined;
-  totalDonations: number;
+  lastHealthCheckDate?: string | null;
+  totalDonations?: number;
   address: string;
-  latitude: string;
-  longitude: string;
+  latitude?: string;
+  longitude?: string;
   userId: string;
   bloodGroupId: string;
-  nextAvailableDonationDate: string | null | undefined;
-  isAvailableForEmergency: boolean;
-  preferredDonationTime: string;
+  nextAvailableDonationDate?: string | null;
+  isAvailableForEmergency?: boolean;
+  preferredDonationTime?: string;
+  donationType?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phoneNumber?: string;
 }
 
-export interface DonorProfileUpdateRequest {
-  dateOfBirth: string | null | undefined;
-  gender: boolean;
-  lastDonationDate: string | null | undefined;
-  healthStatus: string;
-  lastHealthCheckDate: string | null | undefined;
-  totalDonations: number;
-  address: string;
-  latitude: string;
-  longitude: string;
-  bloodGroupId: string;
-  nextAvailableDonationDate: string | null | undefined;
-  isAvailableForEmergency: boolean;
-  preferredDonationTime: string;
+export interface DonorProfileUpdateRequest extends DonorProfileRequest {
+  // Any additional fields specific to updates
 }
 
 export interface ApiResponse<T = any> {
@@ -81,6 +80,12 @@ export interface ApiResponse<T = any> {
   errors: string[];
   data: T;
   count: number;
+  totalCount?: number;
+  pageNumber?: number;
+  pageSize?: number;
+  totalPages?: number;
+  hasPreviousPage?: boolean;
+  hasNextPage?: boolean;
 }
 
 // API functions
@@ -108,13 +113,14 @@ export const updateDonorProfile = async (profileId: string, profileData: DonorPr
   }
 };
 
-export const getDonorProfile = async (userId: string): Promise<ApiResponse> => {
+export const getDonorProfile = async (userId: string): Promise<ApiResponse<DonorProfile>> => {
   try {
-    const response = await apiClient.get(`/donorProfiles/user/${userId}`);
+    const response = await apiClient.get<ApiResponse<DonorProfile>>(`/DonorProfiles/user/${userId}`);
     return response.data;
   } catch (error) {
+    console.error('Error fetching donor profile:', error);
     if (axios.isAxiosError(error) && error.response) {
-      return error.response.data as ApiResponse;
+      return error.response.data as ApiResponse<DonorProfile>;
     }
     throw error;
   }
@@ -132,5 +138,50 @@ export const checkEligibility = async (userId: string): Promise<ApiResponse<Elig
       return error.response.data as ApiResponse<EligibilityResponse>;
     }
     throw error;
+  }
+};
+
+/**
+ * Gets all donor profiles
+ */
+export const getAllDonorProfiles = async (): Promise<ApiResponse<DonorProfile[]>> => {
+  try {
+    const response = await apiClient.get<ApiResponse<DonorProfile[]>>('/DonorProfiles/all');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching all donor profiles:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as ApiResponse<DonorProfile[]>;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Gets donor profiles by blood group
+ */
+export const getDonorProfilesByBloodGroup = async (bloodGroupId: string): Promise<ApiResponse<DonorProfile[]>> => {
+  try {
+    const response = await apiClient.get<ApiResponse<DonorProfile[]>>(`/DonorProfiles/bloodgroup/${bloodGroupId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching donor profiles by blood group:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as ApiResponse<DonorProfile[]>;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Checks if the current authenticated user has a donor profile
+ */
+export const checkCurrentUserHasProfile = async (): Promise<boolean> => {
+  try {
+    const response = await apiClient.get<ApiResponse<boolean>>('/DonorProfiles/current/exists');
+    return response.data.success && response.data.data;
+  } catch (error) {
+    console.error('Error checking if user has profile:', error);
+    return false;
   }
 }; 

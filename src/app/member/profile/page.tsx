@@ -17,10 +17,17 @@ const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
+// Define blood group type
+interface BloodGroup {
+  id: string;
+  groupName: string;
+  description?: string;
+}
+
 export default function ProfilePage() {
   const { user } = useAuth();
   const { profile, isLoading, error, refetch, updateProfile, isUpdating } = useDonorProfile();
-  const { data: bloodGroups, isLoading: isLoadingBloodGroups } = useBloodGroups();
+  const { bloodGroups, isLoading: isLoadingBloodGroups } = useBloodGroups();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [form] = Form.useForm();
 
@@ -45,6 +52,10 @@ export default function ProfilePage() {
   const handleEditClick = () => {
     // Initialize form with current profile data
     form.setFieldsValue({
+      firstName: profile?.firstName || user?.firstName,
+      lastName: profile?.lastName || user?.lastName,
+      email: profile?.email || user?.email,
+      phoneNumber: profile?.phoneNumber || user?.phoneNumber,
       dateOfBirth: profile?.dateOfBirth ? dayjs(profile.dateOfBirth) : null,
       gender: profile?.gender,
       lastDonationDate: profile?.lastDonationDate ? dayjs(profile.lastDonationDate) : null,
@@ -58,6 +69,7 @@ export default function ProfilePage() {
       nextAvailableDonationDate: profile?.nextAvailableDonationDate ? dayjs(profile.nextAvailableDonationDate) : null,
       isAvailableForEmergency: profile?.isAvailableForEmergency,
       preferredDonationTime: profile?.preferredDonationTime,
+      donationType: profile?.donationType || 'WholeBlood',
     });
     
     setIsEditModalVisible(true);
@@ -66,6 +78,10 @@ export default function ProfilePage() {
   // Handle form submission
   const handleFormSubmit = async (values: any) => {
     const formattedValues: DonorProfileUpdateRequest = {
+      firstName: values.firstName,
+      lastName: values.lastName,
+      email: values.email,
+      phoneNumber: values.phoneNumber,
       dateOfBirth: values.dateOfBirth?.format('YYYY-MM-DD'),
       gender: values.gender,
       lastDonationDate: values.lastDonationDate?.format('YYYY-MM-DD') || null,
@@ -79,6 +95,8 @@ export default function ProfilePage() {
       nextAvailableDonationDate: values.nextAvailableDonationDate?.format('YYYY-MM-DD') || null,
       isAvailableForEmergency: values.isAvailableForEmergency,
       preferredDonationTime: values.preferredDonationTime,
+      donationType: values.donationType || 'WholeBlood',
+      userId: user?.id || '',
     };
 
     const success = await updateProfile(formattedValues);
@@ -88,10 +106,32 @@ export default function ProfilePage() {
     }
   };
 
-  // Calculate next donation date based on last donation date
-  const calculateNextDonationDate = (lastDonationDate: dayjs.Dayjs) => {
-    // 56 days (8 weeks) is the standard waiting period between whole blood donations
-    const nextDate = lastDonationDate.add(56, 'day');
+  // Calculate next donation date based on last donation date and donation type
+  const calculateNextDonationDate = (lastDonationDate: dayjs.Dayjs, donationType: string) => {
+    let waitingPeriod = 0; // days
+    const gender = form.getFieldValue('gender');
+    
+    // Calculate waiting period based on donation type and gender
+    switch(donationType) {
+      case 'WholeBlood':
+        waitingPeriod = gender ? 90 : 120; // Male: 3 months, Female: 4 months
+        break;
+      case 'Platelets':
+        waitingPeriod = 14; // 2 weeks
+        break;
+      case 'Plasma':
+        waitingPeriod = 28; // 4 weeks
+        break;
+      case 'RedCells':
+      case 'DoubleRedCells':
+        waitingPeriod = 112; // 16 weeks
+        break;
+      default:
+        waitingPeriod = 90; // Default to 3 months
+    }
+    
+    // Calculate and set the suggested next available date
+    const nextDate = lastDonationDate.add(waitingPeriod, 'day');
     form.setFieldsValue({ nextAvailableDonationDate: nextDate });
   };
 
@@ -165,7 +205,7 @@ export default function ProfilePage() {
           <Card variant="outlined" className="h-full bg-red-50">
             <Statistic
               title="Blood Type"
-              value={profile.bloodGroupName}
+              value={profile.bloodGroupName || 'Unknown'}
               valueStyle={{ color: '#cf1322' }}
               prefix={<HeartOutlined />}
             />
@@ -207,8 +247,20 @@ export default function ProfilePage() {
       {/* Personal Information */}
       <Card title="Personal Information" className="mb-8" variant="outlined">
         <Descriptions layout="vertical" column={{ xs: 1, sm: 2, md: 3 }}>
-          <Descriptions.Item label="Name">
-            {user?.firstName} {user?.lastName}
+          <Descriptions.Item label="First Name">
+            {profile.firstName}
+          </Descriptions.Item>
+          <Descriptions.Item label="Last Name">
+            {profile.lastName}
+          </Descriptions.Item>
+          <Descriptions.Item label="Username">
+            {profile.userName}
+          </Descriptions.Item>
+          <Descriptions.Item label="Email">
+            {profile.email}
+          </Descriptions.Item>
+          <Descriptions.Item label="Phone Number">
+            {profile.phoneNumber}
           </Descriptions.Item>
           <Descriptions.Item label="Date of Birth">
             {formatDate(profile.dateOfBirth)}
@@ -248,6 +300,9 @@ export default function ProfilePage() {
           </Descriptions.Item>
           <Descriptions.Item label="Last Donation Date">
             {formatDate(profile.lastDonationDate)}
+          </Descriptions.Item>
+          <Descriptions.Item label="Donation Type">
+            {profile.donationType || 'Whole Blood'}
           </Descriptions.Item>
           <Descriptions.Item label="Next Available Date">
             {formatDate(profile.nextAvailableDonationDate)}
@@ -293,6 +348,10 @@ export default function ProfilePage() {
           layout="vertical"
           onFinish={handleFormSubmit}
           initialValues={{
+            firstName: profile?.firstName || user?.firstName,
+            lastName: profile?.lastName || user?.lastName,
+            email: profile?.email || user?.email,
+            phoneNumber: profile?.phoneNumber || user?.phoneNumber,
             dateOfBirth: profile?.dateOfBirth ? dayjs(profile.dateOfBirth) : null,
             gender: profile?.gender,
             lastDonationDate: profile?.lastDonationDate ? dayjs(profile.lastDonationDate) : null,
@@ -306,11 +365,51 @@ export default function ProfilePage() {
             nextAvailableDonationDate: profile?.nextAvailableDonationDate ? dayjs(profile.nextAvailableDonationDate) : null,
             isAvailableForEmergency: profile?.isAvailableForEmergency,
             preferredDonationTime: profile?.preferredDonationTime,
+            donationType: 'WholeBlood', // Default donation type
           }}
         >
           <div className="mb-6">
             <Title level={5}>Personal Information</Title>
             <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="First Name"
+                  name="firstName"
+                  rules={[{ required: true, message: 'Please enter your first name' }]}
+                >
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="Last Name"
+                  name="lastName"
+                  rules={[{ required: true, message: 'Please enter your last name' }]}
+                >
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="Email"
+                  name="email"
+                  rules={[
+                    { required: true, message: 'Please enter your email' },
+                    { type: 'email', message: 'Please enter a valid email' }
+                  ]}
+                >
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="Phone Number"
+                  name="phoneNumber"
+                  rules={[{ required: true, message: 'Please enter your phone number' }]}
+                >
+                  <Input />
+                </Form.Item>
+              </Col>
               <Col span={12}>
                 <Form.Item
                   label="Date of Birth"
@@ -342,7 +441,7 @@ export default function ProfilePage() {
                   rules={[{ required: true, message: 'Please select your blood group' }]}
                 >
                   <Select placeholder="Select your blood group" loading={isLoadingBloodGroups}>
-                    {bloodGroups?.map((group) => (
+                    {bloodGroups?.map((group: BloodGroup) => (
                       <Option key={group.id} value={group.id}>
                         {group.groupName}
                       </Option>
@@ -411,15 +510,47 @@ export default function ProfilePage() {
                 >
                   <DatePicker 
                     className="w-full" 
-                    onChange={(date) => date && calculateNextDonationDate(date)}
+                    onChange={(date) => {
+                      if (date) {
+                        const donationType = form.getFieldValue('donationType') || 'WholeBlood';
+                        calculateNextDonationDate(date, donationType);
+                      }
+                    }}
                     disabledDate={(current) => current && current > dayjs().endOf('day')}
                   />
                 </Form.Item>
               </Col>
               <Col span={8}>
                 <Form.Item
+                  label="Donation Type"
+                  name="donationType"
+                >
+                  <Select
+                    placeholder="Select donation type"
+                    onChange={(value) => {
+                      const lastDonationDate = form.getFieldValue('lastDonationDate');
+                      if (lastDonationDate) {
+                        calculateNextDonationDate(lastDonationDate, value);
+                      }
+                    }}
+                  >
+                    <Option value="WholeBlood">Whole Blood</Option>
+                    <Option value="Platelets">Platelets</Option>
+                    <Option value="Plasma">Plasma</Option>
+                    <Option value="RedCells">Red Blood Cells</Option>
+                    <Option value="DoubleRedCells">Double Red Blood Cells</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item
                   label="Next Available Date"
                   name="nextAvailableDonationDate"
+                  help={
+                    <div className="text-xs text-blue-500 mt-1">
+                      Waiting periods: Whole Blood (M: 3mo, F: 4mo), Platelets (2wks), Plasma (4wks), Red Cells (16wks)
+                    </div>
+                  }
                 >
                   <DatePicker 
                     className="w-full" 

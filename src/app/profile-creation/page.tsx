@@ -17,6 +17,16 @@ const { Step } = Steps;
 const { Option } = Select;
 const { TextArea } = Input;
 
+// Extended interface to include additional fields needed for the form
+interface ProfileFormData extends DonorProfileRequest {
+  userId: string;
+  lastDonationDate?: string | null;
+  lastHealthCheckDate?: string | null;
+  totalDonations?: number;
+  nextAvailableDonationDate?: string | null;
+  donationType?: string;
+}
+
 export default function ProfileCreationPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,12 +40,12 @@ export default function ProfileCreationPage() {
   
   const router = useRouter();
   const { user, isLoggedIn, loading: authLoading } = useAuth();
-  const { data: bloodGroups, isLoading: bloodGroupsLoading } = useBloodGroups();
+  const { bloodGroups, isLoading: bloodGroupsLoading } = useBloodGroups();
 
   // Form setup with React Hook Form
-  const { control, handleSubmit, formState: { errors }, watch, setValue, getValues } = useForm<DonorProfileRequest>({
+  const { control, handleSubmit, formState: { errors }, watch, setValue, getValues } = useForm<ProfileFormData>({
     defaultValues: {
-      dateOfBirth: null,
+      dateOfBirth: '',
       gender: true, // Default to male
       lastDonationDate: null,
       healthStatus: 'Healthy',
@@ -48,7 +58,8 @@ export default function ProfileCreationPage() {
       bloodGroupId: '',
       nextAvailableDonationDate: null,
       isAvailableForEmergency: true,
-      preferredDonationTime: 'Morning'
+      preferredDonationTime: 'Morning',
+      donationType: 'WholeBlood'
     }
   });
 
@@ -70,31 +81,45 @@ export default function ProfileCreationPage() {
   const watchDonationCount = watch('totalDonations');
   const watchLastDonation = watch('lastDonationDate');
   const watchAddress = watch('address');
+  const watchDonationType = watch('donationType');
 
-  // Set next available donation date based on last donation date
+  // Set next available donation date based on last donation date and donation type
   useEffect(() => {
-    if (watchLastDonation && watchDonationCount > 0) {
-      try {
-        // 56 days (8 weeks) is the standard waiting period between whole blood donations
-        const nextDate = dayjs(watchLastDonation).add(56, 'day').format('YYYY-MM-DD');
-        if (nextDate && nextDate !== 'Invalid Date') {
-          setValue('nextAvailableDonationDate', nextDate);
-        }
-      } catch (error) {
-        console.error('Error calculating next donation date:', error);
-      }
-    } else {
-      // If last donation date is cleared or total donations is 0, also clear next available date
+    // Don't auto-calculate anymore, let the user enter it manually
+    // Only clear nextAvailableDonationDate when lastDonationDate is cleared
+    if (!watchLastDonation || (watchDonationCount !== undefined && watchDonationCount <= 0)) {
       setValue('nextAvailableDonationDate', null);
+    } else if (watchLastDonation && watchDonationType && watchDonationCount && watchDonationCount > 0) {
+      // Suggest next available date based on donation type and gender
+      let waitingPeriod = 0; // days
+      const gender = getValues('gender');
+      
+      // Calculate waiting period based on donation type and gender
+      switch(watchDonationType) {
+        case 'WholeBlood':
+          waitingPeriod = gender ? 90 : 120; // Male: 3 months, Female: 4 months
+          break;
+        case 'Platelets':
+          waitingPeriod = 14; // 2 weeks
+          break;
+        case 'Plasma':
+          waitingPeriod = 28; // 4 weeks
+          break;
+        case 'RedCells':
+        case 'DoubleRedCells':
+          waitingPeriod = 112; // 16 weeks
+          break;
+        default:
+          waitingPeriod = 90; // Default to 3 months
+      }
+      
+      // Calculate and set the suggested next available date
+      const nextDate = dayjs(watchLastDonation).add(waitingPeriod, 'day').format('YYYY-MM-DD');
+      if (nextDate && nextDate !== 'Invalid Date') {
+        setValue('nextAvailableDonationDate', nextDate);
+      }
     }
-  }, [watchLastDonation, watchDonationCount, setValue]);
-
-  // Clear lastDonationDate when totalDonations is set to 0
-  useEffect(() => {
-    if (watchDonationCount <= 0) {
-      setValue('lastDonationDate', null);
-    }
-  }, [watchDonationCount, setValue]);
+  }, [watchLastDonation, watchDonationCount, watchDonationType, setValue, getValues]);
 
   // Reset address field when entering location step
   useEffect(() => {
@@ -134,10 +159,10 @@ export default function ProfileCreationPage() {
       if (currentStep === 2) {
         const address = getValues('address');
         const healthStatus = getValues('healthStatus');
-        const totalDonations = getValues('totalDonations').toString();
+        const totalDonations = getValues('totalDonations');
         
         // If address is same as healthStatus or totalDonations, it was likely pre-filled
-        if (address === healthStatus || address === totalDonations) {
+        if (address === healthStatus || (totalDonations !== undefined && address === totalDonations.toString())) {
           setValue('address', '');
         }
       }
@@ -148,11 +173,7 @@ export default function ProfileCreationPage() {
         const address = getValues('address');
         
         // If preferredDonationTime contains part of address, it was likely pre-filled
-        if (preferredDonationTime !== 'Morning' && 
-            preferredDonationTime !== 'Afternoon' && 
-            preferredDonationTime !== 'Evening' && 
-            preferredDonationTime !== 'Weekend' && 
-            preferredDonationTime !== 'Any') {
+        if (preferredDonationTime && !['Morning', 'Afternoon', 'Evening', 'Weekend', 'Any'].includes(preferredDonationTime)) {
           setValue('preferredDonationTime', 'Morning'); // Reset to default
         }
       }
@@ -319,7 +340,7 @@ export default function ProfileCreationPage() {
                 import('leaflet').then((L) => {
                   // Create custom icon
                   const customIcon = L.icon({
-                    iconUrl: '/img/map/marker-icon.png',
+                    iconUrl: '/images/map/marker-icon.png',
                     iconSize: [25, 41],
                     iconAnchor: [12, 41],
                     popupAnchor: [1, -34],
@@ -363,7 +384,7 @@ export default function ProfileCreationPage() {
     );
   };
 
-  const onSubmit: SubmitHandler<DonorProfileRequest> = async (data) => {
+  const onSubmit: SubmitHandler<ProfileFormData> = async (data) => {
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -377,12 +398,22 @@ export default function ProfileCreationPage() {
       }
 
       // Format and prepare data for API
-      const formattedData = {
-        ...data,
+      const formattedData: DonorProfileRequest = {
         dateOfBirth: data.dateOfBirth || dayjs().subtract(18, 'year').format('YYYY-MM-DD'),
+        gender: data.gender,
         lastDonationDate: data.lastDonationDate || null,
+        healthStatus: data.healthStatus,
         lastHealthCheckDate: data.lastHealthCheckDate || null,
-        nextAvailableDonationDate: data.nextAvailableDonationDate || null
+        totalDonations: data.totalDonations || 0,
+        address: data.address,
+        latitude: data.latitude || '',
+        longitude: data.longitude || '',
+        userId: data.userId,
+        bloodGroupId: data.bloodGroupId,
+        nextAvailableDonationDate: data.nextAvailableDonationDate || null,
+        isAvailableForEmergency: data.isAvailableForEmergency !== undefined ? data.isAvailableForEmergency : true,
+        preferredDonationTime: data.preferredDonationTime || 'Morning',
+        donationType: data.donationType || 'WholeBlood'
       };
 
       // Log the request for debugging
@@ -393,7 +424,7 @@ export default function ProfileCreationPage() {
       if (response.success) {
         toast.success('Donor profile created successfully');
         // Navigate to the profile page or dashboard
-        router.push('/member/dashboard');
+        router.push('/member/profile');
       } else {
         console.error('API Error:', response);
         setSubmitError(response.message || response.errors?.join(', ') || 'Failed to create profile');
@@ -439,15 +470,22 @@ export default function ProfileCreationPage() {
       // Validate Health Info step (no required fields except when total donations > 0)
       const totalDonations = getValues('totalDonations');
       const lastDonationDate = getValues('lastDonationDate');
+      const donationType = getValues('donationType');
       
-      if (totalDonations > 0 && !lastDonationDate) {
+      if (totalDonations && totalDonations > 0 && !lastDonationDate) {
         toast.error('Please enter your last donation date');
         canProceed = false;
       }
       
+      if (totalDonations && totalDonations > 0 && !donationType) {
+        toast.error('Please select your last donation type');
+        canProceed = false;
+      }
+      
       // If totalDonations is 0, clear lastDonationDate to prevent inconsistency
-      if (totalDonations <= 0 && lastDonationDate) {
+      if (totalDonations !== undefined && totalDonations <= 0 && lastDonationDate) {
         setValue('lastDonationDate', null);
+        setValue('donationType', 'WholeBlood');
       }
     } else if (currentStep === 2) {
       // Validate Location step
@@ -487,7 +525,7 @@ export default function ProfileCreationPage() {
         // Ensure preferredDonationTime is a valid option
         const preferredDonationTime = getValues('preferredDonationTime');
         const validOptions = ['Morning', 'Afternoon', 'Evening', 'Weekend', 'Any'];
-        if (!validOptions.includes(preferredDonationTime)) {
+        if (preferredDonationTime && !validOptions.includes(preferredDonationTime)) {
           setValue('preferredDonationTime', 'Morning');
         }
       }
@@ -555,7 +593,7 @@ export default function ProfileCreationPage() {
                       className="w-full"
                       format="YYYY-MM-DD"
                       value={value ? dayjs(value) : null}
-                      onChange={(date) => onChange(date ? date.format('YYYY-MM-DD') : null)}
+                      onChange={(date) => onChange(date ? date.format('YYYY-MM-DD') : '')}
                       disabledDate={(current) => current && current > dayjs().subtract(18, 'year')}
                       style={{ width: '100%' }}
                       allowClear={true}
@@ -606,7 +644,7 @@ export default function ProfileCreationPage() {
                   className="w-full"
                   {...field}
                 >
-                  {bloodGroups?.map(group => (
+                  {bloodGroups?.map((group: any) => (
                     <Option key={group.id} value={group.id}>
                       {group.groupName} - {group.description}
                     </Option>
@@ -656,7 +694,7 @@ export default function ProfileCreationPage() {
                     onFocus={() => {
                       // Double-check on focus that we have a valid option
                       const value = field.value;
-                      if (!validOptions.includes(value) || value === bloodGroupId) {
+                      if (!validOptions.includes(value as string) || value === bloodGroupId) {
                         setValue('healthStatus', 'Healthy');
                       }
                     }}
@@ -678,7 +716,7 @@ export default function ProfileCreationPage() {
             <label htmlFor="lastHealthCheckDate" className="block text-sm font-medium text-gray-700 mb-1">
               Last Health Check Date
             </label>
-                          <Controller
+            <Controller
               name="lastHealthCheckDate"
               control={control}
               render={({ field: { onChange, value, ...restField } }) => (
@@ -711,8 +749,10 @@ export default function ProfileCreationPage() {
                       type="number"
                       min={0}
                       className="w-full"
-                      {...field}
+                      value={field.value?.toString() || '0'}
                       onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      onBlur={field.onBlur}
+                      name={field.name}
                     />
                   )}
                 />
@@ -721,56 +761,138 @@ export default function ProfileCreationPage() {
             <Col xs={24} md={12}>
               <div className="mb-4">
                 <label htmlFor="lastDonationDate" className="block text-sm font-medium text-gray-700 mb-1">
-                  Last Donation Date {watchDonationCount > 0 && <span className="text-red-500">*</span>}
+                  Last Donation Date {watchDonationCount && watchDonationCount > 0 && <span className="text-red-500">*</span>}
                 </label>
                 <Controller
                   name="lastDonationDate"
                   control={control}
                   rules={{ 
-                    required: watchDonationCount > 0 ? 'Last donation date is required if you have donated before' : false 
+                    required: watchDonationCount && watchDonationCount > 0 ? 'Last donation date is required if you have donated before' : false 
                   }}
                   render={({ field: { onChange, value, ...restField } }) => (
                     <DatePicker
                       id="lastDonationDate"
                       className="w-full"
                       format="YYYY-MM-DD"
-                      value={value ? dayjs(value) : null}
+                      value={typeof value === 'string' && value ? dayjs(value) : null}
                       onChange={(date) => onChange(date ? date.format('YYYY-MM-DD') : null)}
                       disabledDate={(current) => current && current > dayjs()}
                       style={{ width: '100%' }}
                       allowClear={true}
-                      disabled={watchDonationCount <= 0}
+                      disabled={watchDonationCount === undefined || watchDonationCount <= 0}
                       {...restField}
                     />
                   )}
                 />
                 {errors.lastDonationDate && (
-                  <p className="mt-1 text-sm text-red-600">{errors.lastDonationDate.message}</p>
+                  <p className="mt-1 text-sm text-red-600">{errors.lastDonationDate.message?.toString()}</p>
                 )}
               </div>
             </Col>
           </Row>
           
           <div className="mb-4">
-            <label htmlFor="nextAvailableDonationDate" className="block text-sm font-medium text-gray-700 mb-1">
-              Next Available Donation Date (Auto-calculated)
+            <label htmlFor="donationType" className="block text-sm font-medium text-gray-700 mb-1">
+              Last Donation Type {watchDonationCount && watchDonationCount > 0 && <span className="text-red-500">*</span>}
             </label>
-                          <Controller
+            <Controller
+              name="donationType"
+              control={control}
+              rules={{ 
+                required: watchDonationCount && watchDonationCount > 0 ? 'Donation type is required if you have donated before' : false 
+              }}
+              render={({ field }) => (
+                <Select
+                  id="donationType"
+                  placeholder="Select your last donation type"
+                  className="w-full"
+                  disabled={watchDonationCount === undefined || watchDonationCount <= 0}
+                  {...field}
+                  onChange={(value) => {
+                    field.onChange(value);
+                    // Only suggest next available date if there's a last donation date
+                    const lastDonationDate = getValues('lastDonationDate');
+                    if (lastDonationDate && watchDonationCount && watchDonationCount > 0) {
+                      let waitingPeriod = 0; // days
+                      const gender = getValues('gender');
+                      
+                      // Calculate waiting period based on donation type and gender
+                      switch(value) {
+                        case 'WholeBlood':
+                          waitingPeriod = gender ? 90 : 120; // Male: 3 months, Female: 4 months
+                          break;
+                        case 'Platelets':
+                          waitingPeriod = 14; // 2 weeks
+                          break;
+                        case 'Plasma':
+                          waitingPeriod = 28; // 4 weeks
+                          break;
+                        case 'RedCells':
+                        case 'DoubleRedCells':
+                          waitingPeriod = 112; // 16 weeks
+                          break;
+                        default:
+                          waitingPeriod = 90; // Default to 3 months
+                      }
+                      
+                      // Calculate and set the suggested next available date
+                      const nextDate = dayjs(lastDonationDate).add(waitingPeriod, 'day').format('YYYY-MM-DD');
+                      if (nextDate && nextDate !== 'Invalid Date') {
+                        setValue('nextAvailableDonationDate', nextDate);
+                      }
+                    }
+                  }}
+                >
+                  <Option value="WholeBlood">Whole Blood</Option>
+                  <Option value="Platelets">Platelets</Option>
+                  <Option value="Plasma">Plasma</Option>
+                  <Option value="RedCells">Red Blood Cells</Option>
+                  <Option value="DoubleRedCells">Double Red Blood Cells</Option>
+                </Select>
+              )}
+            />
+            {errors.donationType && (
+              <p className="mt-1 text-sm text-red-600">{errors.donationType.message?.toString()}</p>
+            )}
+            <div className="mt-1 text-xs text-gray-500">
+              Your most recent type of blood donation
+            </div>
+          </div>
+          
+          <div className="mb-4">
+            <label htmlFor="nextAvailableDonationDate" className="block text-sm font-medium text-gray-700 mb-1">
+              Next Available Donation Date
+            </label>
+            <Controller
               name="nextAvailableDonationDate"
               control={control}
-              render={({ field: { value, ...restField } }) => (
+              render={({ field: { onChange, value, ...restField } }) => (
                 <DatePicker
                   id="nextAvailableDonationDate"
                   className="w-full"
                   format="YYYY-MM-DD"
-                  value={value ? dayjs(value) : null}
-                  disabled={true}
+                  value={typeof value === 'string' && value ? dayjs(value) : null}
+                  onChange={(date) => onChange(date ? date.format('YYYY-MM-DD') : null)}
+                  disabledDate={(current) => current && current < dayjs()}
                   style={{ width: '100%' }}
-                  allowClear={false}
+                  allowClear={true}
                   {...restField}
                 />
               )}
             />
+            <div className="mt-1 text-xs text-gray-500">
+              The date when you can donate blood again (depends on gender and donation type)
+            </div>
+            <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
+              <p className="font-semibold">Waiting periods between donations:</p>
+              <ul className="list-disc pl-4 mt-1">
+                <li>Whole Blood: Males 3 months, Females 4 months</li>
+                <li>Platelets: 2 weeks</li>
+                <li>Plasma: 4 weeks</li>
+                <li>Red Blood Cells: 16 weeks</li>
+                <li>Double Red Blood Cells: 16 weeks</li>
+              </ul>
+            </div>
           </div>
         </div>
       )
@@ -794,11 +916,11 @@ export default function ProfileCreationPage() {
                 // Check if address has been pre-filled with a value from another field
                 const currentValue = field.value;
                 const healthStatus = getValues('healthStatus');
-                const totalDonations = getValues('totalDonations').toString();
+                const totalDonations = getValues('totalDonations');
                 
                 // If address matches a value from another field, clear it
                 if (currentValue === healthStatus || 
-                    currentValue === totalDonations || 
+                    (totalDonations !== undefined && currentValue === totalDonations.toString()) || 
                     (typeof currentValue === 'number')) {
                   setTimeout(() => setValue('address', ''), 0);
                 }
@@ -814,7 +936,7 @@ export default function ProfileCreationPage() {
                       // Double-check on focus that we don't have contaminated data
                       const value = field.value;
                       if (value === healthStatus || 
-                          value === totalDonations || 
+                          (totalDonations !== undefined && value === totalDonations.toString()) || 
                           (typeof value === 'number')) {
                         setValue('address', '');
                       }
@@ -920,7 +1042,7 @@ export default function ProfileCreationPage() {
               rules={{ required: 'Preferred donation time is required' }}
               render={({ field }) => {
                 // Check if preferredDonationTime has been pre-filled with an invalid value
-                const currentValue = field.value;
+                const currentValue = field.value || '';
                 const validOptions = ['Morning', 'Afternoon', 'Evening', 'Weekend', 'Any'];
                 
                 // If value is not in valid options, reset to default
@@ -935,7 +1057,7 @@ export default function ProfileCreationPage() {
                   {...field}
                     onFocus={() => {
                       // Double-check on focus that we have a valid option
-                      const value = field.value;
+                      const value = field.value || '';
                       if (!validOptions.includes(value)) {
                         setValue('preferredDonationTime', 'Morning');
                       }

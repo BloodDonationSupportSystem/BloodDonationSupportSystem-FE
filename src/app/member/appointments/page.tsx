@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Typography, Card, Spin, Table, Tag, Button, Tooltip, Calendar, Badge, Tabs, Modal, Form, Input, DatePicker, TimePicker, Select, Empty, Alert } from 'antd';
-import { 
-  CalendarOutlined, 
-  ClockCircleOutlined, 
+import { Typography, Card, Spin, Table, Tag, Button, Tooltip, Calendar, Badge, Tabs, Modal, Form, Input, DatePicker, TimePicker, Select, Empty, Alert, message } from 'antd';
+import {
+  CalendarOutlined,
+  ClockCircleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   EnvironmentOutlined,
@@ -87,13 +87,15 @@ const donationTypes = ['Whole Blood', 'Platelets', 'Plasma', 'Double Red Cells']
 export default function AppointmentsPage() {
   const { user, isLoggedIn, loading } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('upcoming');
+  const [activeTab, setActiveTab] = useState('all');
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'response'>('create');
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentRequest | null>(null);
+  const [responseType, setResponseType] = useState<'Accepted' | 'Denied'>('Accepted');
+  const [responseNote, setResponseNote] = useState('');
   const [form] = Form.useForm();
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('month');
-  
+
   // State for appointments
   const [appointments, setAppointments] = useState<AppointmentRequest[]>([]);
   const [isLoadingAppointments, setIsLoadingAppointments] = useState(false);
@@ -105,20 +107,20 @@ export default function AppointmentsPage() {
       router.push('/login');
     }
   }, [isLoggedIn, loading, router]);
-  
+
   // Fetch appointment data
   useEffect(() => {
     const fetchAppointments = async () => {
       if (!isLoggedIn || !user) return;
-      
+
       setIsLoadingAppointments(true);
       setError(null);
-      
+
       try {
         const response = await apiClient.get<ApiResponse>(
           '/DonationAppointmentRequests/my-requests'
         );
-        
+
         if (response.data.success) {
           setAppointments(response.data.data);
         } else {
@@ -131,7 +133,7 @@ export default function AppointmentsPage() {
         setIsLoadingAppointments(false);
       }
     };
-    
+
     fetchAppointments();
   }, [isLoggedIn, user]);
 
@@ -145,10 +147,10 @@ export default function AppointmentsPage() {
   const showEditModal = (appointment: AppointmentRequest) => {
     setModalMode('edit');
     setSelectedAppointment(appointment);
-    
+
     // Format the date and time for the form
     const appointmentDate = dayjs(appointment.preferredDate);
-    
+
     form.setFieldsValue({
       donationCenter: appointment.locationId,
       donationType: appointment.componentTypeName || 'Whole Blood',
@@ -162,6 +164,7 @@ export default function AppointmentsPage() {
   const handleCancel = () => {
     setIsModalVisible(false);
     form.resetFields();
+    setResponseNote('');
   };
 
   const handleSubmit = (values: any) => {
@@ -170,6 +173,24 @@ export default function AppointmentsPage() {
     // For now, we'll just show a success message
     setIsModalVisible(false);
     form.resetFields();
+  };
+
+  // Show modal for responding to staff-initiated appointment
+  const showResponseModal = (appointment: AppointmentRequest, type: 'Accepted' | 'Denied') => {
+    setSelectedAppointment(appointment);
+    setResponseType(type);
+    setResponseNote('');
+    setModalMode('response');
+    setIsModalVisible(true);
+  };
+
+  // Handle response submission
+  const handleResponseSubmit = () => {
+    if (selectedAppointment) {
+      handleAppointmentResponse(selectedAppointment.id, responseType, responseNote);
+      setIsModalVisible(false);
+      setResponseNote('');
+    }
   };
 
   const showCancelConfirm = (appointmentId: string) => {
@@ -181,15 +202,84 @@ export default function AppointmentsPage() {
       okType: 'danger',
       cancelText: 'No',
       onOk() {
-        console.log('OK');
-        // Here you would make an API call to cancel the appointment
+        handleCancelAppointment(appointmentId);
       },
     });
   };
 
+  // Handle cancellation of appointment
+  const handleCancelAppointment = async (appointmentId: string) => {
+    try {
+      const payload = {
+        status: "Cancelled",
+        note: "Cancelled by user",
+        updatedByUserId: user?.id || ''
+      };
+
+      const response = await apiClient.put(
+        `/DonationAppointmentRequests/${appointmentId}/status`,
+        payload
+      );
+
+      if (response.data.success) {
+        // Show success message
+        message.success('Appointment cancelled successfully');
+
+        // Refresh appointments
+        const updatedAppointments = appointments.map(appt =>
+          appt.id === appointmentId ? { ...appt, status: 'Cancelled' } : appt
+        );
+        setAppointments(updatedAppointments);
+      } else {
+        message.error(response.data.message || 'Failed to cancel appointment');
+      }
+    } catch (error) {
+      console.error('Error cancelling appointment:', error);
+      message.error('An error occurred while cancelling your appointment. Please try again later.');
+    }
+  };
+
+  // Handle response to staff-initiated appointment (Accept or Deny)
+  const handleAppointmentResponse = async (appointmentId: string, status: 'Accepted' | 'Denied', notes: string = '') => {
+    try {
+      const payload = {
+        status: status,
+        note: notes || (status === 'Denied' ? 'Người truyền máu từ chối cuộc hẹn.' : ''),
+        updatedByUserId: user?.id || ''
+      };
+
+      const response = await apiClient.put(
+        `/DonationAppointmentRequests/${appointmentId}/status`,
+        payload
+      );
+
+      if (response.data.success) {
+        // Show success message
+        message.success(`Appointment ${status.toLowerCase()} successfully`);
+
+        // Update local state
+        const updatedAppointments = appointments.map(appt =>
+          appt.id === appointmentId ? {
+            ...appt,
+            status: status,
+            donorAccepted: status === 'Accepted',
+            donorResponseNotes: notes,
+            donorResponseAt: new Date().toISOString()
+          } : appt
+        );
+        setAppointments(updatedAppointments);
+      } else {
+        message.error(response.data.message || `Failed to ${status.toLowerCase()} appointment`);
+      }
+    } catch (error) {
+      console.error(`Error ${status.toLowerCase()} appointment:`, error);
+      message.error(`An error occurred while ${status.toLowerCase()} your appointment. Please try again later.`);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'confirmed':
+      case 'approved':
         return 'green';
       case 'pending':
         return 'gold';
@@ -197,7 +287,13 @@ export default function AppointmentsPage() {
         return 'blue';
       case 'cancelled':
       case 'rejected':
+      case 'denied':
+      case 'failed':
         return 'red';
+      case 'accepted':
+        return 'cyan';
+      case 'checkedin':
+        return 'purple';
       default:
         return 'default';
     }
@@ -206,6 +302,8 @@ export default function AppointmentsPage() {
   const getStatusIcon = (status: string) => {
     switch (status.toLowerCase()) {
       case 'confirmed':
+      case 'approved':
+      case 'accepted':
         return <CheckCircleOutlined />;
       case 'pending':
         return <ClockCircleOutlined />;
@@ -213,7 +311,11 @@ export default function AppointmentsPage() {
         return <CheckCircleOutlined />;
       case 'cancelled':
       case 'rejected':
+      case 'denied':
+      case 'failed':
         return <CloseCircleOutlined />;
+      case 'checkedin':
+        return <CheckCircleOutlined />;
       default:
         return null;
     }
@@ -221,7 +323,7 @@ export default function AppointmentsPage() {
 
   const getDonationTypeColor = (type: string | null) => {
     if (!type) return 'default';
-    
+
     switch (type.toLowerCase()) {
       case 'whole blood':
         return 'red';
@@ -241,13 +343,13 @@ export default function AppointmentsPage() {
       title: 'Date & Time',
       dataIndex: 'preferredDate',
       key: 'preferredDate',
-      sorter: (a: AppointmentRequest, b: AppointmentRequest) => 
+      sorter: (a: AppointmentRequest, b: AppointmentRequest) =>
         dayjs(a.preferredDate).unix() - dayjs(b.preferredDate).unix(),
       render: (text: string, record: AppointmentRequest) => {
         // Convert UTC time to Vietnam time zone
         const utcDate = dayjs(text);
         const localDate = utcDate.tz('Asia/Ho_Chi_Minh');
-        
+
         // Get the hour range based on timeSlot
         let hourRange = '';
         if (record.preferredTimeSlot === 'Morning') {
@@ -257,7 +359,7 @@ export default function AppointmentsPage() {
         } else if (record.preferredTimeSlot === 'Evening') {
           hourRange = '(6PM - 9PM)';
         }
-        
+
         return (
           <span>
             <div className="flex items-center">
@@ -307,90 +409,120 @@ export default function AppointmentsPage() {
       title: 'Actions',
       key: 'actions',
       render: (_: any, record: AppointmentRequest) => {
-        if (record.status.toLowerCase() === 'completed' || 
-            record.status.toLowerCase() === 'cancelled' || 
-            record.status.toLowerCase() === 'rejected') {
+        // Check if appointment has a status that can be cancelled
+        const canBeCancelled = ['pending', 'approved', 'accepted'].includes(record.status.toLowerCase());
+
+        // Check if appointment date is in the past
+        const isAppointmentInPast = dayjs(record.preferredDate).isBefore(dayjs(), 'day');
+
+        // Check if this is a staff-initiated appointment that needs response
+        const isStaffInitiatedPending =
+          record.status.toLowerCase() === 'pending' &&
+          record.requestType === 'StaffInitiated';
+
+        if (isStaffInitiatedPending) {
           return (
-            <Button 
-              type="link" 
-              onClick={() => console.log('View details', record.id)}
+            <div className="flex space-x-2">
+              <Button
+                type="primary"
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => showResponseModal(record, 'Accepted')}
+              >
+                Accept
+              </Button>
+              <Button
+                danger
+                onClick={() => showResponseModal(record, 'Denied')}
+              >
+                Deny
+              </Button>
+            </div>
+          );
+        }
+
+        if (canBeCancelled && !isAppointmentInPast) {
+          return (
+            <Button
+              danger
+              onClick={() => showCancelConfirm(record.id)}
             >
-              View Details
+              Cancel
             </Button>
           );
         }
-        
-        // Check if appointment date is in the past
-        const isAppointmentInPast = dayjs(record.preferredDate).isBefore(dayjs(), 'day');
-        
-        return (
-          <div className="flex space-x-2">
-            <Tooltip title={isAppointmentInPast ? "Past appointments cannot be edited" : "Edit Appointment"}>
-              <Button 
-                icon={<EditOutlined />} 
-                type="primary" 
-                size="small" 
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => showEditModal(record)}
-                disabled={record.status.toLowerCase() === 'completed' || isAppointmentInPast}
-              >
-                Edit
-              </Button>
-            </Tooltip>
-            <Tooltip title={record.status.toLowerCase() === 'completed' ? "Completed appointments cannot be cancelled" : "Cancel Appointment"}>
-              <Button 
-                danger 
-                size="small"
-                onClick={() => showCancelConfirm(record.id)}
-                disabled={
-                  record.status.toLowerCase() === 'completed' || 
-                  record.status.toLowerCase() === 'cancelled' ||
-                  record.status.toLowerCase() === 'rejected'
-                }
-              >
-                Cancel
-              </Button>
-            </Tooltip>
-          </div>
-        );
+
+        return null;
       },
     },
   ];
 
   // Filter appointments by status
-  const confirmedAppointments = appointments.filter(appointment => 
+  const allAppointments = appointments; // All appointments
+
+  const confirmedAppointments = appointments.filter(appointment =>
     appointment.status.toLowerCase() === 'confirmed'
   );
-  
-  const pendingAppointments = appointments.filter(appointment => 
+
+  const pendingAppointments = appointments.filter(appointment =>
     appointment.status.toLowerCase() === 'pending'
   );
-  
-  const completedAppointments = appointments.filter(appointment => 
+
+  const approvedAppointments = appointments.filter(appointment =>
+    appointment.status.toLowerCase() === 'approved'
+  );
+
+  const rejectedAppointments = appointments.filter(appointment =>
+    appointment.status.toLowerCase() === 'rejected'
+  );
+
+  const acceptedAppointments = appointments.filter(appointment =>
+    appointment.status.toLowerCase() === 'accepted'
+  );
+
+  const deniedAppointments = appointments.filter(appointment =>
+    appointment.status.toLowerCase() === 'denied'
+  );
+
+  const checkedInAppointments = appointments.filter(appointment =>
+    appointment.status.toLowerCase() === 'checkedin'
+  );
+
+  const completedAppointments = appointments.filter(appointment =>
     appointment.status.toLowerCase() === 'completed'
   );
-  
-  const cancelledRejectedAppointments = appointments.filter(appointment => 
-    appointment.status.toLowerCase() === 'cancelled' || 
-    appointment.status.toLowerCase() === 'rejected'
+
+  const failedAppointments = appointments.filter(appointment =>
+    appointment.status.toLowerCase() === 'failed'
+  );
+
+  const cancelledAppointments = appointments.filter(appointment =>
+    appointment.status.toLowerCase() === 'cancelled'
+  );
+
+  // Combined status groups
+  const cancelledRejectedAppointments = appointments.filter(appointment =>
+    appointment.status.toLowerCase() === 'cancelled' ||
+    appointment.status.toLowerCase() === 'rejected' ||
+    appointment.status.toLowerCase() === 'denied' ||
+    appointment.status.toLowerCase() === 'failed'
   );
 
   // Divide appointments into upcoming and past
   const upcomingAppointments = appointments.filter(appointment => {
     // Status is pending or confirmed AND date is in the future or today
     return (
-      (appointment.status.toLowerCase() === 'pending' || 
-       appointment.status.toLowerCase() === 'confirmed') && 
-      (dayjs(appointment.preferredDate).isAfter(dayjs()) || 
-       dayjs(appointment.preferredDate).isSame(dayjs(), 'day'))
+      (appointment.status.toLowerCase() === 'pending' ||
+        appointment.status.toLowerCase() === 'confirmed') &&
+      (dayjs(appointment.preferredDate).isAfter(dayjs()) ||
+        dayjs(appointment.preferredDate).isSame(dayjs(), 'day'))
     );
   });
 
   const pastAppointments = appointments.filter(appointment => {
     // Either the date is in the past OR status is completed/cancelled/rejected
     return (
-      dayjs(appointment.preferredDate).isBefore(dayjs(), 'day') || 
-      appointment.status.toLowerCase() === 'completed' || 
+      dayjs(appointment.preferredDate).isBefore(dayjs(), 'day') ||
+      appointment.status.toLowerCase() === 'completed' ||
       appointment.status.toLowerCase() === 'cancelled' ||
       appointment.status.toLowerCase() === 'rejected'
     );
@@ -398,25 +530,25 @@ export default function AppointmentsPage() {
 
   const dateCellRender = (value: dayjs.Dayjs) => {
     const dateStr = value.format('YYYY-MM-DD');
-    const appointmentsOnDate = appointments.filter(appt => 
+    const appointmentsOnDate = appointments.filter(appt =>
       dayjs(appt.preferredDate).tz('Asia/Ho_Chi_Minh').format('YYYY-MM-DD') === dateStr
     );
-    
+
     return (
       <ul className="events p-0 m-0 list-none">
         {appointmentsOnDate.map(appt => {
           // Convert UTC time to Vietnam time zone for display
           const localTime = dayjs(appt.preferredDate).tz('Asia/Ho_Chi_Minh');
-          
+
           return (
             <li key={appt.id} className="mb-1">
-              <Badge 
-                color={getStatusColor(appt.status)} 
+              <Badge
+                color={getStatusColor(appt.status)}
                 text={
                   <span className="text-xs">
                     {localTime.format('HH:mm')} - {appt.preferredTimeSlot} - {appt.locationName}
                   </span>
-                } 
+                }
               />
             </li>
           );
@@ -460,8 +592,8 @@ export default function AppointmentsPage() {
     return (
       <div className="flex justify-between items-center mb-4">
         <div>
-          <Button 
-            type="text" 
+          <Button
+            type="text"
             onClick={() => onChange(value.clone().subtract(1, 'month'))}
           >
             Previous
@@ -488,8 +620,8 @@ export default function AppointmentsPage() {
           >
             {options}
           </Select>
-          <Button 
-            type="text" 
+          <Button
+            type="text"
             onClick={() => onChange(value.clone().add(1, 'month'))}
           >
             Next
@@ -502,6 +634,42 @@ export default function AppointmentsPage() {
   // Define tab items for Tabs component
   const tabItems = [
     {
+      key: 'all',
+      label: <span><FilterOutlined /> All</span>,
+      children: isLoadingAppointments ? (
+        <div className="flex justify-center py-8">
+          <Spin size="large" />
+        </div>
+      ) : error ? (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+        />
+      ) : allAppointments.length > 0 ? (
+        <Table
+          dataSource={allAppointments}
+          columns={columns}
+          rowKey="id"
+          pagination={{ pageSize: 5 }}
+        />
+      ) : (
+        <Empty
+          description="No appointments found"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        >
+          <Button
+            type="primary"
+            onClick={showCreateModal}
+            className="bg-red-600 hover:bg-red-700 mt-4"
+          >
+            Schedule Now
+          </Button>
+        </Empty>
+      )
+    },
+    {
       key: 'upcoming',
       label: <span><CalendarOutlined /> Upcoming</span>,
       children: isLoadingAppointments ? (
@@ -509,26 +677,26 @@ export default function AppointmentsPage() {
           <Spin size="large" />
         </div>
       ) : error ? (
-        <Alert 
-          message="Error" 
-          description={error} 
-          type="error" 
-          showIcon 
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
         />
       ) : upcomingAppointments.length > 0 ? (
-        <Table 
-          dataSource={upcomingAppointments} 
-          columns={columns} 
-          rowKey="id" 
+        <Table
+          dataSource={upcomingAppointments}
+          columns={columns}
+          rowKey="id"
           pagination={{ pageSize: 5 }}
         />
       ) : (
-        <Empty 
-          description="No upcoming appointments" 
-          image={Empty.PRESENTED_IMAGE_SIMPLE} 
+        <Empty
+          description="No upcoming appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             onClick={showCreateModal}
             className="bg-red-600 hover:bg-red-700 mt-4"
           >
@@ -545,51 +713,23 @@ export default function AppointmentsPage() {
           <Spin size="large" />
         </div>
       ) : error ? (
-        <Alert 
-          message="Error" 
-          description={error} 
-          type="error" 
-          showIcon 
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
         />
       ) : pastAppointments.length > 0 ? (
-        <Table 
-          dataSource={pastAppointments} 
-          columns={columns} 
-          rowKey="id" 
+        <Table
+          dataSource={pastAppointments}
+          columns={columns}
+          rowKey="id"
           pagination={{ pageSize: 5 }}
         />
       ) : (
-        <Empty 
-          description="No past appointments" 
-          image={Empty.PRESENTED_IMAGE_SIMPLE} 
-        />
-      )
-    },
-    {
-      key: 'confirmed',
-      label: <span><CheckCircleOutlined /> Confirmed</span>,
-      children: isLoadingAppointments ? (
-        <div className="flex justify-center py-8">
-          <Spin size="large" />
-        </div>
-      ) : error ? (
-        <Alert 
-          message="Error" 
-          description={error} 
-          type="error" 
-          showIcon 
-        />
-      ) : confirmedAppointments.length > 0 ? (
-        <Table 
-          dataSource={confirmedAppointments} 
-          columns={columns} 
-          rowKey="id" 
-          pagination={{ pageSize: 5 }}
-        />
-      ) : (
-        <Empty 
-          description="No confirmed appointments" 
-          image={Empty.PRESENTED_IMAGE_SIMPLE} 
+        <Empty
+          description="No past appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       )
     },
@@ -601,23 +741,135 @@ export default function AppointmentsPage() {
           <Spin size="large" />
         </div>
       ) : error ? (
-        <Alert 
-          message="Error" 
-          description={error} 
-          type="error" 
-          showIcon 
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
         />
       ) : pendingAppointments.length > 0 ? (
-        <Table 
-          dataSource={pendingAppointments} 
-          columns={columns} 
-          rowKey="id" 
+        <Table
+          dataSource={pendingAppointments}
+          columns={columns}
+          rowKey="id"
           pagination={{ pageSize: 5 }}
         />
       ) : (
-        <Empty 
-          description="No pending appointments" 
-          image={Empty.PRESENTED_IMAGE_SIMPLE} 
+        <Empty
+          description="No pending appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      )
+    },
+    {
+      key: 'approved',
+      label: <span><CheckCircleOutlined style={{ color: 'green' }} /> Approved</span>,
+      children: isLoadingAppointments ? (
+        <div className="flex justify-center py-8">
+          <Spin size="large" />
+        </div>
+      ) : error ? (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+        />
+      ) : approvedAppointments.length > 0 ? (
+        <Table
+          dataSource={approvedAppointments}
+          columns={columns}
+          rowKey="id"
+          pagination={{ pageSize: 5 }}
+        />
+      ) : (
+        <Empty
+          description="No approved appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      )
+    },
+    {
+      key: 'accepted',
+      label: <span><CheckCircleOutlined style={{ color: '#13c2c2' }} /> Accepted</span>,
+      children: isLoadingAppointments ? (
+        <div className="flex justify-center py-8">
+          <Spin size="large" />
+        </div>
+      ) : error ? (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+        />
+      ) : acceptedAppointments.length > 0 ? (
+        <Table
+          dataSource={acceptedAppointments}
+          columns={columns}
+          rowKey="id"
+          pagination={{ pageSize: 5 }}
+        />
+      ) : (
+        <Empty
+          description="No accepted appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      )
+    },
+    {
+      key: 'confirmed',
+      label: <span><CheckCircleOutlined style={{ color: 'green' }} /> Confirmed</span>,
+      children: isLoadingAppointments ? (
+        <div className="flex justify-center py-8">
+          <Spin size="large" />
+        </div>
+      ) : error ? (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+        />
+      ) : confirmedAppointments.length > 0 ? (
+        <Table
+          dataSource={confirmedAppointments}
+          columns={columns}
+          rowKey="id"
+          pagination={{ pageSize: 5 }}
+        />
+      ) : (
+        <Empty
+          description="No confirmed appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      )
+    },
+    {
+      key: 'checkedin',
+      label: <span><CheckCircleOutlined style={{ color: 'purple' }} /> Checked In</span>,
+      children: isLoadingAppointments ? (
+        <div className="flex justify-center py-8">
+          <Spin size="large" />
+        </div>
+      ) : error ? (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+        />
+      ) : checkedInAppointments.length > 0 ? (
+        <Table
+          dataSource={checkedInAppointments}
+          columns={columns}
+          rowKey="id"
+          pagination={{ pageSize: 5 }}
+        />
+      ) : (
+        <Empty
+          description="No checked-in appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       )
     },
@@ -629,51 +881,135 @@ export default function AppointmentsPage() {
           <Spin size="large" />
         </div>
       ) : error ? (
-        <Alert 
-          message="Error" 
-          description={error} 
-          type="error" 
-          showIcon 
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
         />
       ) : completedAppointments.length > 0 ? (
-        <Table 
-          dataSource={completedAppointments} 
-          columns={columns} 
-          rowKey="id" 
+        <Table
+          dataSource={completedAppointments}
+          columns={columns}
+          rowKey="id"
           pagination={{ pageSize: 5 }}
         />
       ) : (
-        <Empty 
-          description="No completed appointments" 
-          image={Empty.PRESENTED_IMAGE_SIMPLE} 
+        <Empty
+          description="No completed appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       )
     },
     {
-      key: 'cancelled',
-      label: <span><CloseCircleOutlined /> Cancelled/Rejected</span>,
+      key: 'rejected',
+      label: <span><CloseCircleOutlined style={{ color: 'red' }} /> Rejected</span>,
       children: isLoadingAppointments ? (
         <div className="flex justify-center py-8">
           <Spin size="large" />
         </div>
       ) : error ? (
-        <Alert 
-          message="Error" 
-          description={error} 
-          type="error" 
-          showIcon 
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
         />
-      ) : cancelledRejectedAppointments.length > 0 ? (
-        <Table 
-          dataSource={cancelledRejectedAppointments} 
-          columns={columns} 
-          rowKey="id" 
+      ) : rejectedAppointments.length > 0 ? (
+        <Table
+          dataSource={rejectedAppointments}
+          columns={columns}
+          rowKey="id"
           pagination={{ pageSize: 5 }}
         />
       ) : (
-        <Empty 
-          description="No cancelled or rejected appointments" 
-          image={Empty.PRESENTED_IMAGE_SIMPLE} 
+        <Empty
+          description="No rejected appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      )
+    },
+    {
+      key: 'denied',
+      label: <span><CloseCircleOutlined style={{ color: 'red' }} /> Denied</span>,
+      children: isLoadingAppointments ? (
+        <div className="flex justify-center py-8">
+          <Spin size="large" />
+        </div>
+      ) : error ? (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+        />
+      ) : deniedAppointments.length > 0 ? (
+        <Table
+          dataSource={deniedAppointments}
+          columns={columns}
+          rowKey="id"
+          pagination={{ pageSize: 5 }}
+        />
+      ) : (
+        <Empty
+          description="No denied appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      )
+    },
+    {
+      key: 'failed',
+      label: <span><CloseCircleOutlined style={{ color: 'red' }} /> Failed</span>,
+      children: isLoadingAppointments ? (
+        <div className="flex justify-center py-8">
+          <Spin size="large" />
+        </div>
+      ) : error ? (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+        />
+      ) : failedAppointments.length > 0 ? (
+        <Table
+          dataSource={failedAppointments}
+          columns={columns}
+          rowKey="id"
+          pagination={{ pageSize: 5 }}
+        />
+      ) : (
+        <Empty
+          description="No failed appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      )
+    },
+    {
+      key: 'cancelled',
+      label: <span><CloseCircleOutlined style={{ color: 'red' }} /> Cancelled</span>,
+      children: isLoadingAppointments ? (
+        <div className="flex justify-center py-8">
+          <Spin size="large" />
+        </div>
+      ) : error ? (
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
+        />
+      ) : cancelledAppointments.length > 0 ? (
+        <Table
+          dataSource={cancelledAppointments}
+          columns={columns}
+          rowKey="id"
+          pagination={{ pageSize: 5 }}
+        />
+      ) : (
+        <Empty
+          description="No cancelled appointments"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       )
     },
@@ -685,14 +1021,14 @@ export default function AppointmentsPage() {
           <Spin size="large" />
         </div>
       ) : error ? (
-        <Alert 
-          message="Error" 
-          description={error} 
-          type="error" 
-          showIcon 
+        <Alert
+          message="Error"
+          description={error}
+          type="error"
+          showIcon
         />
       ) : (
-        <Calendar 
+        <Calendar
           cellRender={cellRender}
           mode={calendarMode}
           onPanelChange={(date, mode) => setCalendarMode(mode)}
@@ -731,46 +1067,49 @@ export default function AppointmentsPage() {
               <FilterOutlined className="mr-2 text-gray-500" />
               <span className="text-gray-700 font-medium">Filter by Status:</span>
             </div>
-            <Tabs 
-              activeKey={activeTab} 
+            <Tabs
+              activeKey={activeTab}
               onChange={(key) => setActiveTab(key)}
               items={tabItems}
               className="mt-2"
               size="small"
               tabBarGutter={8}
-              // tabBarExtraContent={
-              //   <Button 
-              //     type="primary" 
-              //     icon={<PlusOutlined />} 
-              //     onClick={showCreateModal}
-              //     className="bg-red-600 hover:bg-red-700"
-              //   >
-              //     New Appointment
-              //   </Button>
-              // }
+              tabPosition="top"
+              type="card"
+            // tabBarExtraContent={
+            //   <Button 
+            //     type="primary" 
+            //     icon={<PlusOutlined />} 
+            //     onClick={showCreateModal}
+            //     className="bg-red-600 hover:bg-red-700"
+            //   >
+            //     New Appointment
+            //   </Button>
+            // }
             />
           </Card>
         </div>
 
-        <Alert 
-          message="Next Eligible Donation Date" 
+        <Alert
+          message="Next Eligible Donation Date"
           description={
             <div className="flex items-center">
               <CalendarOutlined className="mr-2 text-green-600" />
               <span>
-                You are eligible to donate whole blood after <strong>December 20, 2023</strong>. 
+                You are eligible to donate whole blood after <strong>December 20, 2023</strong>.
                 Please schedule your next appointment after this date.
               </span>
             </div>
           }
-          type="info" 
+          type="info"
           showIcon={false}
           className="mt-8 bg-blue-50"
         />
 
+        {/* Modal for responding to staff-initiated appointments */}
         <Modal
-          title={modalMode === 'create' ? 'Schedule New Appointment' : 'Edit Appointment'}
-          open={isModalVisible}
+          title={`${responseType} Appointment`}
+          open={isModalVisible && modalMode === 'response'}
           onCancel={handleCancel}
           footer={[
             <Button key="back" onClick={handleCancel}>
@@ -779,90 +1118,51 @@ export default function AppointmentsPage() {
             <Button
               key="submit"
               type="primary"
-              onClick={() => form.submit()}
-              className="bg-red-600 hover:bg-red-700"
+              onClick={handleResponseSubmit}
+              className={responseType === 'Accepted' ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
             >
-              {modalMode === 'create' ? 'Schedule' : 'Update'}
+              {responseType}
             </Button>,
           ]}
-          width={600}
         >
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            initialValues={{
-              date: dayjs().add(2, 'day'),
-              time: dayjs('10:00:00', 'HH:mm:ss'),
-              donationType: 'Whole Blood',
-            }}
-          >
-            <Form.Item
-              name="donationCenter"
-              label="Donation Center"
-              rules={[{ required: true, message: 'Please select a donation center' }]}
-            >
-              <Select placeholder="Select a donation center">
-                {/* We would fetch this data from an API */}
-              </Select>
-            </Form.Item>
+          <div className="mb-4">
+            <p className="font-medium">
+              {responseType === 'Accepted'
+                ? 'You are accepting this appointment request.'
+                : 'You are denying this appointment request.'}
+            </p>
 
-            <Form.Item
-              name="donationType"
-              label="Donation Type"
-              rules={[{ required: true, message: 'Please select a donation type' }]}
-            >
-              <Select placeholder="Select donation type">
-                {donationTypes.map(type => (
-                  <Option key={type} value={type}>{type}</Option>
-                ))}
-              </Select>
-            </Form.Item>
+            {selectedAppointment && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-md">
+                <div className="mb-2">
+                  <span className="font-medium">Date & Time:</span> {dayjs(selectedAppointment.preferredDate).format('MMM D, YYYY')} - {selectedAppointment.preferredTimeSlot}
+                </div>
+                <div className="mb-2">
+                  <span className="font-medium">Location:</span> {selectedAppointment.locationName}
+                </div>
+                {selectedAppointment.bloodGroupName && (
+                  <div className="mb-2">
+                    <span className="font-medium">Blood Group:</span> {selectedAppointment.bloodGroupName}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Form.Item
-                name="date"
-                label="Date"
-                rules={[{ required: true, message: 'Please select a date' }]}
-              >
-                <DatePicker 
-                  style={{ width: '100%' }} 
-                  disabledDate={(current) => {
-                    // Can't select days before today and Sundays
-                    return current && (
-                      current < dayjs().startOf('day') ||
-                      current.day() === 0
-                    );
-                  }}
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="time"
-                label="Time"
-                rules={[{ required: true, message: 'Please select a time' }]}
-              >
-                <TimePicker
-                  style={{ width: '100%' }} 
-                  format="h:mm a"
-                  minuteStep={15}
-                  disabledTime={() => ({
-                    disabledHours: () => [0, 1, 2, 3, 4, 5, 6, 7, 19, 20, 21, 22, 23],
-                  })}
-                />
-              </Form.Item>
-            </div>
-
-            <Form.Item
-              name="notes"
-              label="Notes (Optional)"
-            >
-              <Input.TextArea 
-                rows={3} 
-                placeholder="Any special requests or information for the donation center"
-              />
-            </Form.Item>
-          </Form>
+          <div className="mt-4">
+            <p className="mb-2 font-medium">Additional Notes (Optional):</p>
+            <Input.TextArea
+              rows={3}
+              placeholder={responseType === 'Denied' ? "Please provide a reason for denying (optional)" : "Add any additional notes (optional)"}
+              value={responseNote}
+              onChange={(e) => setResponseNote(e.target.value)}
+            />
+            {responseType === 'Denied' && !responseNote && (
+              <p className="text-xs text-gray-500 mt-1">
+                If no reason is provided, a default message will be sent.
+              </p>
+            )}
+          </div>
         </Modal>
       </div>
     </div>

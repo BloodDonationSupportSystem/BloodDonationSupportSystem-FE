@@ -373,9 +373,9 @@ export default function EmergencyRequestPage() {
             </div>
             
             <div className="flex justify-center gap-4">
-              <Button size="large" onClick={() => router.push('/member/dashboard')}>
+              {/* <Button size="large" onClick={() => router.push('/member/dashboard')}>
                 Go to Dashboard
-              </Button>
+              </Button> */}
               <Button type="primary" size="large" className="bg-red-600 hover:bg-red-700">
                 View Request Status
               </Button>

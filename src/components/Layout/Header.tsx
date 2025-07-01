@@ -55,11 +55,11 @@ export default function Header() {
 
   // Member-specific menu items if user is logged in
   const memberMenuItems: MenuProps['items'] = [
-    {
-      key: 'dashboard',
-      icon: <DashboardOutlined />,
-      label: <Link href="/member/dashboard">Dashboard</Link>
-    },
+    // {
+    //   key: 'dashboard',
+    //   icon: <DashboardOutlined />,
+    //   label: <Link href="/member/dashboard">Dashboard</Link>
+    // },
     {
       type: 'group',
       label: 'Donation Management',
@@ -74,16 +74,16 @@ export default function Header() {
           icon: <CalendarOutlined />,
           label: <Link href="/member/appointments">My Appointments</Link>
         },
-        {
-          key: 'history',
-          icon: <HistoryOutlined />,
-          label: <Link href="/member/donation-history">Donation History</Link>
-        },
-        {
-          key: 'availability',
-          icon: <CalendarOutlined />,
-          label: <Link href="/member/availability">Availability Settings</Link>
-        }
+        // {
+        //   key: 'history',
+        //   icon: <HistoryOutlined />,
+        //   label: <Link href="/member/donation-history">Donation History</Link>
+        // },
+        // {
+        //   key: 'availability',
+        //   icon: <CalendarOutlined />,
+        //   label: <Link href="/member/availability">Availability Settings</Link>
+        // }
       ]
     },
     {
@@ -121,33 +121,33 @@ export default function Header() {
           icon: <ProfileOutlined />,
           label: <Link href="/member/profile">My Profile</Link>
         },
-        {
-          key: 'achievements',
-          icon: <TrophyOutlined />,
-          label: <Link href="/member/achievements">Achievements</Link>
-        },
-        {
-          key: 'reports',
-          icon: <LineChartOutlined />,
-          label: <Link href="/member/reports">Health Reports</Link>
-        },
+        // {
+        //   key: 'achievements',
+        //   icon: <TrophyOutlined />,
+        //   label: <Link href="/member/achievements">Achievements</Link>
+        // },
+        // {
+        //   key: 'reports',
+        //   icon: <LineChartOutlined />,
+        //   label: <Link href="/member/reports">Health Reports</Link>
+        // },
         {
           key: 'notifications',
           icon: <BellOutlined />,
           label: <Link href="/member/notifications">Notifications</Link>
         },
-        {
-          key: 'settings',
-          icon: <SettingOutlined />,
-          label: <Link href="/member/settings">Settings</Link>
-        }
+        // {
+        //   key: 'settings',
+        //   icon: <SettingOutlined />,
+        //   label: <Link href="/member/settings">Settings</Link>
+        // }
       ]
     },
-    {
-      key: 'community',
-      icon: <TeamOutlined />,
-      label: <Link href="/member/community">Community</Link>
-    },
+    // {
+    //   key: 'community',
+    //   icon: <TeamOutlined />,
+    //   label: <Link href="/member/community">Community</Link>
+    // },
     {
       key: 'divider',
       type: 'divider'

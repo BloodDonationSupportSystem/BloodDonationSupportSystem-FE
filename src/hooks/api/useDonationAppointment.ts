@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { donationAppointmentService, DonationAppointmentRequest, AvailableTimeSlot } from '@/services/api';
+import { donationAppointmentService, DonationAppointmentRequest, AvailableTimeSlot, StaffAssignmentRequest } from '@/services/api';
 import { format } from 'date-fns';
 
 interface UseDonationAppointmentReturn {
@@ -10,6 +10,7 @@ interface UseDonationAppointmentReturn {
   successMessage: string | null;
   fetchAvailableTimeSlots: (locationId: string, date: Date, days?: number) => Promise<void>;
   submitDonationRequest: (request: DonationAppointmentRequest) => Promise<boolean>;
+  submitStaffAssignment: (request: StaffAssignmentRequest) => Promise<boolean>;
 }
 
 export function useDonationAppointment(): UseDonationAppointmentReturn {
@@ -19,7 +20,7 @@ export function useDonationAppointment(): UseDonationAppointmentReturn {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const fetchAvailableTimeSlots = async (locationId: string, date: Date, days: number = 1) => {
+  const fetchAvailableTimeSlots = async (locationId: string, date: Date, days: number = 1): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
@@ -64,6 +65,30 @@ export function useDonationAppointment(): UseDonationAppointmentReturn {
     }
   };
 
+  const submitStaffAssignment = async (request: StaffAssignmentRequest): Promise<boolean> => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      setSuccessMessage(null);
+      
+      const response = await donationAppointmentService.createStaffAssignment(request);
+      
+      if (response.success) {
+        setSuccessMessage('Donor assignment has been submitted successfully!');
+        return true;
+      } else {
+        setError(response.message || 'Failed to assign donor');
+        return false;
+      }
+    } catch (err) {
+      console.error('Error assigning donor:', err);
+      setError('An error occurred while assigning the donor');
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return {
     availableTimeSlots,
     isLoading,
@@ -71,6 +96,7 @@ export function useDonationAppointment(): UseDonationAppointmentReturn {
     error,
     successMessage,
     fetchAvailableTimeSlots,
-    submitDonationRequest
+    submitDonationRequest,
+    submitStaffAssignment
   };
 } 

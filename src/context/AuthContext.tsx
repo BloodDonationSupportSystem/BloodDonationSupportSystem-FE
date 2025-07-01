@@ -129,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         router.push('/staff');
         break;
       default:
-        router.push('/member/dashboard');
+        router.push('/member/profile');
         break;
     }
   };

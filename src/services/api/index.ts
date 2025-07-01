@@ -107,7 +107,8 @@ export type {
   DonationAppointmentRequest,
   DonationAppointmentRequestResponse,
   PendingAppointment,
-  TimeSlot
+  TimeSlot,
+  StaffAssignmentRequest
 } from './donationAppointmentService';
 
 export type {

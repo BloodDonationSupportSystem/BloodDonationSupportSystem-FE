@@ -375,7 +375,7 @@ const DonateBloodPage = () => {
           message="You are not eligible to donate blood at this time"
           description={
             <div className="space-y-4">
-              <p>{eligibilityData.message}</p>
+              {/* <p>{eligibilityData.message}</p> */}
               {eligibilityData.nextAvailableDonationDate && (
                 <p>
                   You can donate blood after: <strong>{format(new Date(eligibilityData.nextAvailableDonationDate), 'dd/MM/yyyy')}</strong>

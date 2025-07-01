@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Alert, Spin } from 'antd';
+import { Typography, Card, Alert, Spin, Form, Input, Button } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useForm, SubmitHandler } from 'react-hook-form';
+import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { LoginRequest } from '@/services/api/authService';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -20,163 +20,133 @@ export default function LoginPage() {
   const redirectPath = searchParams?.get('redirect') || '/';
   const { login, redirectBasedOnRole } = useAuth();
   
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginRequest>();
+  const { control, handleSubmit, formState: { errors } } = useForm<LoginRequest>({
+    defaultValues: {
+      userName: '',
+      password: ''
+    }
+  });
 
   const onSubmit: SubmitHandler<LoginRequest> = async (data) => {
     setLoading(true);
     setError(null);
-
+    
     try {
-      const response = await login(data.userName, data.password);
+      const result = await login(data.userName, data.password);
       
-      if (!response.success) {
-        if (response.errors && response.errors.length > 0) {
-          setError(response.errors.join(', '));
-          toast.error(response.errors.join(', '));
-        } else {
-          setError(response.message || 'Login failed');
-          toast.error(response.message || 'Login failed');
-        }
-        return;
-      }
-
-      toast.success('Login successful!');
-      
-      // Check if user is admin and redirect accordingly
-      if (response.data.user.roleName === 'Admin') {
-        router.push('/admin');
-      } else if (response.data.user.roleName === 'Staff') {
-        router.push('/staff');
-      } else if (redirectPath !== '/') {
-        router.push(redirectPath);
+      if (result.success) {
+        toast.success('Login successful!');
+        redirectBasedOnRole();
       } else {
-        router.push('/member/dashboard');
+        setError(result.message || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
-      const errorMessage = 'An error occurred during login. Please try again.';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      console.error(err);
+      console.error('Login error:', err);
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Redirect if already logged in
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        redirectBasedOnRole();
+      }
+    };
+    
+    checkAuth();
+  }, [redirectBasedOnRole]);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
-        <div className="text-center mb-6">
-          <div className="flex justify-center">
-            <span className="text-4xl" role="img" aria-label="Blood Drop">🩸</span>
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md mx-auto">
+        <Card className="shadow-md">
+          <div className="text-center mb-8">
+            <Title level={2} className="text-red-600">Login</Title>
+            <Paragraph className="text-gray-500">
+              Sign in to your Blood Donation account
+            </Paragraph>
           </div>
-          <Title level={2} className="mt-2">Sign in to your account</Title>
-          <Paragraph className="text-gray-500">
-            Welcome back! Please enter your credentials to continue.
-          </Paragraph>
-          {redirectPath && (
-            <Alert
-              message="Authentication Required"
-              description="Please sign in to access the requested page."
-              type="info"
-              showIcon
-              className="mb-4 mt-2"
+          
+          {error && (
+            <Alert 
+              message="Login Failed" 
+              description={error} 
+              type="error" 
+              showIcon 
+              className="mb-6" 
+              closable 
+              onClose={() => setError(null)}
             />
           )}
-        </div>
-        
-        {error && (
-          <Alert
-            message="Login Error"
-            description={error}
-            type="error"
-            showIcon
-            className="mb-4"
-          />
-        )}
-        
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label htmlFor="userName" className="block text-sm font-medium text-gray-700 mb-1">
-              Username
-            </label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                <UserOutlined className="text-gray-400" />
-              </span>
-              <input
-                id="userName"
-                type="text"
-                {...register("userName", { required: "Username is required" })}
-                className={`w-full pl-10 py-2 border rounded-md focus:ring-red-500 focus:border-red-500 ${errors.userName ? 'border-red-500' : 'border-gray-300'}`}
-                placeholder="Username"
-              />
-            </div>
-            {errors.userName && (
-              <p className="mt-1 text-sm text-red-600">{errors.userName.message}</p>
-            )}
-          </div>
           
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                <LockOutlined className="text-gray-400" />
-              </span>
-              <input
-                id="password"
-                type="password"
-                {...register("password", { required: "Password is required" })}
-                className={`w-full pl-10 py-2 border rounded-md focus:ring-red-500 focus:border-red-500 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
-                placeholder="Password"
-              />
-            </div>
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-            )}
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                Remember me
-              </label>
-            </div>
-            
-            <div className="text-sm">
-              <Link href="/forgot-password" className="text-red-600 hover:text-red-500">
-                Forgot your password?
-              </Link>
-            </div>
-          </div>
-          
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          <Form onFinish={handleSubmit(onSubmit)} layout="vertical">
+            <Form.Item 
+              label="Username"
+              validateStatus={errors.userName ? 'error' : ''}
+              help={errors.userName?.message}
             >
-              {loading ? <Spin size="small" /> : 'Sign in'}
-            </button>
+              <Controller
+                name="userName"
+                control={control}
+                rules={{ required: "Username is required" }}
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    prefix={<UserOutlined className="text-gray-400" />}
+                    placeholder="Username"
+                    size="large"
+                  />
+                )}
+              />
+            </Form.Item>
+            
+            <Form.Item 
+              label="Password"
+              validateStatus={errors.password ? 'error' : ''}
+              help={errors.password?.message}
+            >
+              <Controller
+                name="password"
+                control={control}
+                rules={{ required: "Password is required" }}
+                render={({ field }) => (
+                  <Input.Password
+                    {...field}
+                    prefix={<LockOutlined className="text-gray-400" />}
+                    placeholder="Password"
+                    size="large"
+                  />
+                )}
+              />
+            </Form.Item>
+            
+            <div className="mt-6">
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                loading={loading}
+                className="w-full bg-red-600 hover:bg-red-700"
+                size="large"
+              >
+                Sign In
+              </Button>
+            </div>
+          </Form>
+          
+          <div className="mt-6 text-center">
+            <p className="text-gray-600">
+              Don't have an account?{' '}
+              <Link href="/register" className="text-red-600 hover:text-red-800">
+                Register now
+              </Link>
+            </p>
           </div>
-        </form>
-        
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link href="/register" className="text-red-600 hover:text-red-500">
-              Register now
-            </Link>
-          </p>
-        </div>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 } 

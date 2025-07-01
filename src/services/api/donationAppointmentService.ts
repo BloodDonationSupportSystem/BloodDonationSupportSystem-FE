@@ -3,17 +3,22 @@ import axios from 'axios';
 
 // Types
 export interface TimeSlot {
+  date: string;
   timeSlot: string;
-  availableCapacity: number;
-  totalCapacity: number;
+  locationId: string;
+  availableSlots: number;
   isAvailable: boolean;
 }
 
 export interface AvailableTimeSlot {
-  locationId: string;
-  locationName: string;
   date: string;
-  availableSlots: TimeSlot[];
+  locationId: string;
+  locations: {
+    id: string;
+    name: string;
+    address: string;
+    timeSlots: TimeSlot[];
+  }[];
 }
 
 export interface DonationAppointmentRequest {
@@ -35,6 +40,15 @@ export interface PendingAppointment {
   notes: string;
 }
 
+export interface AvailableTimeSlotResponse {
+  success: boolean;
+  message: string;
+  statusCode: number;
+  errors: string[];
+  data: AvailableTimeSlot[];
+  count: number;
+}
+
 export interface ApiResponse<T = any> {
   success: boolean;
   message: string;
@@ -44,8 +58,21 @@ export interface ApiResponse<T = any> {
   count: number;
 }
 
-export type AvailableTimeSlotResponse = ApiResponse<AvailableTimeSlot[]>;
 export type DonationAppointmentRequestResponse = ApiResponse<{id: string}>;
+
+// Interface for staff assignment request
+export interface StaffAssignmentRequest {
+  donorId: string;
+  preferredDate: string;
+  preferredTimeSlot: string;
+  locationId: string;
+  bloodGroupId?: string;
+  componentTypeId?: string;
+  notes?: string;
+  isUrgent?: boolean;
+  priority?: number;
+  autoExpireHours?: number;
+}
 
 // API functions
 export const getAvailableTimeSlots = async (
@@ -85,6 +112,33 @@ export const createDonationAppointmentRequest = async (
     return response.data;
   } catch (error) {
     console.error('Error creating donation request:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      console.error('Error response data:', error.response.data);
+      return error.response.data as DonationAppointmentRequestResponse;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Creates a staff-initiated appointment assignment for a donor
+ */
+export const createStaffAssignment = async (
+  requestData: StaffAssignmentRequest
+): Promise<DonationAppointmentRequestResponse> => {
+  try {
+    console.log('Sending staff assignment request to API:', JSON.stringify(requestData, null, 2));
+    
+    // Remove undefined fields from the request
+    const cleanedData = Object.fromEntries(
+      Object.entries(requestData).filter(([_, value]) => value !== undefined)
+    );
+    
+    const response = await apiClient.post('/DonationAppointmentRequests/staff-assignment', cleanedData);
+    console.log('Staff assignment API response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating staff assignment:', error);
     if (axios.isAxiosError(error) && error.response) {
       console.error('Error response data:', error.response.data);
       return error.response.data as DonationAppointmentRequestResponse;

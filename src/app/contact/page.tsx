@@ -184,143 +184,157 @@ export default function ContactPage() {
                 />
               )}
               
-              <form onSubmit={handleSubmit(onSubmit)}>
-                <div className="mb-4">
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name <span className="text-red-500">*</span>
-                  </label>
-                  <Controller
-                    name="name"
-                    control={control}
-                    rules={{ required: 'Name is required' }}
-                    render={({ field }) => (
-                      <Input 
-                        {...field}
-                        id="name"
-                        placeholder="Your full name"
-                        className={`w-full ${errors.name ? 'border-red-500' : ''}`}
-                      />
-                    )}
-                  />
-                  {errors.name && (
-                    <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-                  )}
-                </div>
+              <div className="bg-white p-6 rounded-lg shadow">
+                <h3 className="text-xl font-semibold mb-4">Send Us a Message</h3>
                 
-                <Row gutter={16}>
-                  <Col xs={24} md={12}>
-                    <div className="mb-4">
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                        Email <span className="text-red-500">*</span>
-                      </label>
-                      <Controller
-                        name="email"
-                        control={control}
-                        rules={{ 
-                          required: 'Email is required',
-                          pattern: {
-                            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                            message: 'Invalid email address'
-                          } 
-                        }}
-                        render={({ field }) => (
-                          <Input 
-                            {...field}
-                            id="email"
-                            placeholder="Your email address"
-                            className={`w-full ${errors.email ? 'border-red-500' : ''}`}
-                          />
-                        )}
-                      />
-                      {errors.email && (
-                        <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                {isSuccess && (
+                  <Alert
+                    message="Message Sent!"
+                    description="Thank you for your message. We will get back to you soon."
+                    type="success"
+                    showIcon
+                    className="mb-4"
+                  />
+                )}
+                
+                <Form onFinish={handleSubmit(onSubmit)} layout="vertical">
+                  <div className="mb-4">
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                      Name <span className="text-red-500">*</span>
+                    </label>
+                    <Controller
+                      name="name"
+                      control={control}
+                      rules={{ required: 'Name is required' }}
+                      render={({ field }) => (
+                        <Input 
+                          {...field}
+                          id="name"
+                          placeholder="Your name"
+                          className={`w-full ${errors.name ? 'border-red-500' : ''}`}
+                        />
                       )}
-                    </div>
-                  </Col>
-                  <Col xs={24} md={12}>
-                    <div className="mb-4">
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                        Phone Number
-                      </label>
-                      <Controller
-                        name="phone"
-                        control={control}
-                        render={({ field }) => (
-                          <Input 
-                            {...field}
-                            id="phone"
-                            placeholder="Your phone number"
-                          />
+                    />
+                    {errors.name && (
+                      <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                    )}
+                  </div>
+                  
+                  <Row gutter={16}>
+                    <Col xs={24} md={12}>
+                      <div className="mb-4">
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                          Email <span className="text-red-500">*</span>
+                        </label>
+                        <Controller
+                          name="email"
+                          control={control}
+                          rules={{ 
+                            required: 'Email is required',
+                            pattern: {
+                              value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                              message: 'Invalid email address'
+                            } 
+                          }}
+                          render={({ field }) => (
+                            <Input 
+                              {...field}
+                              id="email"
+                              placeholder="Your email address"
+                              className={`w-full ${errors.email ? 'border-red-500' : ''}`}
+                            />
+                          )}
+                        />
+                        {errors.email && (
+                          <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
                         )}
-                      />
-                    </div>
-                  </Col>
-                </Row>
-                
-                <div className="mb-4">
-                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
-                    Subject <span className="text-red-500">*</span>
-                  </label>
-                  <Controller
-                    name="subject"
-                    control={control}
-                    rules={{ required: 'Subject is required' }}
-                    render={({ field }) => (
-                      <Select 
-                        {...field}
-                        id="subject"
-                        placeholder="Select a subject"
-                        className={`w-full ${errors.subject ? 'border-red-500' : ''}`}
-                      >
-                        <Option value="general">General Inquiry</Option>
-                        <Option value="donation">Blood Donation</Option>
-                        <Option value="request">Blood Request</Option>
-                        <Option value="volunteer">Volunteering</Option>
-                        <Option value="feedback">Feedback</Option>
-                        <Option value="other">Other</Option>
-                      </Select>
+                      </div>
+                    </Col>
+                    
+                    <Col xs={24} md={12}>
+                      <div className="mb-4">
+                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                          Phone Number
+                        </label>
+                        <Controller
+                          name="phone"
+                          control={control}
+                          render={({ field }) => (
+                            <Input 
+                              {...field}
+                              id="phone"
+                              placeholder="Your phone number"
+                            />
+                          )}
+                        />
+                      </div>
+                    </Col>
+                  </Row>
+                  
+                  <div className="mb-4">
+                    <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                      Subject <span className="text-red-500">*</span>
+                    </label>
+                    <Controller
+                      name="subject"
+                      control={control}
+                      rules={{ required: 'Subject is required' }}
+                      render={({ field }) => (
+                        <Select 
+                          {...field}
+                          id="subject"
+                          placeholder="Select a subject"
+                          className={`w-full ${errors.subject ? 'border-red-500' : ''}`}
+                        >
+                          <Option value="general">General Inquiry</Option>
+                          <Option value="donation">Blood Donation</Option>
+                          <Option value="request">Blood Request</Option>
+                          <Option value="volunteer">Volunteering</Option>
+                          <Option value="feedback">Feedback</Option>
+                          <Option value="other">Other</Option>
+                        </Select>
+                      )}
+                    />
+                    {errors.subject && (
+                      <p className="mt-1 text-sm text-red-600">{errors.subject.message}</p>
                     )}
-                  />
-                  {errors.subject && (
-                    <p className="mt-1 text-sm text-red-600">{errors.subject.message}</p>
-                  )}
-                </div>
-                
-                <div className="mb-4">
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
-                    Message <span className="text-red-500">*</span>
-                  </label>
-                  <Controller
-                    name="message"
-                    control={control}
-                    rules={{ required: 'Message is required' }}
-                    render={({ field }) => (
-                      <TextArea 
-                        {...field}
-                        id="message"
-                        rows={5}
-                        placeholder="Type your message here..."
-                        className={`w-full ${errors.message ? 'border-red-500' : ''}`}
-                      />
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                      Message <span className="text-red-500">*</span>
+                    </label>
+                    <Controller
+                      name="message"
+                      control={control}
+                      rules={{ required: 'Message is required' }}
+                      render={({ field }) => (
+                        <TextArea 
+                          {...field}
+                          id="message"
+                          rows={4}
+                          placeholder="Your message"
+                          className={`w-full ${errors.message ? 'border-red-500' : ''}`}
+                        />
+                      )}
+                    />
+                    {errors.message && (
+                      <p className="mt-1 text-sm text-red-600">{errors.message.message}</p>
                     )}
-                  />
-                  {errors.message && (
-                    <p className="mt-1 text-sm text-red-600">{errors.message.message}</p>
-                  )}
-                </div>
-                
-                <div className="flex justify-end">
-                  <Button
-                    type="primary"
-                    htmlType="submit"
+                  </div>
+                  
+                  <Button 
+                    type="primary" 
+                    htmlType="submit" 
+                    className="w-full bg-red-600 hover:bg-red-700"
+                    icon={<SendOutlined />}
                     loading={isSubmitting}
-                    className="bg-red-600 hover:bg-red-700"
-                    size="large"
+                    disabled={isSubmitting}
                   >
                     Send Message
                   </Button>
-                </div>
-              </form>
+                </Form>
+              </div>
             </Card>
           </Col>
         </Row>

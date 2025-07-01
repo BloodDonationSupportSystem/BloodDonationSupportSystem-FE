@@ -177,7 +177,7 @@ export function useLocations(): UseLocationsReturn {
   const findLocationById = (id: string): Location | undefined => {
     return locations.find(location => location.id === id);
   };
-  
+
   const fetchLocationById = async (locationId: string): Promise<Location | null> => {
     try {
       const response = await getLocationById(locationId);

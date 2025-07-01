@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as donorProfileService from '@/services/api/donorProfileService';
 import { DonorProfileUpdateRequest, DonorProfile, EligibilityResponse } from '@/services/api/donorProfileService';
 import { useAuth } from '@/context/AuthContext';
@@ -112,5 +112,87 @@ export function useDonorProfile(): UseDonorProfileReturn {
     eligibility,
     isCheckingEligibility,
     checkEligibility
+  };
+}
+
+interface UseAllDonorsReturn {
+  donors: DonorProfile[];
+  filteredDonors: DonorProfile[];
+  isLoading: boolean;
+  error: string | null;
+  fetchDonors: () => Promise<void>;
+  filterDonorsByBloodGroup: (bloodGroupId: string) => Promise<void>;
+  resetFilter: () => void;
+}
+
+export function useAllDonors(): UseAllDonorsReturn {
+  const [donors, setDonors] = useState<DonorProfile[]>([]);
+  const [filteredDonors, setFilteredDonors] = useState<DonorProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDonors = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await donorProfileService.getAllDonorProfiles();
+      
+      if (response.success && response.data) {
+        setDonors(response.data);
+        setFilteredDonors(response.data);
+      } else {
+        setError(response.message || 'Failed to load donor profiles');
+      }
+    } catch (err) {
+      console.error('Error fetching donor profiles:', err);
+      setError('An error occurred while fetching donor profiles');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const filterDonorsByBloodGroup = useCallback(async (bloodGroupId: string) => {
+    if (!bloodGroupId) {
+      setFilteredDonors(donors);
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await donorProfileService.getDonorProfilesByBloodGroup(bloodGroupId);
+      
+      if (response.success && response.data) {
+        setFilteredDonors(response.data);
+      } else {
+        setError(response.message || 'Failed to filter donors by blood group');
+        // Keep the current filtered list if there's an error
+      }
+    } catch (err) {
+      console.error('Error filtering donors by blood group:', err);
+      setError('An error occurred while filtering donors');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [donors]);
+
+  const resetFilter = useCallback(() => {
+    setFilteredDonors(donors);
+  }, [donors]);
+
+  useEffect(() => {
+    fetchDonors();
+  }, [fetchDonors]);
+
+  return {
+    donors,
+    filteredDonors,
+    isLoading,
+    error,
+    fetchDonors,
+    filterDonorsByBloodGroup,
+    resetFilter
   };
 } 

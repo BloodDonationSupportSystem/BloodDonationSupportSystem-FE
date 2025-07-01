@@ -25,7 +25,7 @@ const { Sider } = Layout;
 
 export default function MemberSidebar() {
   const pathname = usePathname() || '';
-  
+
   const menuItems: MenuProps['items'] = [
     // {
     //   key: 'dashboard',
@@ -122,6 +122,7 @@ export default function MemberSidebar() {
       breakpoint="lg"
       collapsedWidth="0"
       collapsible
+      style={{ height: '100vh', overflowY: 'auto' }}
     >
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-red-600">Member Portal</h2>
@@ -130,7 +131,7 @@ export default function MemberSidebar() {
         mode="inline"
         selectedKeys={[currentPath]}
         defaultOpenKeys={['blood-services']}
-        style={{ height: '100%', borderRight: 0 }}
+        style={{ borderRight: 0 }}
         items={menuItems}
         className="custom-sidebar-menu"
       />
