@@ -24,6 +24,7 @@ export interface DonorProfile {
   createdTime: string;
   lastUpdatedTime: string | null;
   nextAvailableDonationDate: string | null;
+  nextEligibleDonationDate: string | null;
   isAvailableForEmergency: boolean;
   preferredDonationTime: string | null;
   distanceKm: number;

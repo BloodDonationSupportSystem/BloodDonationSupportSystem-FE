@@ -3,9 +3,9 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Typography, Card, Row, Col, Statistic, Button, List, Tag, Badge, Progress, Calendar } from 'antd';
-import { 
-  HeartOutlined, 
-  CalendarOutlined, 
+import {
+  HeartOutlined,
+  CalendarOutlined,
   TeamOutlined,
   RightOutlined,
   MedicineBoxOutlined,
@@ -129,9 +129,9 @@ export default function MemberDashboardPage() {
   const dateCellRender = (value: dayjs.Dayjs) => {
     const dateStr = value.format('YYYY-MM-DD');
     const eventsList = mockData.events.filter(event => event.date === dateStr);
-    
+
     if (eventsList.length === 0) return null;
-    
+
     return (
       <ul className="events">
         {eventsList.map(event => (
@@ -165,10 +165,10 @@ export default function MemberDashboardPage() {
       <Row gutter={[16, 16]} className="mb-8">
         <Col xs={24} md={8}>
           <Card className="h-full">
-            <Statistic 
-              title="Total Donations" 
-              value={mockData.totalDonations} 
-              prefix={<HeartOutlined className="text-red-500" />} 
+            <Statistic
+              title="Total Donations"
+              value={mockData.totalDonations}
+              prefix={<HeartOutlined className="text-red-500" />}
             />
             <div className="mt-4">
               <Link href="/member/donation-history">
@@ -181,11 +181,11 @@ export default function MemberDashboardPage() {
         </Col>
         <Col xs={24} md={8}>
           <Card className={`h-full ${isEligibleToDonate ? 'bg-green-50' : 'bg-yellow-50'}`}>
-            <Statistic 
-              title="Next Eligible Donation Date" 
-              value={isEligibleToDonate ? 'Eligible Now!' : dayjs(mockData.nextEligibleDate).format('MMM D, YYYY')} 
+            <Statistic
+              title="Next Eligible Donation Date"
+              value={isEligibleToDonate ? 'Eligible Now!' : dayjs(mockData.nextEligibleDate).format('MMM D, YYYY')}
               valueStyle={{ color: isEligibleToDonate ? '#52c41a' : '#fa8c16', fontSize: '18px' }}
-              prefix={<CalendarOutlined />} 
+              prefix={<CalendarOutlined />}
             />
             <div className="mt-4">
               {isEligibleToDonate ? (
@@ -240,7 +240,7 @@ export default function MemberDashboardPage() {
       <Row gutter={[16, 16]} className="mb-8">
         {/* Urgent Blood Requests */}
         <Col xs={24} lg={12}>
-          <Card 
+          <Card
             title={<span className="text-red-600 font-bold flex items-center"><MedicineBoxOutlined className="mr-2" /> Urgent Blood Requests</span>}
             className="h-full"
           >
@@ -289,7 +289,7 @@ export default function MemberDashboardPage() {
 
         {/* Blood Inventory */}
         <Col xs={24} lg={12}>
-          <Card 
+          <Card
             title={<span className="font-bold flex items-center"><TeamOutlined className="mr-2" /> Blood Inventory Status</span>}
             className="h-full"
           >
@@ -300,9 +300,9 @@ export default function MemberDashboardPage() {
                     <div className="mb-2">
                       <Tag color="red" className="text-lg px-3 py-1">{type}</Tag>
                     </div>
-                    <Progress 
-                      type="circle" 
-                      percent={data.percentage} 
+                    <Progress
+                      type="circle"
+                      percent={data.percentage}
                       width={70}
                       strokeColor={getInventoryStatusColor(data.status)}
                       format={percent => (
@@ -328,7 +328,7 @@ export default function MemberDashboardPage() {
       <Row gutter={[16, 16]} className="mb-8">
         {/* Recent Donations */}
         <Col xs={24} md={12}>
-          <Card 
+          <Card
             title={<span className="font-bold flex items-center"><HeartOutlined className="mr-2" /> Recent Donations</span>}
             className="h-full"
           >
@@ -370,12 +370,12 @@ export default function MemberDashboardPage() {
 
         {/* Upcoming Events */}
         <Col xs={24} md={12}>
-          <Card 
+          <Card
             title={<span className="font-bold flex items-center"><CalendarOutlined className="mr-2" /> Upcoming Events</span>}
             className="h-full"
           >
-            <Calendar 
-              fullscreen={false} 
+            <Calendar
+              fullscreen={false}
               cellRender={dateCellRender}
             />
           </Card>

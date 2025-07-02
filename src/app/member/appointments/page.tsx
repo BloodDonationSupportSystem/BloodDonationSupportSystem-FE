@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Typography, Card, Spin, Table, Tag, Button, Tooltip, Calendar, Badge, Tabs, Modal, Form, Input, DatePicker, TimePicker, Select, Empty, Alert, message } from 'antd';
+import { Typography, Card, Spin, Table, Tag, Button, Tooltip, Calendar, Badge, Tabs, Modal, Form, Input, DatePicker, TimePicker, Select, Empty, Alert, message, Descriptions } from 'antd';
 import {
   CalendarOutlined,
   ClockCircleOutlined,
@@ -39,6 +39,9 @@ interface AppointmentRequest {
   donorName: string;
   donorEmail: string;
   donorPhone: string;
+  totalDonations?: number;
+  lastDonationDate?: string;
+  nextEligibleDonationDate?: string;
   preferredDate: string;
   preferredTimeSlot: string;
   locationId: string;
@@ -70,6 +73,9 @@ interface AppointmentRequest {
   createdTime: string;
   lastUpdatedTime: string | null;
   expiresAt: string | null;
+  checkInTime?: string;
+  completedTime?: string;
+  cancelledTime?: string;
 }
 
 // Interface for API response
@@ -100,6 +106,11 @@ export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<AppointmentRequest[]>([]);
   const [isLoadingAppointments, setIsLoadingAppointments] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Appointment detail modal
+  const [isAppointmentDetailModalVisible, setIsAppointmentDetailModalVisible] = useState(false);
+  const [appointmentDetail, setAppointmentDetail] = useState<AppointmentRequest | null>(null);
+  const [loadingAppointmentDetail, setLoadingAppointmentDetail] = useState(false);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -190,6 +201,36 @@ export default function AppointmentsPage() {
       handleAppointmentResponse(selectedAppointment.id, responseType, responseNote);
       setIsModalVisible(false);
       setResponseNote('');
+    }
+  };
+
+  // Function to view appointment details
+  const viewAppointmentDetail = async (appointmentId: string) => {
+    setLoadingAppointmentDetail(true);
+    setIsAppointmentDetailModalVisible(true);
+
+    try {
+      const response = await apiClient.get<{
+        success: boolean;
+        message: string;
+        statusCode: number;
+        errors: string[];
+        data: AppointmentRequest;
+        count: number;
+      }>(`/DonationAppointmentRequests/${appointmentId}`);
+
+      if (response.data.success) {
+        setAppointmentDetail(response.data.data);
+      } else {
+        message.error(response.data.message || 'Không thể tải thông tin cuộc hẹn');
+        setAppointmentDetail(null);
+      }
+    } catch (error: any) {
+      console.error('Error fetching appointment details:', error);
+      message.error('Lỗi khi tải thông tin cuộc hẹn');
+      setAppointmentDetail(null);
+    } finally {
+      setLoadingAppointmentDetail(false);
     }
   };
 
@@ -347,26 +388,17 @@ export default function AppointmentsPage() {
         dayjs(a.preferredDate).unix() - dayjs(b.preferredDate).unix(),
       render: (text: string, record: AppointmentRequest) => {
         // Convert UTC time to Vietnam time zone
-        const utcDate = dayjs(text);
+        const utcDate = dayjs(record.preferredDate);
+        // Không cần add 7 giờ vì đã thiết lập timezone 'Asia/Ho_Chi_Minh'
         const localDate = utcDate.tz('Asia/Ho_Chi_Minh');
-
-        // Get the hour range based on timeSlot
-        let hourRange = '';
-        if (record.preferredTimeSlot === 'Morning') {
-          hourRange = '(7AM - 11AM)';
-        } else if (record.preferredTimeSlot === 'Afternoon') {
-          hourRange = '(1PM - 6PM)';
-        } else if (record.preferredTimeSlot === 'Evening') {
-          hourRange = '(6PM - 9PM)';
-        }
 
         return (
           <span>
             <div className="flex items-center">
-              <CalendarOutlined className="mr-1" /> {localDate.format('MMM D, YYYY')}
+              <CalendarOutlined className="mr-1" /> {localDate.format('DD/MM/YYYY HH:mm:ss')}
             </div>
             <div className="flex items-center text-gray-500 mt-1">
-              <ClockCircleOutlined className="mr-1" /> {localDate.format('HH:mm:ss')} - {record.preferredTimeSlot} {hourRange}
+              <ClockCircleOutlined className="mr-1" /> {record.preferredTimeSlot}
             </div>
           </span>
         );
@@ -436,22 +468,34 @@ export default function AppointmentsPage() {
               >
                 Deny
               </Button>
+              <Button
+                size="small"
+                onClick={() => viewAppointmentDetail(record.id)}
+              >
+                View Details
+              </Button>
             </div>
           );
         }
 
-        if (canBeCancelled && !isAppointmentInPast) {
-          return (
+        return (
+          <div className="flex space-x-2">
+            {canBeCancelled && !isAppointmentInPast && (
+              <Button
+                danger
+                onClick={() => showCancelConfirm(record.id)}
+              >
+                Cancel
+              </Button>
+            )}
             <Button
-              danger
-              onClick={() => showCancelConfirm(record.id)}
+              size="small"
+              onClick={() => viewAppointmentDetail(record.id)}
             >
-              Cancel
+              View Details
             </Button>
-          );
-        }
-
-        return null;
+          </div>
+        );
       },
     },
   ];
@@ -1135,7 +1179,7 @@ export default function AppointmentsPage() {
             {selectedAppointment && (
               <div className="mt-4 p-4 bg-gray-50 rounded-md">
                 <div className="mb-2">
-                  <span className="font-medium">Date & Time:</span> {dayjs(selectedAppointment.preferredDate).format('MMM D, YYYY')} - {selectedAppointment.preferredTimeSlot}
+                  <span className="font-medium">Date & Time:</span> {dayjs(selectedAppointment.preferredDate).tz('Asia/Ho_Chi_Minh').format('DD/MM/YYYY HH:mm:ss')} - {selectedAppointment.preferredTimeSlot}
                 </div>
                 <div className="mb-2">
                   <span className="font-medium">Location:</span> {selectedAppointment.locationName}
@@ -1163,6 +1207,150 @@ export default function AppointmentsPage() {
               </p>
             )}
           </div>
+        </Modal>
+
+        {/* Appointment Detail Modal */}
+        <Modal
+          title="Chi tiết cuộc hẹn hiến máu"
+          open={isAppointmentDetailModalVisible}
+          onCancel={() => setIsAppointmentDetailModalVisible(false)}
+          footer={[
+            <Button key="close" onClick={() => setIsAppointmentDetailModalVisible(false)}>
+              Đóng
+            </Button>
+          ]}
+          width={800}
+        >
+          {loadingAppointmentDetail ? (
+            <div className="flex justify-center items-center py-10">
+              <Spin size="large" />
+            </div>
+          ) : appointmentDetail ? (
+            <div>
+              <Card className="mb-4">
+                <Descriptions title="Thông tin người hiến máu" bordered column={2}>
+                  <Descriptions.Item label="Họ tên" span={2}>
+                    <strong>{appointmentDetail.donorName}</strong>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Email">
+                    {appointmentDetail.donorEmail}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Số điện thoại">
+                    {appointmentDetail.donorPhone}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Nhóm máu">
+                    <Tag color="red">{appointmentDetail.bloodGroupName || 'Chưa xác định'}</Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Loại hiến máu">
+                    <Tag color={getDonationTypeColor(appointmentDetail.componentTypeName)}>
+                      {appointmentDetail.componentTypeName || 'Máu toàn phần'}
+                    </Tag>
+                  </Descriptions.Item>
+                  {/* <Descriptions.Item label="Tổng số lần hiến máu">
+                    {appointmentDetail.totalDonations || 0}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Lần hiến máu gần nhất">
+                    {appointmentDetail.lastDonationDate ?
+                      dayjs(appointmentDetail.lastDonationDate).tz('Asia/Ho_Chi_Minh').format('DD/MM/YYYY HH:mm:ss') :
+                      'Chưa có thông tin'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Lần hiến máu tiếp theo">
+                    {appointmentDetail.nextEligibleDonationDate ?
+                      dayjs(appointmentDetail.nextEligibleDonationDate).tz('Asia/Ho_Chi_Minh').format('DD/MM/YYYY HH:mm:ss') :
+                      'Chưa có thông tin'}
+                  </Descriptions.Item> */}
+                </Descriptions>
+              </Card>
+
+              <Card className="mb-4">
+                <Descriptions title="Thông tin cuộc hẹn" bordered column={2}>
+                  <Descriptions.Item label="Mã cuộc hẹn" span={2}>
+                    {appointmentDetail.id}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Trạng thái">
+                    <Tag color={getStatusColor(appointmentDetail.status)}>
+                      {appointmentDetail.status}
+                    </Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Loại yêu cầu">
+                    {appointmentDetail.requestType}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Ngày hẹn">
+                    {dayjs(appointmentDetail.preferredDate).tz('Asia/Ho_Chi_Minh').format('DD/MM/YYYY HH:mm:ss')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Khung giờ">
+                    {appointmentDetail.preferredTimeSlot}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Địa điểm" span={2}>
+                    {appointmentDetail.locationName}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Địa chỉ" span={2}>
+                    {appointmentDetail.locationAddress}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Khẩn cấp">
+                    {appointmentDetail.isUrgent ? (
+                      <Tag color="red">Khẩn cấp</Tag>
+                    ) : (
+                      <Tag color="green">Thường</Tag>
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Độ ưu tiên">
+                    {appointmentDetail.priority}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Ghi chú" span={2}>
+                    {appointmentDetail.notes || 'Không có ghi chú'}
+                  </Descriptions.Item>
+                </Descriptions>
+              </Card>
+
+              <Card className="mb-4">
+                <Descriptions title="Thông tin xử lý" bordered column={2}>
+                  {appointmentDetail.reviewedByUserName && (
+                    <>
+                      <Descriptions.Item label="Người xử lý">
+                        {appointmentDetail.reviewedByUserName}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Thời gian xử lý">
+                        {appointmentDetail.reviewedAt ?
+                          dayjs(appointmentDetail.reviewedAt).tz('Asia/Ho_Chi_Minh').format('DD/MM/YYYY HH:mm:ss') :
+                          'Chưa xử lý'}
+                      </Descriptions.Item>
+                    </>
+                  )}
+                  {appointmentDetail.rejectionReason && (
+                    <Descriptions.Item label="Lý do từ chối" span={2}>
+                      {appointmentDetail.rejectionReason}
+                    </Descriptions.Item>
+                  )}
+                  {appointmentDetail.checkInTime && (
+                    <Descriptions.Item label="Thời gian check-in">
+                      {dayjs(appointmentDetail.checkInTime).tz('Asia/Ho_Chi_Minh').format('DD/MM/YYYY HH:mm:ss')}
+                    </Descriptions.Item>
+                  )}
+                  {appointmentDetail.completedTime && (
+                    <Descriptions.Item label="Thời gian hoàn thành">
+                      {dayjs(appointmentDetail.completedTime).tz('Asia/Ho_Chi_Minh').format('DD/MM/YYYY HH:mm:ss')}
+                    </Descriptions.Item>
+                  )}
+                  {appointmentDetail.cancelledTime && (
+                    <Descriptions.Item label="Thời gian hủy">
+                      {dayjs(appointmentDetail.cancelledTime).tz('Asia/Ho_Chi_Minh').format('DD/MM/YYYY HH:mm:ss')}
+                    </Descriptions.Item>
+                  )}
+                  <Descriptions.Item label="Thời gian tạo">
+                    {dayjs(appointmentDetail.createdTime).tz('Asia/Ho_Chi_Minh').format('DD/MM/YYYY HH:mm:ss')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Cập nhật lần cuối">
+                    {appointmentDetail.lastUpdatedTime ?
+                      dayjs(appointmentDetail.lastUpdatedTime).tz('Asia/Ho_Chi_Minh').format('DD/MM/YYYY HH:mm:ss') :
+                      'Chưa cập nhật'}
+                  </Descriptions.Item>
+                </Descriptions>
+              </Card>
+            </div>
+          ) : (
+            <Empty description="Không tìm thấy thông tin cuộc hẹn" />
+          )}
         </Modal>
       </div>
     </div>

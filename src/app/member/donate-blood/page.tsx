@@ -104,6 +104,8 @@ const DonateBloodPage = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
+  const [selectedBloodGroupId, setSelectedBloodGroupId] = useState<string | undefined>(undefined);
+  const [selectedComponentTypeId, setSelectedComponentTypeId] = useState<string | undefined>(undefined);
   const [loadingCapacities, setLoadingCapacities] = useState(false);
 
   // State for capacity schedule view
@@ -264,7 +266,23 @@ const DonateBloodPage = () => {
       // Save form data
       form.validateFields().then(() => {
         if (currentStep === 1) {
+          // Save location and other form values
           setSelectedLocation(values.locationId);
+          setSelectedBloodGroupId(values.bloodGroupId);
+          setSelectedComponentTypeId(values.componentTypeId);
+
+          // Store values in form to ensure they're available at confirmation
+          form.setFieldsValue({
+            locationId: values.locationId,
+            bloodGroupId: values.bloodGroupId,
+            componentTypeId: values.componentTypeId
+          });
+
+          console.log('Saved form values:', {
+            locationId: values.locationId,
+            bloodGroupId: values.bloodGroupId,
+            componentTypeId: values.componentTypeId
+          });
         }
         next();
       });
@@ -307,15 +325,22 @@ const DonateBloodPage = () => {
         preferredDate = utcTime.format('YYYY-MM-DDTHH:mm:ss.SSS') + '+00:00';
       }
 
+      // Get all form values
+      const formValues = form.getFieldsValue();
+
       const requestData: DonationAppointmentRequest = {
         preferredDate: preferredDate,
         preferredTimeSlot: timeSlot,
         locationId: selectedLocation,
-        bloodGroupId: values.bloodGroupId || undefined,
-        componentTypeId: values.componentTypeId || undefined,
+        bloodGroupId: selectedBloodGroupId || formValues.bloodGroupId || undefined,
+        componentTypeId: selectedComponentTypeId || formValues.componentTypeId || undefined,
         notes: values.notes || '',
         isUrgent: values.isUrgent || false
       };
+
+      // Ensure we're sending the proper values in the request
+      console.log('Blood Group ID:', requestData.bloodGroupId);
+      console.log('Component Type ID:', requestData.componentTypeId);
 
       console.log('Submitting request:', requestData);
 
@@ -446,7 +471,23 @@ const DonateBloodPage = () => {
             />
           ) : (
             <Alert
-              message="Finding donation centers near you"
+              message={
+                <div className="flex justify-between items-center">
+                  <span>Finding donation centers near you</span>
+                  <Button
+                    type="primary"
+                    size="small"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      getUserLocation();
+                    }}
+                    loading={isGettingUserLocation}
+                    className="ml-2"
+                  >
+                    Get My Location
+                  </Button>
+                </div>
+              }
               description="We're trying to access your location to show donation centers sorted by distance."
               type="info"
               showIcon
@@ -464,8 +505,19 @@ const DonateBloodPage = () => {
                   <span className="text-gray-500">Getting your location...</span>
                 </div>
               ) : !userCoordinates.latitude ? (
-                <div className="mt-2 text-yellow-600">
-                  Unable to get your location automatically. You can still select a location from the list.
+                <div className="mt-2 flex items-center">
+                  <span className="text-yellow-600 mr-2">Unable to get your location automatically.</span>
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      getUserLocation();
+                    }}
+                    className="p-0"
+                  >
+                    Try again
+                  </Button>
                 </div>
               ) : null
             }
@@ -845,11 +897,27 @@ const DonateBloodPage = () => {
 
   // Render confirmation step
   const renderConfirmationStep = () => {
+    // Get values from form and state
+    const formValues = form.getFieldsValue();
+
+    // Get location, blood group and component type display names
     const locationName = locations.find(loc => loc.id === selectedLocation)?.name || '';
-    const bloodGroupName = form.getFieldValue('bloodGroupId') ?
-      bloodGroups.find(bg => bg.id === form.getFieldValue('bloodGroupId'))?.groupName : 'Not specified';
-    const componentTypeName = form.getFieldValue('componentTypeId') ?
-      componentTypes.find(ct => ct.id === form.getFieldValue('componentTypeId'))?.name : 'Not specified';
+    const bloodGroupId = selectedBloodGroupId || formValues.bloodGroupId;
+    const componentTypeId = selectedComponentTypeId || formValues.componentTypeId;
+
+    const bloodGroupName = bloodGroupId ?
+      bloodGroups.find(bg => bg.id === bloodGroupId)?.groupName : 'Not specified';
+    const componentTypeName = componentTypeId ?
+      componentTypes.find(ct => ct.id === componentTypeId)?.name : 'Not specified';
+
+    // Log the values we'll send in the final request
+    console.log('Confirmation step - Form values:', {
+      locationId: selectedLocation,
+      bloodGroupId,
+      componentTypeId,
+      date: selectedDate,
+      timeSlot: selectedTimeSlot
+    });
 
     return (
       <div className="space-y-6">
@@ -873,18 +941,27 @@ const DonateBloodPage = () => {
               <div>
                 <p className="text-gray-500">Blood Group</p>
                 <p className="font-medium">{bloodGroupName}</p>
+                {/* {bloodGroupId && <p className="text-xs text-gray-500">ID: {bloodGroupId}</p>} */}
               </div>
               <div>
                 <p className="text-gray-500">Component Type</p>
                 <p className="font-medium">{componentTypeName}</p>
+                {/* {componentTypeId && <p className="text-xs text-gray-500">ID: {componentTypeId}</p>} */}
               </div>
             </div>
           </div>
         </div>
 
         <Form
+          form={form}
           layout="vertical"
           onFinish={handleSubmit}
+          initialValues={{
+            // Preserve values that were previously selected
+            bloodGroupId,
+            componentTypeId,
+            locationId: selectedLocation
+          }}
         >
           <Form.Item
             name="notes"

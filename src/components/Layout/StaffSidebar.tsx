@@ -61,6 +61,7 @@ export default function StaffSidebar() {
   const getSelectedKey = () => {
     if (pathname === '/staff') return 'dashboard';
     if (pathname.includes('/staff/appointments')) return 'appointments';
+    if (pathname.includes('/staff/donation-events')) return 'donation-events';
     if (pathname.includes('/staff/donors')) return 'donors';
     if (pathname.includes('/staff/blood-drives')) return 'blood-drives';
     if (pathname.includes('/staff/reports')) return 'reports';
@@ -82,15 +83,20 @@ export default function StaffSidebar() {
       label: <Link href="/staff/appointments">Appointments</Link>,
     },
     {
+      key: 'donation-events',
+      icon: <HeartOutlined />,
+      label: <Link href="/staff/donation-events">Donation Events</Link>,
+    },
+    {
       key: 'donors',
       icon: <UserOutlined />,
       label: <Link href="/staff/donors">Donors</Link>,
     },
-    {
-      key: 'blood-drives',
-      icon: <HeartOutlined />,
-      label: <Link href="/staff/blood-drives">Blood Drives</Link>,
-    },
+    // {
+    //   key: 'blood-drives',
+    //   icon: <HeartOutlined />,
+    //   label: <Link href="/staff/blood-drives">Blood Drives</Link>,
+    // },
     {
       key: 'capacity',
       icon: <ScheduleOutlined />,

@@ -114,7 +114,7 @@ const DonorProfileDetails: React.FC<DonorProfileDetailsProps> = ({
                                 {formatDate(donor.lastDonationDate)}
                             </Descriptions.Item>
                             <Descriptions.Item label="Next Eligible Donation Date">
-                                {formatDate(donor.nextAvailableDonationDate)}
+                                {formatDate(donor.nextEligibleDonationDate || donor.nextAvailableDonationDate)}
                             </Descriptions.Item>
                             <Descriptions.Item label="Blood Group">
                                 <Tag color="red">{donor.bloodGroupName || 'Unknown'}</Tag>

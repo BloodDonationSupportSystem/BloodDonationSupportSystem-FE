@@ -21,6 +21,23 @@ const apiClient = axios.create({
   }
 });
 
+// Log requests for debugging
+apiClient.interceptors.request.use(
+  (config) => {
+    // Normalize URL path to ensure no double slashes
+    if (config.url) {
+      // Replace multiple consecutive slashes with a single slash (except in http://)
+      config.url = config.url.replace(/([^:]\/)\/+/g, '$1');
+      console.log(`Request to: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+    }
+    return config;
+  },
+  (error) => {
+    console.error('Request error:', error);
+    return Promise.reject(error);
+  }
+);
+
 // Request interceptor for adding auth token
 if (isBrowser()) {
   apiClient.interceptors.request.use(
@@ -42,6 +59,9 @@ if (isBrowser()) {
       return response;
     },
     (error) => {
+      // Log response errors
+      console.error('API Response Error:', error.response?.status, error.response?.data);
+
       // Handle common errors here (e.g., 401 Unauthorized, 403 Forbidden)
       if (error.response) {
         const { status } = error.response;
