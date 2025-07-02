@@ -1,15 +1,21 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, Button, Space, Select, DatePicker, Input, Card, Spin, Typography, Form, Modal, Descriptions, Empty } from 'antd';
-import { SearchOutlined, FilterOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Table, Tag, Button, Space, Select, DatePicker, Input, Card, Spin, Typography, Form, Modal, Descriptions, Empty, Divider, Alert } from 'antd';
+import { SearchOutlined, FilterOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import StaffLayout from '@/components/Layout/StaffLayout';
 import { useAuth } from '@/context/AuthContext';
 import apiClient from '@/services/api/apiConfig';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
-import { DonationEvent, DonationEventsParams } from '@/services/api/donationEventService';
+import {
+    DonationEvent,
+    DonationEventsParams,
+    WalkInDonationRequest,
+    createWalkInDonation
+} from '@/services/api/donationEventService';
+import { getUserLocations } from '@/services/api/locationService';
 
 // Configure dayjs to use timezone
 dayjs.extend(utc);
@@ -40,9 +46,65 @@ export default function StaffDonationEventsPage() {
     const [selectedEvent, setSelectedEvent] = useState<DonationEvent | null>(null);
     const [loadingEventDetail, setLoadingEventDetail] = useState<boolean>(false);
 
+    // Walk-in donation states
+    const [isWalkInModalVisible, setIsWalkInModalVisible] = useState<boolean>(false);
+    const [walkInForm] = Form.useForm();
+    const [creatingWalkIn, setCreatingWalkIn] = useState<boolean>(false);
+    const [bloodGroups, setBloodGroups] = useState<any[]>([]);
+    const [componentTypes, setComponentTypes] = useState<any[]>([]);
+    const [staffLocation, setStaffLocation] = useState<any>(null);
+    const [loadingInitialData, setLoadingInitialData] = useState<boolean>(false);
+
+    // Donation process states
+    const [isStartDonationModalVisible, setIsStartDonationModalVisible] = useState<boolean>(false);
+    const [selectedDonationEventId, setSelectedDonationEventId] = useState<string>('');
+    const [processingDonation, setProcessingDonation] = useState<boolean>(false);
+
     useEffect(() => {
         fetchDonationEvents();
     }, [pagination.current, pagination.pageSize, statusFilter, requestTypeFilter, dateRange]);
+
+    // Fetch initial data for walk-in form
+    useEffect(() => {
+        if (isWalkInModalVisible) {
+            fetchInitialData();
+        }
+    }, [isWalkInModalVisible]);
+
+    const fetchInitialData = async () => {
+        setLoadingInitialData(true);
+        try {
+            // Fetch blood groups
+            const bloodGroupsResponse = await apiClient.get('/BloodGroups');
+            if (bloodGroupsResponse.data.success) {
+                setBloodGroups(bloodGroupsResponse.data.data);
+            }
+
+            // Fetch component types
+            const componentTypesResponse = await apiClient.get('/ComponentTypes');
+            if (componentTypesResponse.data.success) {
+                setComponentTypes(componentTypesResponse.data.data);
+            }
+
+            // Fetch staff location
+            if (user?.id) {
+                const locationsResponse = await getUserLocations(user.id);
+                if (locationsResponse.success && locationsResponse.data.length > 0) {
+                    // Use the first location if staff is assigned to multiple locations
+                    setStaffLocation(locationsResponse.data[0]);
+                } else {
+                    Modal.error({
+                        title: 'Location Error',
+                        content: 'You are not assigned to any location. Please contact an administrator.',
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching initial data:', error);
+        } finally {
+            setLoadingInitialData(false);
+        }
+    };
 
     const fetchDonationEvents = async () => {
         setLoading(true);
@@ -145,6 +207,79 @@ export default function StaffDonationEventsPage() {
         );
     };
 
+    const handleCreateWalkIn = async (values: any) => {
+        setCreatingWalkIn(true);
+        try {
+            // Check if staff location is available
+            if (!staffLocation || !staffLocation.id) {
+                Modal.error({
+                    title: 'Error',
+                    content: 'Staff location information is not available. Please try again later.',
+                });
+                setCreatingWalkIn(false);
+                return;
+            }
+
+            // Format the request body
+            const requestBody: WalkInDonationRequest = {
+                donorInfo: {
+                    firstName: values.firstName,
+                    lastName: values.lastName,
+                    phoneNumber: values.phoneNumber,
+                    email: values.email,
+                    bloodGroupId: values.bloodGroupId,
+                    dateOfBirth: values.dateOfBirth?.toISOString(),
+                    address: values.address,
+                    lastDonationDate: values.lastDonationDate?.toISOString()
+                },
+                locationId: staffLocation.id,
+                staffId: user?.id || '',
+                componentTypeId: values.componentTypeId,
+                notes: values.notes || "Walk-in donor"
+            };
+
+            // Check if staffId is available
+            if (!requestBody.staffId) {
+                Modal.error({
+                    title: 'Error',
+                    content: 'Staff ID is required. Please log in again.',
+                });
+                setCreatingWalkIn(false);
+                return;
+            }
+
+            const response = await createWalkInDonation(requestBody);
+
+            if (response.success) {
+                // Reset form and close modal
+                walkInForm.resetFields();
+                setIsWalkInModalVisible(false);
+
+                // Refresh donation events list
+                fetchDonationEvents();
+
+                // Show success message
+                Modal.success({
+                    title: 'Success',
+                    content: 'Walk-in donation event created successfully',
+                });
+            } else {
+                Modal.error({
+                    title: 'Error',
+                    content: response.message || 'Failed to create walk-in donation event',
+                });
+            }
+        } catch (error: any) {
+            console.error('Error creating walk-in donation event:', error);
+            Modal.error({
+                title: 'Error',
+                content: error.response?.data?.message || 'Failed to create walk-in donation event',
+            });
+        } finally {
+            setCreatingWalkIn(false);
+        }
+    };
+
     const viewEventDetails = async (eventId: string) => {
         setLoadingEventDetail(true);
         setIsDetailModalVisible(true);
@@ -163,6 +298,47 @@ export default function StaffDonationEventsPage() {
             setSelectedEvent(null);
         } finally {
             setLoadingEventDetail(false);
+        }
+    };
+
+    // Handle starting donation process for walk-in events
+    const startDonationProcess = (eventId: string) => {
+        setSelectedDonationEventId(eventId);
+        setIsStartDonationModalVisible(true);
+
+        // Fetch the event details to show in the modal
+        fetchEventForDonation(eventId);
+    };
+
+    // Fetch event details for donation process
+    const fetchEventForDonation = async (eventId: string) => {
+        setProcessingDonation(true);
+        try {
+            const response = await apiClient.get(`/DonationEvents/${eventId}`);
+
+            if (response.data.success) {
+                setSelectedEvent(response.data.data);
+            } else {
+                Modal.error({
+                    title: 'Error',
+                    content: 'Failed to fetch donation event details. Please try again.',
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching event for donation:', error);
+            Modal.error({
+                title: 'Error',
+                content: 'An error occurred while fetching event details.',
+            });
+        } finally {
+            setProcessingDonation(false);
+        }
+    };
+
+    // Navigate to donation workflow
+    const navigateToDonationWorkflow = () => {
+        if (selectedDonationEventId) {
+            window.location.href = `/staff/donation-workflow/${selectedDonationEventId}`;
         }
     };
 
@@ -268,6 +444,18 @@ export default function StaffDonationEventsPage() {
                     >
                         View Details
                     </Button>
+
+                    {/* Add Start Donation button for Walk-in events */}
+                    {record.status === 'WalkIn' && (
+                        <Button
+                            size="small"
+                            type="primary"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => startDonationProcess(record.id)}
+                        >
+                            Start Donation
+                        </Button>
+                    )}
                 </Space>
             ),
         },
@@ -281,6 +469,14 @@ export default function StaffDonationEventsPage() {
                         <h2 className="text-xl font-semibold">Manage Donation Events</h2>
                         <p className="text-gray-500">View and track all donation events</p>
                     </div>
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => setIsWalkInModalVisible(true)}
+                        className="bg-green-600 hover:bg-green-700"
+                    >
+                        Create Walk-in Donation
+                    </Button>
                 </div>
 
                 <Card className="mb-6">
@@ -549,6 +745,244 @@ export default function StaffDonationEventsPage() {
                 ) : (
                     <Empty description="Không tìm thấy thông tin sự kiện hiến máu" />
                 )}
+            </Modal>
+
+            {/* Walk-in Donation Modal */}
+            <Modal
+                title="Create Walk-in Donation"
+                open={isWalkInModalVisible}
+                onCancel={() => setIsWalkInModalVisible(false)}
+                footer={null}
+                width={800}
+            >
+                <Spin spinning={loadingInitialData || creatingWalkIn}>
+                    <Form
+                        form={walkInForm}
+                        layout="vertical"
+                        onFinish={handleCreateWalkIn}
+                        initialValues={{
+                            dateOfBirth: null,
+                            lastDonationDate: null
+                        }}
+                    >
+                        <div className="mb-4">
+                            <Title level={5}>Donor Information</Title>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Form.Item
+                                label="First Name"
+                                name="firstName"
+                                rules={[{ required: true, message: 'Please enter first name' }]}
+                            >
+                                <Input placeholder="Enter first name" />
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Last Name"
+                                name="lastName"
+                                rules={[{ required: true, message: 'Please enter last name' }]}
+                            >
+                                <Input placeholder="Enter last name" />
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Phone Number"
+                                name="phoneNumber"
+                                rules={[
+                                    { required: true, message: 'Please enter phone number' },
+                                    { pattern: /^[0-9]{10,11}$/, message: 'Please enter a valid phone number' }
+                                ]}
+                            >
+                                <Input placeholder="Enter phone number" />
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Email"
+                                name="email"
+                                rules={[
+                                    { type: 'email', message: 'Please enter a valid email' }
+                                ]}
+                            >
+                                <Input placeholder="Enter email (optional)" />
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Date of Birth"
+                                name="dateOfBirth"
+                                rules={[{ required: true, message: 'Please select date of birth' }]}
+                            >
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    placeholder="Select date of birth"
+                                    disabledDate={(current) => {
+                                        // Disable dates less than 18 years ago and future dates
+                                        return (
+                                            current &&
+                                            (current > dayjs().endOf('day') ||
+                                                current > dayjs().subtract(18, 'years'))
+                                        );
+                                    }}
+                                />
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Blood Group"
+                                name="bloodGroupId"
+                                rules={[{ required: true, message: 'Please select blood group' }]}
+                            >
+                                <Select placeholder="Select blood group">
+                                    {bloodGroups.map(group => (
+                                        <Option key={group.id} value={group.id}>
+                                            {group.groupName} - {group.description}
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Address"
+                                name="address"
+                            >
+                                <Input.TextArea rows={2} placeholder="Enter address (optional)" />
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Last Donation Date"
+                                name="lastDonationDate"
+                            >
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    placeholder="Select last donation date (if any)"
+                                    disabledDate={current => current && current > dayjs().endOf('day')}
+                                />
+                            </Form.Item>
+                        </div>
+
+                        <Divider />
+
+                        <div className="mb-4">
+                            <Title level={5}>Donation Information</Title>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Form.Item
+                                label="Component Type"
+                                name="componentTypeId"
+                                rules={[{ required: true, message: 'Please select component type' }]}
+                            >
+                                <Select placeholder="Select component type">
+                                    {componentTypes.map(type => (
+                                        <Option key={type.id} value={type.id}>
+                                            {type.name} (Shelf Life: {type.shelfLifeDays} days)
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Location"
+                            >
+                                <Input
+                                    value={staffLocation?.name}
+                                    disabled
+                                    addonAfter={<Tag color="blue">Your location</Tag>}
+                                />
+                                {staffLocation?.address && (
+                                    <div className="text-xs text-gray-500 mt-1">{staffLocation.address}</div>
+                                )}
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Notes"
+                                name="notes"
+                                className="col-span-1 md:col-span-2"
+                            >
+                                <Input.TextArea rows={3} placeholder="Enter any additional notes" />
+                            </Form.Item>
+                        </div>
+
+                        <div className="flex justify-end mt-4">
+                            <Button
+                                type="default"
+                                onClick={() => setIsWalkInModalVisible(false)}
+                                className="mr-2"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                loading={creatingWalkIn}
+                                className="bg-blue-600 hover:bg-blue-700"
+                            >
+                                Create Walk-in Donation
+                            </Button>
+                        </div>
+                    </Form>
+                </Spin>
+            </Modal>
+
+            {/* Start Donation Process Modal */}
+            <Modal
+                title="Start Donation Process"
+                open={isStartDonationModalVisible}
+                onCancel={() => setIsStartDonationModalVisible(false)}
+                footer={[
+                    <Button
+                        key="cancel"
+                        onClick={() => setIsStartDonationModalVisible(false)}
+                    >
+                        Cancel
+                    </Button>,
+                    <Button
+                        key="start"
+                        type="primary"
+                        loading={processingDonation}
+                        onClick={navigateToDonationWorkflow}
+                        className="bg-green-600 hover:bg-green-700"
+                    >
+                        Start Donation Process
+                    </Button>
+                ]}
+            >
+                <Spin spinning={processingDonation}>
+                    {selectedEvent && (
+                        <div>
+                            <p className="mb-4">
+                                You are about to start the donation process for:
+                            </p>
+                            <Descriptions bordered column={1} size="small">
+                                <Descriptions.Item label="Donor Name">
+                                    <strong>{selectedEvent.donorName || 'Unknown'}</strong>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Blood Group">
+                                    <Tag color="red">{selectedEvent.bloodGroupName}</Tag>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Component Type">
+                                    <Tag color="blue">{selectedEvent.componentTypeName}</Tag>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Location">
+                                    {selectedEvent.locationName}
+                                </Descriptions.Item>
+                            </Descriptions>
+
+                            <Alert
+                                className="mt-4"
+                                message="Donation Process Steps"
+                                description={
+                                    <ol className="list-decimal ml-4">
+                                        <li>Health check and eligibility verification</li>
+                                        <li>Blood donation procedure</li>
+                                        <li>Post-donation care and completion</li>
+                                    </ol>
+                                }
+                                type="info"
+                                showIcon
+                            />
+                        </div>
+                    )}
+                </Spin>
             </Modal>
         </StaffLayout>
     );

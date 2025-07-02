@@ -20,6 +20,7 @@ import { useAllDonors } from '@/hooks/api/useDonorProfile';
 import { DonorProfile } from '@/services/api/donorProfileService';
 import { useLocationCapacities } from '@/hooks/api/useLocations';
 import { Capacity } from '@/services/api/locationService';
+import * as locationService from '@/services/api/locationService';
 
 // Configure dayjs to use timezone
 dayjs.extend(utc);
@@ -38,7 +39,7 @@ const { TextArea } = Input;
 const timeSlots = [
   { label: 'Morning (7AM-11AM)', value: 'Morning' },
   { label: 'Afternoon (1PM-5PM)', value: 'Afternoon' },
-  { label: 'Evening (6PM-9PM)', value: 'Evening' }
+  { label: 'Evening (6PM-7PM)', value: 'Evening' }
 ];
 
 // Hour slots with start and end times in 24-hour format
@@ -58,8 +59,8 @@ const hourSlots = {
   ],
   Evening: [
     { label: '6PM - 7PM', startHour: 18, endHour: 19 },
-    { label: '7PM - 8PM', startHour: 19, endHour: 20 },
-    { label: '8PM - 9PM', startHour: 20, endHour: 21 }
+    // { label: '7PM - 8PM', startHour: 19, endHour: 20 },
+    // { label: '8PM - 9PM', startHour: 20, endHour: 21 }
   ]
 };
 
@@ -177,6 +178,8 @@ export default function StaffAppointmentsPage() {
   const [isUrgent, setIsUrgent] = useState<boolean>(false);
   const [priority, setPriority] = useState<number>(1);
   const [selectedDonorProfile, setSelectedDonorProfile] = useState<DonorProfile | null>(null);
+  const [selectedComponentTypeId, setSelectedComponentTypeId] = useState<string>('');
+  const [selectedComponentTypeName, setSelectedComponentTypeName] = useState<string>('');
 
   // Week navigation for schedule view
   const [currentWeekStart, setCurrentWeekStart] = useState<dayjs.Dayjs>(dayjs().tz().startOf('week'));
@@ -231,11 +234,35 @@ export default function StaffAppointmentsPage() {
   const fetchAppointments = async () => {
     setLoading(true);
     try {
+      // Lấy location ID của staff bằng cách gọi getUserLocations API
+      if (!user?.id) {
+        message.warning('User information not available');
+        setAppointments([]);
+        setLoading(false);
+        return;
+      }
+
+      // Gọi API để lấy locations của user
+      const locationsResponse = await locationService.getUserLocations(user.id);
+
+      if (!locationsResponse.success || !locationsResponse.data || locationsResponse.data.length === 0) {
+        message.warning('You do not have any assigned locations to view appointments from');
+        setAppointments([]);
+        setLoading(false);
+        return;
+      }
+
+      // Lấy location ID đầu tiên của staff
+      const staffLocationId = locationsResponse.data[0].id;
+
       // Build query parameters
       let queryParams = new URLSearchParams();
       if (activeTab !== 'all') {
         queryParams.append('Status', activeTab);
       }
+
+      // Thêm locationId vào query params để lọc theo location của staff
+      queryParams.append('LocationId', staffLocationId);
 
       const response = await apiClient.get<ApiResponse>(
         `/DonationAppointmentRequests?${queryParams.toString()}`
@@ -484,6 +511,7 @@ export default function StaffAppointmentsPage() {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'approved':
+      case 'accepted':
         return 'green';
       case 'pending':
         return 'gold';
@@ -492,6 +520,7 @@ export default function StaffAppointmentsPage() {
       case 'cancelled':
       case 'rejected':
       case 'failed':
+      case 'denied':
         return 'red';
       case 'checkedin':
         return 'purple';
@@ -519,103 +548,157 @@ export default function StaffAppointmentsPage() {
 
   const getAvailableActions = (record: AppointmentRequest) => {
     const status = record.status.toLowerCase();
+    const isStaffInitiated = record.requestType === 'StaffInitiated';
+    const isDonorInitiated = record.requestType === 'DonorInitiated';
+
+    // Hiển thị trạng thái phản hồi của donor nếu là StaffInitiated
+    const renderDonorResponseStatus = () => {
+      if (!isStaffInitiated) return null;
+
+      if (record.donorAccepted === true) {
+        return <Tag color="green">Donor Accepted</Tag>;
+      } else if (record.donorAccepted === false) {
+        return <Tag color="red">Donor Declined</Tag>;
+      } else if (record.donorAccepted === null && status === 'pending') {
+        return <Tag color="orange">Awaiting Donor Response</Tag>;
+      }
+      return null;
+    };
 
     if (status === 'pending') {
+      // Nếu là StaffInitiated, chỉ hiển thị View Details và trạng thái
+      if (isStaffInitiated) {
+        return (
+          <Space size="small" direction="vertical" style={{ width: '100%' }}>
+            <Button
+              size="small"
+              onClick={() => viewAppointmentDetail(record.id)}
+              style={{ width: '100%' }}
+            >
+              View Details
+            </Button>
+            {renderDonorResponseStatus()}
+            <Tag color="blue">Waiting for donor response</Tag>
+          </Space>
+        );
+      }
+
+      // Nếu là DonorInitiated, hiển thị đầy đủ các nút
       return (
-        <Space size="small">
-          <Button
-            type="primary"
-            size="small"
-            icon={<CheckOutlined />}
-            onClick={() => showStatusModal(record, 'approve')}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            Approve
-          </Button>
-          <Button
-            danger
-            size="small"
-            icon={<CloseOutlined />}
-            onClick={() => showStatusModal(record, 'reject')}
-          >
-            Reject
-          </Button>
+        <Space size="small" direction="vertical" style={{ width: '100%' }}>
+          <Space size="small">
+            <Button
+              type="primary"
+              size="small"
+              icon={<CheckOutlined />}
+              onClick={() => showStatusModal(record, 'approve')}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Approve
+            </Button>
+            <Button
+              danger
+              size="small"
+              icon={<CloseOutlined />}
+              onClick={() => showStatusModal(record, 'reject')}
+            >
+              Reject
+            </Button>
+          </Space>
           <Button
             size="small"
             onClick={() => viewAppointmentDetail(record.id)}
+            style={{ width: '100%' }}
           >
             View Details
           </Button>
         </Space>
       );
-    } else if (status === 'approved') {
+    } else if (status === 'approved' || status === 'accepted') {
+      // Cho phép Check In nếu trạng thái là approved hoặc accepted
+      const canCheckIn = isDonorInitiated || (isStaffInitiated && record.donorAccepted === true);
+
       return (
-        <Space size="small">
-          <Button
-            type="primary"
-            size="small"
-            className="bg-purple-600 hover:bg-purple-700"
-            onClick={() => checkInDonor(record)}
-          >
-            Check In
-          </Button>
-          <Button
-            danger
-            size="small"
-            onClick={() => showCancelConfirm(record)}
-          >
-            Cancel
-          </Button>
+        <Space size="small" direction="vertical" style={{ width: '100%' }}>
+          <Space size="small">
+            <Button
+              type="primary"
+              size="small"
+              className="bg-purple-600 hover:bg-purple-700"
+              onClick={() => checkInDonor(record)}
+            >
+              Check In
+            </Button>
+            <Button
+              danger
+              size="small"
+              onClick={() => showCancelConfirm(record)}
+            >
+              Cancel
+            </Button>
+          </Space>
           <Button
             size="small"
             onClick={() => viewAppointmentDetail(record.id)}
+            style={{ width: '100%' }}
           >
             View Details
           </Button>
-        </Space>
+          {renderDonorResponseStatus()}
+        </Space >
       );
     } else if (status === 'checkedin') {
       return (
-        <Space size="small">
-          <Button
-            type="primary"
-            size="small"
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={() => startDonationWorkflow(record.id)}
-          >
-            Start Donation
-          </Button>
-          <Button
-            type="primary"
-            size="small"
-            className="bg-green-600 hover:bg-green-700"
-            onClick={() => showStatusModal(record, 'complete')}
-          >
-            Complete
-          </Button>
-          <Button
-            danger
-            size="small"
-            onClick={() => showStatusModal(record, 'fail')}
-          >
-            Mark Failed
-          </Button>
+        <Space size="small" direction="vertical" style={{ width: '100%' }}>
+          <Space size="small">
+            <Button
+              type="primary"
+              size="small"
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => startDonationWorkflow(record.id)}
+            >
+              Start Donation
+            </Button>
+          </Space>
+          <Space size="small">
+            <Button
+              type="primary"
+              size="small"
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => showStatusModal(record, 'complete')}
+            >
+              Complete
+            </Button>
+            <Button
+              danger
+              size="small"
+              onClick={() => showStatusModal(record, 'fail')}
+            >
+              Mark Failed
+            </Button>
+          </Space>
           <Button
             size="small"
             onClick={() => viewAppointmentDetail(record.id)}
+            style={{ width: '100%' }}
           >
             View Details
           </Button>
+          {renderDonorResponseStatus()}
         </Space>
       );
     } else {
       return (
-        <Button
-          size="small"
-          onClick={() => viewAppointmentDetail(record.id)}
-        >
-          View Details
-        </Button>
+        <Space size="small" direction="vertical" style={{ width: '100%' }}>
+          <Button
+            size="small"
+            onClick={() => viewAppointmentDetail(record.id)}
+            style={{ width: '100%' }}
+          >
+            View Details
+          </Button>
+          {renderDonorResponseStatus()}
+        </Space>
       );
     }
   };
@@ -772,6 +855,25 @@ export default function StaffAppointmentsPage() {
       onFilter: (value: any, record: AppointmentRequest) => record.componentTypeName === value,
     },
     {
+      title: 'Request Type',
+      dataIndex: 'requestType',
+      key: 'requestType',
+      render: (text: string) => {
+        if (text === 'StaffInitiated') {
+          return <Tag color="blue">Staff Initiated</Tag>;
+        } else if (text === 'DonorInitiated') {
+          return <Tag color="green">Donor Initiated</Tag>;
+        }
+        return <Tag>{text}</Tag>;
+      },
+      filters: [
+        { text: 'Staff Initiated', value: 'StaffInitiated' },
+        { text: 'Donor Initiated', value: 'DonorInitiated' },
+      ],
+      filteredValue: filteredInfo.requestType || null,
+      onFilter: (value: any, record: AppointmentRequest) => record.requestType === value,
+    },
+    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
@@ -837,6 +939,8 @@ export default function StaffAppointmentsPage() {
     setIsUrgent(false);
     setPriority(1);
     setSelectedDonorProfile(null);
+    setSelectedComponentTypeId('');
+    setSelectedComponentTypeName('');
 
     // Reset donor filter
     resetFilter();
@@ -846,6 +950,15 @@ export default function StaffAppointmentsPage() {
   const handleNextStep = () => {
     assignDonorForm.validateFields().then((values) => {
       if (currentStep === 1) {
+        // Lưu componentTypeId và componentTypeName
+        setSelectedComponentTypeId(values.componentType);
+
+        // Tìm tên của componentType từ danh sách
+        const selectedComponent = componentTypes.find(ct => ct.id === values.componentType);
+        if (selectedComponent) {
+          setSelectedComponentTypeName(selectedComponent.name);
+        }
+
         // If blood group is selected, filter donors
         if (values.bloodGroup) {
           filterDonorsByBloodGroup(values.bloodGroup);
@@ -968,6 +1081,12 @@ export default function StaffAppointmentsPage() {
         return;
       }
 
+      // Kiểm tra xem componentType có được chọn không
+      if (!selectedComponentTypeId) {
+        message.error('Please select a donation type');
+        return;
+      }
+
       const staffLocationId = staff.locations[0].locationId;
 
       // Format the date with the selected time
@@ -978,13 +1097,16 @@ export default function StaffAppointmentsPage() {
         preferredDate = selectedDate.hour(selectedHourSlot.startHour).format('YYYY-MM-DD[T]HH:00:00');
       }
 
+      // Log để debug
+      console.log('Component Type ID:', selectedComponentTypeId);
+
       const requestData: StaffAssignmentRequest = {
         donorId: selectedDonorProfile.userId,
         preferredDate: preferredDate,
         preferredTimeSlot: selectedTimeSlot,
         locationId: staffLocationId,
         bloodGroupId: selectedDonorProfile.bloodGroupId || formValues.bloodGroup,
-        componentTypeId: formValues.componentType,
+        componentTypeId: selectedComponentTypeId,
         notes: formValues.notes,
         isUrgent: isUrgent,
         priority: priority,
@@ -1004,6 +1126,7 @@ export default function StaffAppointmentsPage() {
       }
     } catch (error) {
       console.error('Error submitting donor assignment:', error);
+      message.error('Error submitting donor assignment. Please check form values and try again.');
     }
   };
 
@@ -1223,14 +1346,31 @@ export default function StaffAppointmentsPage() {
                 <Descriptions.Item label="Mã cuộc hẹn" span={2}>
                   {appointmentDetail.id}
                 </Descriptions.Item>
+                <Descriptions.Item label="Loại yêu cầu">
+                  {appointmentDetail.requestType === 'StaffInitiated' ? (
+                    <Tag color="blue">Staff Initiated</Tag>
+                  ) : appointmentDetail.requestType === 'DonorInitiated' ? (
+                    <Tag color="green">Donor Initiated</Tag>
+                  ) : (
+                    appointmentDetail.requestType
+                  )}
+                </Descriptions.Item>
                 <Descriptions.Item label="Trạng thái">
                   <Tag color={getStatusColor(appointmentDetail.status)}>
                     {appointmentDetail.status}
                   </Tag>
                 </Descriptions.Item>
-                <Descriptions.Item label="Loại yêu cầu">
-                  {appointmentDetail.requestType}
-                </Descriptions.Item>
+                {appointmentDetail.requestType === 'StaffInitiated' && (
+                  <Descriptions.Item label="Phản hồi của người hiến máu">
+                    {appointmentDetail.donorAccepted === true ? (
+                      <Tag color="green">Đã chấp nhận</Tag>
+                    ) : appointmentDetail.donorAccepted === false ? (
+                      <Tag color="red">Đã từ chối</Tag>
+                    ) : (
+                      <Tag color="orange">Chưa phản hồi</Tag>
+                    )}
+                  </Descriptions.Item>
+                )}
                 <Descriptions.Item label="Ngày hẹn">
                   {dayjs(appointmentDetail.preferredDate).tz('Asia/Ho_Chi_Minh').format('DD/MM/YYYY HH:mm:ss')}
                 </Descriptions.Item>
@@ -1256,6 +1396,11 @@ export default function StaffAppointmentsPage() {
                 <Descriptions.Item label="Ghi chú" span={2}>
                   {appointmentDetail.notes || 'Không có ghi chú'}
                 </Descriptions.Item>
+                {appointmentDetail.donorResponseNotes && (
+                  <Descriptions.Item label="Ghi chú từ người hiến máu" span={2}>
+                    {appointmentDetail.donorResponseNotes}
+                  </Descriptions.Item>
+                )}
               </Descriptions>
             </Card>
 
@@ -1451,6 +1596,15 @@ export default function StaffAppointmentsPage() {
                       placeholder="Select donation type"
                       loading={isLoadingComponentTypes}
                       disabled={isLoadingComponentTypes}
+                      onChange={(value) => {
+                        // Lưu componentTypeId khi người dùng chọn
+                        setSelectedComponentTypeId(value.toString());
+                        // Lưu tên componentType
+                        const selectedComponent = componentTypes.find(ct => ct.id === value);
+                        if (selectedComponent) {
+                          setSelectedComponentTypeName(selectedComponent.name);
+                        }
+                      }}
                     >
                       {componentTypes.map(type => (
                         <Option key={type.id} value={type.id}>{type.name}</Option>
@@ -1491,11 +1645,9 @@ export default function StaffAppointmentsPage() {
                       onChange={(value) => setPriority(Number(value))}
                       value={priority}
                     >
-                      <Option value={1}>1 (Lowest)</Option>
-                      <Option value={2}>2</Option>
-                      <Option value={3}>3 (Normal)</Option>
-                      <Option value={4}>4</Option>
-                      <Option value={5}>5 (Highest)</Option>
+                      <Option value={1}>1 (Normal)</Option>
+                      <Option value={2}>2 (Moderate)</Option>
+                      <Option value={3}>3 (Critical)</Option>
                     </Select>
                   </Form.Item>
                 </div>
@@ -1868,7 +2020,7 @@ export default function StaffAppointmentsPage() {
 
                                 <tr className="bg-blue-50">
                                   <td colSpan={8} className="border p-3 font-medium text-blue-700">
-                                    Evening (6PM-9PM)
+                                    Evening (6PM-7PM)
                                   </td>
                                 </tr>
                                 {hourSlots.Evening.map((hourSlot, idx) => (
@@ -1992,7 +2144,7 @@ export default function StaffAppointmentsPage() {
                           {staff?.locations && staff.locations.length > 0 ? staff.locations[0].locationName : 'Unknown'}
                         </Descriptions.Item>
                         <Descriptions.Item label="Donation Type">
-                          {componentTypes.find(ct => ct.id === assignDonorForm.getFieldValue('componentType'))?.name || 'Not specified'}
+                          {selectedComponentTypeName || 'Not specified'}
                         </Descriptions.Item>
                         <Descriptions.Item label="Urgency">
                           {isUrgent ? <Tag color="red">Urgent</Tag> : <Tag color="blue">Normal</Tag>}

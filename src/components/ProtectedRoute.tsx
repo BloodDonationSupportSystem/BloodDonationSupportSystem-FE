@@ -28,7 +28,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
       // Check if user has appropriate role
       if (isLoggedIn && user && allowedRoles.length > 0) {
         const hasAccess = allowedRoles.includes(user.roleName);
-        
+
         if (!hasAccess) {
           // Redirect to appropriate dashboard based on role
           redirectBasedOnRole();
@@ -62,8 +62,8 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
                 Please log in to your account to access blood donation services.
               </p>
               <div className="space-x-4">
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   onClick={() => router.push('/login')}
                   className="bg-red-600 hover:bg-red-700"
                 >
@@ -83,7 +83,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
   // Check for role access if roles are specified
   if (allowedRoles.length > 0 && user) {
     const hasAccess = allowedRoles.includes(user.roleName);
-    
+
     if (!hasAccess) {
       return (
         <div className="container mx-auto p-4">
@@ -100,8 +100,8 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
                 <p className="text-gray-600">
                   You'll be redirected to your dashboard shortly.
                 </p>
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   onClick={() => redirectBasedOnRole()}
                   className="bg-red-600 hover:bg-red-700"
                 >

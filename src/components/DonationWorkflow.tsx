@@ -42,14 +42,15 @@ import {
 } from '@/services/api/donationEventService';
 import { useBloodGroups } from '@/hooks/api/useBloodGroups';
 import apiClient from '@/services/api/apiConfig';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
 interface DonationWorkflowProps {
-    appointmentId: string;
+    appointmentId?: string;
+    donationEventId?: string;
     onFinish?: (event: DonationEvent) => void;
     onCancel?: () => void;
 }
@@ -90,12 +91,13 @@ const commonRejectionReasons = [
 
 const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
     appointmentId,
+    donationEventId: propDonationEventId,
     onFinish,
     onCancel
 }) => {
     // State
     const [currentStep, setCurrentStep] = useState<DonationStep>(DonationStep.HealthCheck);
-    const [donationEventId, setDonationEventId] = useState<string>('');
+    const [eventId, setEventId] = useState<string>(propDonationEventId || '');
     const [hasComplication, setHasComplication] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(true);
     const [checkInForm] = Form.useForm();
@@ -123,117 +125,137 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
 
     // Load the donation event when component mounts
     useEffect(() => {
-        async function loadDonationEvent() {
-            try {
+        // Converted to non-async function to avoid React suspense issues
+        function loadDonationEvent() {
+            setLoading(true);
+
+            // Case 1: If donationEventId is provided directly, use it
+            if (propDonationEventId) {
+                console.log('Using provided donation event ID:', propDonationEventId);
+                setEventId(propDonationEventId);
+
+                // Get donation event details
+                getDonationEventById(propDonationEventId)
+                    .then(event => {
+                        if (event) {
+                            console.log('Found donation event by ID:', event);
+
+                            // Update forms with the event ID
+                            healthCheckForm.setFieldsValue({ donationEventId: propDonationEventId });
+                            startDonationForm.setFieldsValue({ donationEventId: propDonationEventId });
+                            completeDonationForm.setFieldsValue({ donationEventId: propDonationEventId });
+                            complicationForm.setFieldsValue({ donationEventId: propDonationEventId });
+
+                            // Process health check data if available
+                            processHealthCheckData(event);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading donation event:', error);
+                        message.error('Failed to load donation event details.');
+                    })
+                    .finally(() => {
+                        setLoading(false);
+                    });
+            }
+            // Case 2: If appointmentId is provided, find the donation event
+            else if (appointmentId) {
                 console.log('Loading donation event for appointment ID:', appointmentId);
 
-                // First check if an appointment ID is provided
-                if (!appointmentId) {
-                    console.error('No appointment ID provided, cannot load donation event');
-                    message.error('Missing appointment ID. Cannot proceed with donation workflow.');
-                    setLoading(false);
-                    return;
-                }
-
                 // Find donation event by appointment ID using the correct API endpoint
-                const event = await findDonationEventByAppointmentId(appointmentId);
-                console.log('Donation event API response:', event);
+                findDonationEventByAppointmentId(appointmentId)
+                    .then(event => {
+                        console.log('Donation event API response:', event);
 
-                if (event && event.id) {
-                    console.log('Found donation event by appointment ID:', event);
-                    console.log('Setting donationEventId to:', event.id);
-                    setDonationEventId(event.id);
+                        if (event && event.id) {
+                            console.log('Found donation event by appointment ID:', event);
+                            console.log('Setting eventId to:', event.id);
+                            setEventId(event.id);
 
-                    // Update forms with the event ID
-                    healthCheckForm.setFieldsValue({ donationEventId: event.id });
-                    startDonationForm.setFieldsValue({ donationEventId: event.id });
-                    completeDonationForm.setFieldsValue({ donationEventId: event.id });
-                    complicationForm.setFieldsValue({ donationEventId: event.id });
+                            // Update forms with the event ID
+                            healthCheckForm.setFieldsValue({ donationEventId: event.id });
+                            startDonationForm.setFieldsValue({ donationEventId: event.id });
+                            completeDonationForm.setFieldsValue({ donationEventId: event.id });
+                            complicationForm.setFieldsValue({ donationEventId: event.id });
 
-                    // Check if health check has already been completed based on status
-                    // The status will indicate if health check is done
-                    if (event.status && event.status !== 'Pending') {
-                        console.log('Health check already completed, status:', event.status);
-
-                        // Pre-fill health check form with existing data if available
-                        const healthData: any = {
-                            donationEventId: event.id,
-                            isEligible: event.status !== 'Rejected'
-                        };
-
-                        // If blood group is available, set it
-                        if (event.bloodGroupId) {
-                            healthData.verifiedBloodGroupId = event.bloodGroupId;
+                            // Process health check data if available
+                            processHealthCheckData(event);
                         }
-
-                        healthCheckForm.setFieldsValue(healthData);
-
-                        // Skip to next step if health check is already done
-                        if (currentStep === DonationStep.HealthCheck) {
-                            setCurrentStep(DonationStep.StartDonation);
-                        }
-                    }
-
-                    // Check if donation has already been started based on status
-                    if (event.status && ['InProgress', 'Completed', 'Processed'].includes(event.status)) {
-                        console.log('Donation already started, status:', event.status);
-
-                        // Pre-fill start donation form with existing data
-                        startDonationForm.setFieldsValue({
-                            donationEventId: event.id,
-                            notes: ''  // Default empty notes since it's not in the DonationEvent interface
-                        });
-
-                        // Skip to next step if donation is already started
-                        if (currentStep === DonationStep.StartDonation) {
-                            setCurrentStep(DonationStep.CompleteDonation);
-                        }
-                    }
-
-                    // Check if donation has already been completed based on status
-                    if (event.status && ['Completed', 'Processed'].includes(event.status)) {
-                        console.log('Donation already completed, status:', event.status);
-
-                        // Pre-fill complete donation form with existing data
-                        completeDonationForm.setFieldsValue({
-                            donationEventId: event.id,
-                            donationDate: event.collectedAt ? dayjs(event.collectedAt) : dayjs(),
-                            quantityDonated: event.quantityUnits * 450 || 450.0,
-                            quantityUnits: event.quantityUnits || 1,
-                            notes: ''  // Default empty notes since it's not in the DonationEvent interface
-                        });
-
-                        // Show completion message
-                        message.info('This donation has already been completed');
-                    }
-                } else {
-                    console.error('No valid donation event found for appointment ID:', appointmentId);
-                    message.error('No donation event found for this appointment. Please check in the donor first.');
-
-                    // Redirect to appointments page
-                    onCancel && onCancel();
-                    return;
-                }
-            } catch (error) {
-                console.error("Error loading donation event:", error);
-                message.error('Failed to load donation event. Please try again.');
-
-                // Redirect to appointments page on error
-                onCancel && onCancel();
-                return;
-            } finally {
+                    })
+                    .catch(error => {
+                        console.error('Error loading donation event:', error);
+                        message.error('Failed to load donation event details.');
+                    })
+                    .finally(() => {
+                        setLoading(false);
+                    });
+            }
+            else {
+                console.error('No appointment ID or donation event ID provided, cannot load donation event');
+                message.error('Missing required IDs. Cannot proceed with donation workflow.');
                 setLoading(false);
             }
         }
 
         loadDonationEvent();
-    }, [appointmentId]);
+    }, [appointmentId, propDonationEventId]);
+
+    // Helper function to process health check data
+    const processHealthCheckData = (event: DonationEvent) => {
+        // Check if health check has already been completed based on status
+        // The status will indicate if health check is done
+        if (event.status && event.status !== 'Pending') {
+            console.log('Health check already completed, status:', event.status);
+            console.log('Health check data:', {
+                bloodPressure: event.bloodPressure,
+                temperature: event.temperature,
+                hemoglobinLevel: event.hemoglobinLevel,
+                weight: event.weight,
+                height: event.height
+            });
+
+            // Pre-fill health check form with existing data if available
+            const healthData: any = {
+                donationEventId: event.id,
+                isEligible: event.status !== 'Rejected'
+            };
+
+            // If blood group is available, set it
+            if (event.bloodGroupId) {
+                healthData.verifiedBloodGroupId = event.bloodGroupId;
+            }
+
+            // If health check data is available, pre-fill the form
+            if (event.bloodPressure) healthData.bloodPressure = event.bloodPressure;
+            if (event.temperature) healthData.temperature = event.temperature;
+            if (event.hemoglobinLevel) healthData.hemoglobinLevel = event.hemoglobinLevel;
+            if (event.weight) healthData.weight = event.weight;
+            if (event.height) healthData.height = event.height;
+            if (event.medicalNotes) healthData.medicalNotes = event.medicalNotes;
+
+            healthCheckForm.setFieldsValue(healthData);
+
+            // Skip to next step if health check is already done
+            // AND we have actual health check data
+            if (currentStep === DonationStep.HealthCheck &&
+                event.bloodPressure &&
+                event.temperature &&
+                event.hemoglobinLevel &&
+                event.weight &&
+                event.height) {
+                console.log('Health check data is complete, skipping to donation step');
+                setCurrentStep(DonationStep.StartDonation);
+            } else {
+                console.log('Health check data is incomplete, staying on health check step');
+            }
+        }
+    };
 
     // Initialize forms with default values
     useEffect(() => {
         // Check-in form is no longer used
         healthCheckForm.setFieldsValue({
-            donationEventId,
+            donationEventId: eventId,
             bloodPressure: '120/80',
             temperature: 36.5,
             hemoglobinLevel: 13.5,
@@ -243,12 +265,12 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
         });
 
         startDonationForm.setFieldsValue({
-            donationEventId,
+            donationEventId: eventId,
             notes: ''
         });
 
         completeDonationForm.setFieldsValue({
-            donationEventId,
+            donationEventId: eventId,
             donationDate: dayjs(),
             quantityDonated: 450.0,
             quantityUnits: 1,
@@ -256,16 +278,16 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
         });
 
         complicationForm.setFieldsValue({
-            donationEventId,
+            donationEventId: eventId,
             complicationType: 'Vasovagal Reaction',
             isUsable: false
         });
-    }, [donationEventId]);
+    }, [eventId]);
 
     // Update donation event ID when current event changes
     useEffect(() => {
         if (currentEvent && currentEvent.id) {
-            setDonationEventId(currentEvent.id);
+            setEventId(currentEvent.id);
 
             // Update forms with the new event ID
             healthCheckForm.setFieldsValue({ donationEventId: currentEvent.id });
@@ -281,136 +303,164 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
         console.log('Check-in already completed');
     };
 
-    // Handle health check submission
+    // Handle health check form submission
     const handleHealthCheck = async (values: any) => {
-        setLoading(true);
-
-        // Determine the final rejection reason
-        let finalRejectionReason = values.rejectionReason;
-        if (values.rejectionReason === 'Other' && values.rejectionReasonOther) {
-            finalRejectionReason = values.rejectionReasonOther;
-        }
-
-        // Ensure we have a valid donationEventId
-        const eventId = values.donationEventId || donationEventId;
-
-        // Log the donation event ID for debugging
-        console.log('Health Check - Form values:', values);
-        console.log('Health Check - Donation Event ID from form:', values.donationEventId);
-        console.log('Health Check - Donation Event ID from state:', donationEventId);
-        console.log('Health Check - Final Donation Event ID used:', eventId);
-
-        if (!eventId) {
-            console.error('No donation event ID available for health check');
-            message.error('Missing donation event ID. Cannot proceed with health check.');
-            setLoading(false);
-            return;
-        }
-
-        // Validate that verifiedBloodGroupId is provided
-        if (!values.verifiedBloodGroupId) {
-            console.error('Missing verified blood group ID');
-            message.error('Please select a verified blood group before proceeding.');
-            setLoading(false);
-            return;
-        }
-
-        const request: HealthCheckRequest = {
-            donationEventId: eventId,
-            bloodPressure: values.bloodPressure,
-            temperature: values.temperature,
-            hemoglobinLevel: values.hemoglobinLevel,
-            weight: values.weight,
-            height: values.height,
-            isEligible: values.isEligible,
-            medicalNotes: values.medicalNotes,
-            verifiedBloodGroupId: values.verifiedBloodGroupId,
-            rejectionReason: values.isEligible ? undefined : finalRejectionReason
-        };
-
-        // Log the complete request for debugging
-        console.log('Health Check Request:', JSON.stringify(request, null, 2));
-
         try {
-            const event = await performHealthCheck(request);
-            console.log('Health Check Response:', event);
+            console.log('Health check form values:', values);
 
-            if (event) {
+            // Make sure we have a donation event ID
+            if (!eventId) {
+                message.error('Missing donation event ID. Cannot proceed.');
+                return;
+            }
+
+            // Update the form values with the current donation event ID
+            values.donationEventId = eventId;
+
+            // Call the API to perform health check
+            const result = await performHealthCheck(values);
+
+            if (result && result.success) {
+                message.success('Health check completed successfully');
+
+                // Move to next step if eligible
                 if (values.isEligible) {
-                    // If eligible, move to next step
                     setCurrentStep(DonationStep.StartDonation);
                 } else {
-                    // If not eligible, finish the workflow
-                    handleWorkflowFinish(event);
+                    // Show rejection message and finish workflow
+                    Modal.warning({
+                        title: 'Donor Not Eligible',
+                        content: `This donor is not eligible to donate blood. Reason: ${values.rejectionReason || 'Health check requirements not met'}`,
+                        onOk: () => {
+                            // If onFinish callback is provided, call it with the updated event
+                            if (onFinish && result.data) {
+                                onFinish(result.data);
+                            }
+
+                            // Set workflow as completed
+                            setWorkflowCompleted(true);
+                            setCompletedEvent(result.data);
+                        }
+                    });
                 }
+            } else {
+                message.error(result?.message || 'Failed to complete health check');
             }
         } catch (error) {
-            console.error('Health Check Error:', error);
-            message.error('Failed to submit health check. Please try again.');
-        } finally {
-            setLoading(false);
+            console.error('Error during health check:', error);
+            message.error('An error occurred during health check');
         }
     };
 
-    // Handle donation start submission
+    // Handle start donation form submission
     const handleStartDonation = async (values: any) => {
-        setLoading(true);
+        try {
+            console.log('Start donation form values:', values);
 
-        const request: StartDonationRequest = {
-            donationEventId: values.donationEventId,
-            notes: values.notes
-        };
+            // Make sure we have a donation event ID
+            if (!eventId) {
+                message.error('Missing donation event ID. Cannot proceed.');
+                return;
+            }
 
-        const event = await startDonation(request);
+            // Update the form values with the current donation event ID
+            values.donationEventId = eventId;
 
-        if (event) {
-            setCurrentStep(DonationStep.CompleteDonation);
+            // Call the API to start donation
+            const result = await startDonation(values);
+
+            if (result && result.success) {
+                message.success('Donation started successfully');
+                setCurrentStep(DonationStep.CompleteDonation);
+            } else {
+                message.error(result?.message || 'Failed to start donation');
+            }
+        } catch (error) {
+            console.error('Error starting donation:', error);
+            message.error('An error occurred while starting the donation');
         }
-
-        setLoading(false);
     };
 
-    // Handle donation completion submission
+    // Handle complete donation form submission
     const handleCompleteDonation = async (values: any) => {
-        setLoading(true);
+        try {
+            console.log('Complete donation form values:', values);
 
-        const request: CompleteDonationRequest = {
-            donationEventId: values.donationEventId,
-            donationDate: values.donationDate.toISOString(),
-            quantityDonated: values.quantityDonated,
-            quantityUnits: values.quantityUnits,
-            notes: values.notes
-        };
+            // Make sure we have a donation event ID
+            if (!eventId) {
+                message.error('Missing donation event ID. Cannot proceed.');
+                return;
+            }
 
-        const event = await completeDonation(request);
+            // Update the form values with the current donation event ID
+            values.donationEventId = eventId;
 
-        if (event && onFinish) {
-            handleWorkflowFinish(event);
+            // Format date properly
+            if (values.donationDate) {
+                values.donationDate = values.donationDate.toISOString();
+            }
+
+            // Call the API to complete donation
+            const result = await completeDonation(values);
+
+            if (result && result.success) {
+                message.success('Donation completed successfully');
+
+                // If onFinish callback is provided, call it with the updated event
+                if (onFinish && result.data) {
+                    onFinish(result.data);
+                }
+
+                // Set workflow as completed
+                setWorkflowCompleted(true);
+                setCompletedEvent(result.data);
+            } else {
+                message.error(result?.message || 'Failed to complete donation');
+            }
+        } catch (error) {
+            console.error('Error completing donation:', error);
+            message.error('An error occurred while completing the donation');
         }
-
-        setLoading(false);
     };
 
-    // Handle complication submission
+    // Handle complication form submission
     const handleComplication = async (values: any) => {
-        setLoading(true);
+        try {
+            console.log('Complication form values:', values);
 
-        const request: ComplicationRequest = {
-            donationEventId: values.donationEventId,
-            complicationType: values.complicationType,
-            description: values.description,
-            collectedAmount: values.collectedAmount,
-            isUsable: values.isUsable,
-            actionTaken: values.actionTaken
-        };
+            // Make sure we have a donation event ID
+            if (!eventId) {
+                message.error('Missing donation event ID. Cannot proceed.');
+                return;
+            }
 
-        const event = await recordComplication(request);
+            // Update the form values with the current donation event ID
+            values.donationEventId = eventId;
 
-        if (event && onFinish) {
-            handleWorkflowFinish(event);
+            // Call the API to record complication
+            const result = await recordComplication(values);
+
+            if (result && result.success) {
+                message.success('Complication recorded successfully');
+
+                // If onFinish callback is provided, call it with the updated event
+                if (onFinish && result.data) {
+                    onFinish(result.data);
+                }
+
+                // Set workflow as completed
+                setWorkflowCompleted(true);
+                setCompletedEvent(result.data);
+
+                // Close the complication modal
+                setHasComplication(false);
+            } else {
+                message.error(result?.message || 'Failed to record complication');
+            }
+        } catch (error) {
+            console.error('Error recording complication:', error);
+            message.error('An error occurred while recording the complication');
         }
-
-        setLoading(false);
     };
 
     // Show complication modal
@@ -451,7 +501,7 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
                         layout="vertical"
                         onFinish={handleHealthCheck}
                     >
-                        {isHealthCheckCompleted && (
+                        {/* {isHealthCheckCompleted && (
                             <Alert
                                 message="Health check already completed"
                                 description="This donor's health check has already been completed. You can review the information below."
@@ -459,7 +509,7 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
                                 showIcon
                                 className="mb-4"
                             />
-                        )}
+                        )} */}
 
                         <Form.Item
                             name="donationEventId"
@@ -1079,13 +1129,15 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
                     </Card>
                 )}
 
-                <div className="flex justify-end space-x-4">
-                    <Button onClick={() => router.push('/staff/appointments')}>
-                        Quay lại danh sách cuộc hẹn
-                    </Button>
-                    <Button type="primary" onClick={() => router.push('/staff/dashboard')}>
-                        Đi đến Bảng điều khiển
-                    </Button>
+                <div className="mt-6 flex justify-center">
+                    <Space>
+                        <Button onClick={() => router.push('/staff/appointments')}>
+                            Return to Appointments
+                        </Button>
+                        {/* <Button type="primary" onClick={() => router.push('/staff/dashboard')}>
+                            Go to Dashboard
+                        </Button> */}
+                    </Space>
                 </div>
             </div>
         );

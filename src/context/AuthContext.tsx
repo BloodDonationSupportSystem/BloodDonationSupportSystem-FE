@@ -133,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         router.push('/staff');
         break;
       default:
-        router.push('/member/profile');
+        router.push('/');
         break;
     }
   };

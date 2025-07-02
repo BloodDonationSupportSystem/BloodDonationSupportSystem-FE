@@ -30,11 +30,11 @@ interface UseDonationEventsReturn {
   currentEvent: DonationEvent | null;
   setCurrentEvent: (event: DonationEvent | null) => void;
   isProcessing: boolean;
-  checkInDonor: (request: CheckInRequest) => Promise<DonationEvent | null>;
-  performHealthCheck: (request: HealthCheckRequest) => Promise<DonationEvent | null>;
-  startDonation: (request: StartDonationRequest) => Promise<DonationEvent | null>;
-  completeDonation: (request: CompleteDonationRequest) => Promise<DonationEvent | null>;
-  recordComplication: (request: ComplicationRequest) => Promise<DonationEvent | null>;
+  checkInDonor: (request: CheckInRequest) => Promise<ApiResponse<DonationEvent>>;
+  performHealthCheck: (request: HealthCheckRequest) => Promise<ApiResponse<DonationEvent>>;
+  startDonation: (request: StartDonationRequest) => Promise<ApiResponse<DonationEvent>>;
+  completeDonation: (request: CompleteDonationRequest) => Promise<ApiResponse<DonationEvent>>;
+  recordComplication: (request: ComplicationRequest) => Promise<ApiResponse<DonationEvent>>;
   getDonationEventById: (eventId: string) => Promise<DonationEvent | null>;
   findDonationEventByAppointmentId: (appointmentId: string) => Promise<DonationEvent | null>;
 }
@@ -126,7 +126,7 @@ export function useDonationEvents(initialParams?: DonationEventsParams): UseDona
   };
 
   // 1. Check-in donor
-  const checkInDonor = async (request: CheckInRequest): Promise<DonationEvent | null> => {
+  const checkInDonor = async (request: CheckInRequest): Promise<ApiResponse<DonationEvent>> => {
     try {
       setIsProcessing(true);
       setError(null);
@@ -144,20 +144,26 @@ export function useDonationEvents(initialParams?: DonationEventsParams): UseDona
         fetchDonationEvents();
       }
 
-      return event;
+      return response;
     } catch (err) {
       console.error('Error checking in donor:', err);
       const errorMessage = 'An error occurred while checking in the donor';
       message.error(errorMessage);
       setError(errorMessage);
-      return null;
+      return {
+        success: false,
+        message: errorMessage,
+        statusCode: 500,
+        errors: [errorMessage],
+        data: null as unknown as DonationEvent
+      };
     } finally {
       setIsProcessing(false);
     }
   };
 
   // 2. Perform health check
-  const performHealthCheck = async (request: HealthCheckRequest): Promise<DonationEvent | null> => {
+  const performHealthCheck = async (request: HealthCheckRequest): Promise<ApiResponse<DonationEvent>> => {
     try {
       setIsProcessing(true);
       setError(null);
@@ -189,20 +195,26 @@ export function useDonationEvents(initialParams?: DonationEventsParams): UseDona
         fetchDonationEvents();
       }
 
-      return event;
+      return response;
     } catch (err) {
       console.error('Error performing health check:', err);
       const errorMessage = 'An error occurred during health check';
       message.error(errorMessage);
       setError(errorMessage);
-      return null;
+      return {
+        success: false,
+        message: errorMessage,
+        statusCode: 500,
+        errors: [errorMessage],
+        data: null as unknown as DonationEvent
+      };
     } finally {
       setIsProcessing(false);
     }
   };
 
   // 3. Start donation
-  const startDonationProcess = async (request: StartDonationRequest): Promise<DonationEvent | null> => {
+  const startDonationProcess = async (request: StartDonationRequest): Promise<ApiResponse<DonationEvent>> => {
     try {
       setIsProcessing(true);
       setError(null);
@@ -220,20 +232,26 @@ export function useDonationEvents(initialParams?: DonationEventsParams): UseDona
         fetchDonationEvents();
       }
 
-      return event;
+      return response;
     } catch (err) {
       console.error('Error starting donation:', err);
       const errorMessage = 'An error occurred while starting the donation';
       message.error(errorMessage);
       setError(errorMessage);
-      return null;
+      return {
+        success: false,
+        message: errorMessage,
+        statusCode: 500,
+        errors: [errorMessage],
+        data: null as unknown as DonationEvent
+      };
     } finally {
       setIsProcessing(false);
     }
   };
 
   // 4a. Complete donation
-  const completeDonationProcess = async (request: CompleteDonationRequest): Promise<DonationEvent | null> => {
+  const completeDonationProcess = async (request: CompleteDonationRequest): Promise<ApiResponse<DonationEvent>> => {
     try {
       setIsProcessing(true);
       setError(null);
@@ -251,20 +269,26 @@ export function useDonationEvents(initialParams?: DonationEventsParams): UseDona
         fetchDonationEvents();
       }
 
-      return event;
+      return response;
     } catch (err) {
       console.error('Error completing donation:', err);
       const errorMessage = 'An error occurred while completing the donation';
       message.error(errorMessage);
       setError(errorMessage);
-      return null;
+      return {
+        success: false,
+        message: errorMessage,
+        statusCode: 500,
+        errors: [errorMessage],
+        data: null as unknown as DonationEvent
+      };
     } finally {
       setIsProcessing(false);
     }
   };
 
   // 4b. Record complication
-  const recordDonationComplication = async (request: ComplicationRequest): Promise<DonationEvent | null> => {
+  const recordDonationComplication = async (request: ComplicationRequest): Promise<ApiResponse<DonationEvent>> => {
     try {
       setIsProcessing(true);
       setError(null);
@@ -282,13 +306,19 @@ export function useDonationEvents(initialParams?: DonationEventsParams): UseDona
         fetchDonationEvents();
       }
 
-      return event;
+      return response;
     } catch (err) {
       console.error('Error recording complication:', err);
       const errorMessage = 'An error occurred while recording the complication';
       message.error(errorMessage);
       setError(errorMessage);
-      return null;
+      return {
+        success: false,
+        message: errorMessage,
+        statusCode: 500,
+        errors: [errorMessage],
+        data: null as unknown as DonationEvent
+      };
     } finally {
       setIsProcessing(false);
     }

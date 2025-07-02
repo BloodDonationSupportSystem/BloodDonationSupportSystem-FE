@@ -1,13 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Badge } from 'antd';
-import dynamic from 'next/dynamic';
 
-// Dynamic import for Konva components to avoid SSR issues
-const Stage = dynamic(() => import('react-konva').then((mod) => mod.Stage), { ssr: false });
-const Layer = dynamic(() => import('react-konva').then((mod) => mod.Layer), { ssr: false });
-const Rect = dynamic(() => import('react-konva').then((mod) => mod.Rect), { ssr: false });
-const Line = dynamic(() => import('react-konva').then((mod) => mod.Line), { ssr: false });
-const Group = dynamic(() => import('react-konva').then((mod) => mod.Group), { ssr: false });
+// We'll conditionally import Konva on the client side only
+let Stage: any = () => null;
+let Layer: any = () => null;
+let Rect: any = () => null;
+let Line: any = () => null;
+let Group: any = () => null;
 
 interface BloodVialCanvasProps {
     bloodType: string;
@@ -31,9 +30,50 @@ const BloodVialCanvas: React.FC<BloodVialCanvasProps> = ({
     const [time, setTime] = useState(0);
     const animationRef = useRef<number | null>(null);
     const [isMounted, setIsMounted] = useState(false);
+    const [konvaLoaded, setKonvaLoaded] = useState(false);
 
-    // Calculate fill percentage based on quantity (max 5 units = 100%)
-    const fillPercentage = Math.min(actualQuantity / 2250 * 100, 100);
+    // Cải thiện cách tính toán lượng máu để phân biệt rõ ràng hơn giữa các đơn vị
+    // Tính toán lượng máu dựa trên thể tích thực tế, không chỉ số lượng đơn vị
+    const calculateFillPercentage = () => {
+        // Xác định thể tích thực tế dựa trên actualQuantity hoặc ước tính từ số đơn vị
+        const realVolume = actualQuantity > 0 ? actualQuantity : quantity * 450;
+
+        // Ưu tiên sử dụng số lượng đơn vị để phân biệt rõ ràng hơn
+        if (quantity === 1) {
+            // Nếu là 1 đơn vị, mức độ đầy phụ thuộc vào thể tích
+            if (realVolume <= 100) {
+                return 15; // Plasma hoặc thành phần máu nhỏ (100ml)
+            } else if (realVolume <= 200) {
+                return 25; // Thành phần máu trung bình (200ml)
+            } else if (realVolume <= 300) {
+                return 40; // Thành phần máu lớn (300ml)
+            } else {
+                return 60; // 1 đơn vị máu tiêu chuẩn (450ml)
+            }
+        } else if (quantity === 2) {
+            // Nếu là 2 đơn vị, luôn hiển thị cao hơn 1 đơn vị
+            return 75; // 2 đơn vị máu (khoảng 900ml)
+        } else if (quantity >= 3) {
+            // Từ 3 đơn vị trở lên
+            return 90; // Nhiều đơn vị máu
+        } else {
+            // Trường hợp khác, dựa vào thể tích
+            if (realVolume <= 100) {
+                return 15;
+            } else if (realVolume <= 200) {
+                return 25;
+            } else if (realVolume <= 450) {
+                return 60;
+            } else if (realVolume <= 900) {
+                return 75;
+            } else {
+                return 90;
+            }
+        }
+    };
+
+    // Tính toán phần trăm lấp đầy
+    const fillPercentage = calculateFillPercentage();
     const fillHeight = (dimensions.height * fillPercentage) / 100;
 
     // Determine color based on blood type and component
@@ -60,6 +100,23 @@ const BloodVialCanvas: React.FC<BloodVialCanvasProps> = ({
                 height: 96, // Fixed height for the vial
             });
         }
+
+        // Import Konva on client side only
+        const loadKonva = async () => {
+            try {
+                const ReactKonva = await import('react-konva');
+                Stage = ReactKonva.Stage;
+                Layer = ReactKonva.Layer;
+                Rect = ReactKonva.Rect;
+                Line = ReactKonva.Line;
+                Group = ReactKonva.Group;
+                setKonvaLoaded(true);
+            } catch (error) {
+                console.error('Failed to load Konva:', error);
+            }
+        };
+
+        loadKonva();
     }, []);
 
     // Animation effect
@@ -130,8 +187,18 @@ const BloodVialCanvas: React.FC<BloodVialCanvasProps> = ({
         return points;
     };
 
+    // Hiển thị thông tin chi tiết về thể tích
+    const renderVolumeInfo = () => {
+        return (
+            <>
+                <div className="text-xs mt-2 font-medium">{quantity} {quantity > 1 ? 'units' : 'unit'}</div>
+                <div className="text-xs text-gray-500">{actualQuantity} ml</div>
+            </>
+        );
+    };
+
     // Fallback for server-side rendering or when Konva is not loaded yet
-    if (!isMounted) {
+    if (!isMounted || !konvaLoaded) {
         return (
             <div className="flex flex-col items-center mb-4 mx-2">
                 <div className="text-sm font-bold mb-1">{bloodType}</div>
@@ -146,8 +213,7 @@ const BloodVialCanvas: React.FC<BloodVialCanvasProps> = ({
                         }}
                     />
                 </div>
-                <div className="text-xs mt-2">{quantity} {quantity > 1 ? 'units' : 'unit'}</div>
-                <div className="text-xs text-gray-500">{actualQuantity} ml</div>
+                {renderVolumeInfo()}
                 {expired && <Badge status="error" text="Expired" />}
                 {expiring && !expired && <Badge status="warning" text="Expiring" />}
             </div>
@@ -209,8 +275,7 @@ const BloodVialCanvas: React.FC<BloodVialCanvasProps> = ({
                     </Layer>
                 </Stage>
             </div>
-            <div className="text-xs mt-2">{quantity} {quantity > 1 ? 'units' : 'unit'}</div>
-            <div className="text-xs text-gray-500">{actualQuantity} ml</div>
+            {renderVolumeInfo()}
             {expired && <Badge status="error" text="Expired" />}
             {expiring && !expired && <Badge status="warning" text="Expiring" />}
         </div>

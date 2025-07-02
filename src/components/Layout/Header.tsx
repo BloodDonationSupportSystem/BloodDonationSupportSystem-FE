@@ -62,6 +62,7 @@ export default function Header() {
     if (pathname.includes('/about')) return 'about';
     if (pathname.includes('/donate')) return 'donate';
     if (pathname.includes('/blood-info')) return 'bloodInfo';
+    if (pathname.includes('/blood-compatibility')) return 'bloodCompatibility';
     if (pathname.includes('/blog')) return 'blog';
     if (pathname.includes('/contact')) return 'contact';
     return '';
@@ -74,6 +75,7 @@ export default function Header() {
     { key: 'about', label: <Link href="/about">About Us</Link> },
     { key: 'donate', label: <Link href="/donate-blood">Donate Blood</Link> },
     { key: 'bloodInfo', label: <Link href="/blood-info">Blood Info</Link> },
+    { key: 'bloodCompatibility', label: <Link href="/blood-compatibility">Blood Compatibility</Link> },
     { key: 'blog', label: <Link href="/blog">Blog</Link> },
     { key: 'contact', label: <Link href="/contact">Contact</Link> },
   ];
@@ -234,14 +236,14 @@ export default function Header() {
   return (
     <AntHeader className="bg-white shadow-sm py-0 px-4 sticky top-0 z-10">
       <div className="container mx-auto flex justify-between items-center h-16">
-        <div className="flex items-center">
-          <Link href="/" className="flex items-center mr-8">
+        <div className="flex items-center flex-grow">
+          <Link href="/" className="flex items-center mr-4">
             <span className="text-3xl mr-2" role="img" aria-label="Blood Drop">🩸</span>
             <span className="text-xl font-bold text-red-600 hidden sm:inline">Blood Donation</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:block">
+          <div className="hidden lg:block flex-grow">
             <Menu mode="horizontal" className="border-0" selectedKeys={[activeMenuItem]} items={menuItems} />
           </div>
         </div>
@@ -285,7 +287,7 @@ export default function Header() {
           </div>
 
           {/* Mobile Menu */}
-          <div className="md:hidden flex items-center">
+          <div className="lg:hidden flex items-center">
             {isLoggedIn && (
               <Badge count={unreadCount} size="small" className="mr-3">
                 <Link href="/member/notifications">

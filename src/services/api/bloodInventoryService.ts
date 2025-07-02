@@ -52,6 +52,7 @@ export interface BloodInventoryParams {
     expirationStartDate?: string;
     expirationEndDate?: string;
     isExpired?: boolean;
+    isExpiringSoon?: boolean;
     sortBy?: string;
     sortAscending?: boolean;
     pageNumber?: number;

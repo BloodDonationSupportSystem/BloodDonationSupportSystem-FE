@@ -87,18 +87,33 @@ export interface StaffAssignment {
 export interface Location {
   id: string;
   name: string;
-  address: string;
-  latitude: string;
-  longitude: string;
+  address?: string;
+  latitude?: string;
+  longitude?: string;
   isActive: boolean;
-  description: string;
-  contactPhone: string;
-  contactEmail: string;
-  createdTime: string;
-  lastUpdatedTime: string;
-  capacities: Capacity[];
-  staffAssignments: StaffAssignment[];
+  description?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  createdTime?: string;
+  lastUpdatedTime?: string;
+  capacities?: LocationCapacity[];
+  staffAssignments?: StaffAssignment[];
   operatingHours: OperatingHour[];
+}
+
+export interface LocationCapacity {
+  id: string;
+  locationId: string;
+  locationName?: string;
+  timeSlot: string;
+  totalCapacity: number;
+  dayOfWeek: number;
+  effectiveDate?: string;
+  expiryDate?: string;
+  isActive: boolean;
+  notes?: string;
+  createdTime?: string;
+  lastUpdatedTime?: string;
 }
 
 export interface ApiResponse<T = any> {
@@ -112,12 +127,21 @@ export interface ApiResponse<T = any> {
 
 export type LocationsResponse = ApiResponse<Location[]>;
 
+export interface LocationResponse {
+  success: boolean;
+  message: string;
+  statusCode: number;
+  errors: string[];
+  data: Location;
+}
+
 // API functions
 export const getAllLocations = async (): Promise<LocationsResponse> => {
   try {
     const response = await apiClient.get('/Locations');
     return response.data;
   } catch (error) {
+    console.error('Error fetching locations:', error);
     if (axios.isAxiosError(error) && error.response) {
       return error.response.data as LocationsResponse;
     }
@@ -125,13 +149,27 @@ export const getAllLocations = async (): Promise<LocationsResponse> => {
   }
 };
 
-export const getLocationById = async (locationId: string): Promise<ApiResponse<Location>> => {
+export const getLocationById = async (id: string): Promise<LocationResponse> => {
   try {
-    const response = await apiClient.get(`/Locations/${locationId}`);
+    const response = await apiClient.get(`/Locations/${id}`);
     return response.data;
   } catch (error) {
+    console.error('Error fetching location:', error);
     if (axios.isAxiosError(error) && error.response) {
-      return error.response.data as ApiResponse<Location>;
+      return error.response.data as LocationResponse;
+    }
+    throw error;
+  }
+};
+
+export const getUserLocations = async (userId: string): Promise<LocationsResponse> => {
+  try {
+    const response = await apiClient.get(`/Locations/user/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching user locations:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as LocationsResponse;
     }
     throw error;
   }

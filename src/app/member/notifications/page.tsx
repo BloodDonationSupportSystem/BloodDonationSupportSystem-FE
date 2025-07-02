@@ -54,6 +54,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useNotifications } from '@/hooks/api';
 import { NotificationsParams } from '@/services/api/notificationsService';
+import DOMPurify from 'isomorphic-dompurify';
 
 dayjs.extend(relativeTime);
 
@@ -318,6 +319,13 @@ export default function NotificationsPage() {
     },
   ];
 
+  // Function to safely render HTML content
+  const renderHtmlContent = (htmlContent: string) => {
+    // Sanitize the HTML content to prevent XSS attacks
+    const sanitizedHtml = DOMPurify.sanitize(htmlContent);
+    return { __html: sanitizedHtml };
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -453,7 +461,10 @@ export default function NotificationsPage() {
                       }
                       description={
                         <div>
-                          <div className="text-gray-600 mb-1">{item.message}</div>
+                          <div
+                            className="text-gray-600 mb-1 notification-message"
+                            dangerouslySetInnerHTML={renderHtmlContent(item.message)}
+                          />
                           <div className="flex items-center justify-between">
                             <Text type="secondary" className="text-xs">
                               {dayjs(item.createdTime).fromNow()}
@@ -654,6 +665,41 @@ export default function NotificationsPage() {
           </Form>
         </Modal>
       </div>
+
+      {/* Add CSS styles for notification messages */}
+      <style jsx global>{`
+        .notification-message h1,
+        .notification-message h2,
+        .notification-message h3,
+        .notification-message h4 {
+          margin-top: 0.5rem;
+          margin-bottom: 0.5rem;
+          font-weight: 600;
+        }
+        
+        .notification-message p {
+          margin-bottom: 0.5rem;
+        }
+        
+        .notification-message a {
+          color: #1890ff;
+          text-decoration: underline;
+        }
+        
+        .notification-message strong {
+          font-weight: 600;
+        }
+        
+        .notification-message ul, 
+        .notification-message ol {
+          margin-left: 1.5rem;
+          margin-bottom: 0.5rem;
+        }
+        
+        .notification-message li {
+          margin-bottom: 0.25rem;
+        }
+      `}</style>
     </div>
   );
 } 

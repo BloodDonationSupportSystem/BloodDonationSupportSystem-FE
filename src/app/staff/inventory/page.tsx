@@ -67,6 +67,7 @@ export default function StaffInventoryPage() {
             pageSize: pagination.pageSize
         };
 
+        // Apply manual filters
         if (bloodGroupFilter) {
             params.bloodGroupId = bloodGroupFilter;
         }
@@ -80,12 +81,35 @@ export default function StaffInventoryPage() {
             params.expirationEndDate = expirationDateRange[1].format('YYYY-MM-DD');
         }
 
+        // Apply tab-based filters
         if (activeTab === 'expired') {
             params.isExpired = true;
+            params.isExpiringSoon = false;
+        } else if (activeTab === 'expiring') {
+            params.isExpired = false;
+            params.isExpiringSoon = true;
+        } else {
+            // All tab - clear these specific filters
+            params.isExpired = false;
+            params.isExpiringSoon = false;
         }
 
         fetchInventories(params);
     }, [bloodGroupFilter, componentTypeFilter, expirationDateRange, activeTab, pagination.current, pagination.pageSize]);
+
+    // Handle tab change
+    const handleTabChange = (key: string) => {
+        // Reset pagination to first page when changing tabs
+        const newPagination = { ...pagination, current: 1 };
+        pagination.current = 1;
+
+        // Clear table filters when changing tabs
+        setFilteredInfo({});
+        setSortedInfo({});
+
+        // Update the active tab
+        setActiveTab(key);
+    };
 
     // Handle table change
     const handleTableChange = (pagination: any, filters: any, sorter: any) => {
@@ -101,9 +125,15 @@ export default function StaffInventoryPage() {
         setSearchText('');
         setFilteredInfo({});
         setSortedInfo({});
+
+        // Reset pagination
+        pagination.current = 1;
+
         fetchInventories({
             pageNumber: 1,
-            pageSize: pagination.pageSize
+            pageSize: pagination.pageSize,
+            isExpired: activeTab === 'expired',
+            isExpiringSoon: activeTab === 'expiring'
         });
     };
 
@@ -356,7 +386,6 @@ export default function StaffInventoryPage() {
                         <div className="flex flex-wrap justify-center">
                             {Object.entries(groupedInventories).map(([bloodGroup, components]) => (
                                 <div key={bloodGroup} className="m-4">
-                                    <div className="text-center font-bold mb-2">{bloodGroup}</div>
                                     <div className="flex">
                                         {Object.entries(components).map(([componentType, data]) => (
                                             <BloodVialCanvas
@@ -433,7 +462,7 @@ export default function StaffInventoryPage() {
                 {/* Tabs */}
                 <Tabs
                     activeKey={activeTab}
-                    onChange={setActiveTab}
+                    onChange={handleTabChange}
                     className="mb-6"
                     type="card"
                 >

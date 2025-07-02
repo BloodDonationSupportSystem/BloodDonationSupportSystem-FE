@@ -33,7 +33,7 @@ const { TextArea } = Input;
 const timeSlots = [
   { label: 'Morning (7AM-12PM)', value: 'Morning' },
   { label: 'Afternoon (1PM-6PM)', value: 'Afternoon' },
-  { label: 'Evening (6PM-9PM)', value: 'Evening' }
+  { label: 'Evening (6PM-7PM)', value: 'Evening' }
 ];
 
 // Hour slots with start and end times in 24-hour format
@@ -53,8 +53,8 @@ const hourSlots = {
   ],
   Evening: [
     { label: '6PM - 7PM', startHour: 18, endHour: 19 },
-    { label: '7PM - 8PM', startHour: 19, endHour: 20 },
-    { label: '8PM - 9PM', startHour: 20, endHour: 21 }
+    // { label: '7PM - 8PM', startHour: 19, endHour: 20 },
+    // { label: '8PM - 9PM', startHour: 20, endHour: 21 }
   ]
 };
 
@@ -809,7 +809,7 @@ const DonateBloodPage = () => {
 
               <tr className="bg-blue-50">
                 <td colSpan={8} className="border p-3 font-medium text-blue-700">
-                  Evening (6PM-9PM)
+                  Evening (6PM-7PM)
                 </td>
               </tr>
               {hourSlots.Evening.map((hourSlot, idx) => (
