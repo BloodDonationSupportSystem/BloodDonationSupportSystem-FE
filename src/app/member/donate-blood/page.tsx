@@ -81,12 +81,12 @@ const DonateBloodPage = () => {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [form] = Form.useForm();
-  
+
   // Custom hooks
   const { checkEligibility, isCheckingEligibility } = useDonorProfile();
-  const { 
-    locations, 
-    isLoading: isLoadingLocations, 
+  const {
+    locations,
+    isLoading: isLoadingLocations,
     isGettingUserLocation,
     getUserLocation,
     userCoordinates,
@@ -94,37 +94,37 @@ const DonateBloodPage = () => {
   } = useLocations();
   const { bloodGroups, isLoading: isLoadingBloodGroups } = useBloodGroups();
   const { componentTypes, isLoading: isLoadingComponentTypes } = useComponentTypes();
-  const { 
-    submitDonationRequest, 
-    isSubmitting 
+  const {
+    submitDonationRequest,
+    isSubmitting
   } = useDonationAppointment();
-  
+
   // State
   const [eligibilityData, setEligibilityData] = useState<EligibilityResponse | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
   const [loadingCapacities, setLoadingCapacities] = useState(false);
-  
+
   // State for capacity schedule view
   const [currentWeekStart, setCurrentWeekStart] = useState<dayjs.Dayjs>(dayjs().tz().startOf('week'));
   const [capacities, setCapacities] = useState<Capacity[]>([]);
   const [selectedCapacity, setSelectedCapacity] = useState<Capacity | null>(null);
-  const [selectedHourSlot, setSelectedHourSlot] = useState<{startHour: number, endHour: number} | null>(null);
-  
+  const [selectedHourSlot, setSelectedHourSlot] = useState<{ startHour: number, endHour: number } | null>(null);
+
   // Use refs to track if we've already made requests to avoid infinite loops
   const hasRequestedCapacitiesRef = React.useRef<boolean>(false);
   const previousWeekStartRef = React.useRef<string>('');
   const hasLocationRequestedRef = React.useRef<boolean>(false);
-  
+
   // Fetch capacities function
   const fetchLocationCapacities = async () => {
     if (!selectedLocation) return;
-    
+
     try {
       setLoadingCapacities(true);
       const locationCapacities = await getLocationCapacities(selectedLocation);
-      
+
       if (locationCapacities) {
         setCapacities(locationCapacities);
       }
@@ -143,7 +143,7 @@ const DonateBloodPage = () => {
         setEligibilityData(result);
       }
     };
-    
+
     checkDonorEligibility();
   }, []);
 
@@ -154,54 +154,33 @@ const DonateBloodPage = () => {
     }
   }, [selectedLocation, selectedDate]);
 
-  // Handle location step with geolocation
+  // Update the useEffect for location handling
   useEffect(() => {
-    // Only trigger getUserLocation once when first entering the location step
-    if (currentStep === 1 && !userCoordinates.latitude && !hasLocationRequestedRef.current && !isGettingUserLocation) {
-      hasLocationRequestedRef.current = true;
+    // Automatically get user location when entering the location step
+    if (currentStep === 1 && !userCoordinates.latitude && !isGettingUserLocation) {
       console.log('Automatically requesting user location on location step');
       getUserLocation();
     }
-  }, [currentStep, userCoordinates.latitude, isGettingUserLocation]);
-  
-  // Reset the location request flag when leaving the location step
-  useEffect(() => {
-    if (currentStep !== 1) {
-      hasLocationRequestedRef.current = false;
-    }
-  }, [currentStep]);
-
-  // Handle "Find Nearby Locations" button click
-  const handleFindNearbyLocations = async () => {
-    // Set the flag to true to prevent duplicate requests
-    hasLocationRequestedRef.current = true;
-    
-    try {
-      await getUserLocation();
-    } catch (error) {
-      console.error('Error getting user location:', error);
-      hasLocationRequestedRef.current = false; // Reset flag if error occurs
-    }
-  };
+  }, [currentStep, userCoordinates.latitude, isGettingUserLocation, getUserLocation]);
 
   // Handle capacity loading based on step changes
   useEffect(() => {
     const currentWeekStartStr = currentWeekStart.format('YYYY-MM-DD');
-    
+
     if (currentStep === 2 && selectedLocation) {
       // Only fetch if we haven't fetched before or week has changed
-      if (!hasRequestedCapacitiesRef.current || 
-          previousWeekStartRef.current !== currentWeekStartStr) {
-        
+      if (!hasRequestedCapacitiesRef.current ||
+        previousWeekStartRef.current !== currentWeekStartStr) {
+
         // Set the flags first to prevent duplicate requests
         hasRequestedCapacitiesRef.current = true;
         previousWeekStartRef.current = currentWeekStartStr;
-        
+
         // Then fetch the data
         fetchLocationCapacities();
       }
     }
-    
+
     // Reset the flag when we leave the schedule step
     if (currentStep !== 2) {
       hasRequestedCapacitiesRef.current = false;
@@ -211,50 +190,50 @@ const DonateBloodPage = () => {
   // Group capacities by day of week, time slot, and hour for display
   const groupedCapacities = React.useMemo(() => {
     if (!capacities) return {};
-    
+
     const grouped: Record<number, Record<string, Record<string, Capacity>>> = {};
-    
+
     // Get the range of dates for the current week view
     const weekStartDate = currentWeekStart.startOf('day');
     const weekEndDate = currentWeekStart.clone().add(6, 'day').endOf('day');
-    
+
     capacities.forEach(capacity => {
       // Extract hour information from effectiveDate and expiryDate
       const effectiveDate = dayjs(capacity.effectiveDate).tz();
       const expiryDate = dayjs(capacity.expiryDate).tz();
       const startHour = effectiveDate.hour();
       const endHour = expiryDate.hour();
-      
+
       // Check if this capacity is relevant for the current week view
       // A capacity is relevant if its date range overlaps with the current week
       const capacityEffectiveDate = effectiveDate.startOf('day');
       const capacityExpiryDate = expiryDate.endOf('day');
-      
+
       // Skip if the capacity doesn't apply to the current week view
       if (capacityExpiryDate.isBefore(weekStartDate) || capacityEffectiveDate.isAfter(weekEndDate)) {
         return;
       }
-      
+
       // Create a key for the hour slot
       const hourKey = `${startHour}-${endHour}`;
-      
+
       // Use the day of week from the capacity
       const capacityDayOfWeek = capacity.dayOfWeek;
-      
+
       if (!grouped[capacityDayOfWeek]) {
         grouped[capacityDayOfWeek] = {};
       }
-      
+
       if (!grouped[capacityDayOfWeek][capacity.timeSlot]) {
         grouped[capacityDayOfWeek][capacity.timeSlot] = {};
       }
-      
+
       grouped[capacityDayOfWeek][capacity.timeSlot][hourKey] = capacity;
     });
-    
+
     return grouped;
   }, [capacities, currentWeekStart]);
-  
+
   // Generate dates for the current week
   const weekDates = React.useMemo(() => {
     // Make a shallow copy of daysOfWeek to avoid modifying the original
@@ -294,29 +273,29 @@ const DonateBloodPage = () => {
       // Ensure we have the correct time format from capacity
       let timeSlot = selectedTimeSlot;
       let preferredDate = '';
-      
+
       if (selectedCapacity) {
         // Just use the timeSlot from capacity (Morning, Afternoon, Evening)
         timeSlot = selectedCapacity.timeSlot;
-        
+
         // For the date, use the day from selectedDate but time from capacity's effectiveDate
         if (selectedDate) {
           // Create a new dayjs object from the selected date
           const selectedDay = dayjs(selectedDate).format('YYYY-MM-DD');
-          
+
           // Get hours, minutes, seconds from the capacity's effectiveDate
           const effectiveDateTime = dayjs(selectedCapacity.effectiveDate);
-          
+
           // Adjust for timezone: Convert from Vietnam time (UTC+7) to UTC
           // We need to create a timezone-aware date first
           const vietnamDateTime = dayjs.tz(`${selectedDay}T${effectiveDateTime.format('HH:mm:ss.SSS')}`, 'Asia/Ho_Chi_Minh');
-          
+
           // Then convert to UTC by subtracting 7 hours
           const utcDateTime = vietnamDateTime.subtract(7, 'hour');
-          
+
           // Format the date in ISO format with UTC timezone indicator
           preferredDate = utcDateTime.format('YYYY-MM-DDTHH:mm:ss.SSS') + '+00:00';
-          
+
           console.log('Giờ Việt Nam đã chọn:', vietnamDateTime.format('YYYY-MM-DD HH:mm:ss'));
           console.log('Giờ UTC để lưu vào database:', preferredDate);
         }
@@ -327,7 +306,7 @@ const DonateBloodPage = () => {
         const utcTime = vietnamTime.subtract(7, 'hour');
         preferredDate = utcTime.format('YYYY-MM-DDTHH:mm:ss.SSS') + '+00:00';
       }
-      
+
       const requestData: DonationAppointmentRequest = {
         preferredDate: preferredDate,
         preferredTimeSlot: timeSlot,
@@ -359,11 +338,11 @@ const DonateBloodPage = () => {
 
     if (!eligibilityData) {
       return (
-        <Alert 
-          type="error" 
-          message="Error checking eligibility" 
-          description="We couldn't check your eligibility at this time. Please try again later." 
-          showIcon 
+        <Alert
+          type="error"
+          message="Error checking eligibility"
+          description="We couldn't check your eligibility at this time. Please try again later."
+          showIcon
         />
       );
     }
@@ -411,7 +390,7 @@ const DonateBloodPage = () => {
           description="You can proceed to book an appointment for blood donation."
           showIcon
         />
-        
+
         <div className="flex justify-end">
           <Button type="primary" onClick={next}>
             Book Appointment
@@ -424,7 +403,7 @@ const DonateBloodPage = () => {
   // Render location and date selection step
   const renderLocationStep = () => {
     const isLoading = isLoadingLocations || isLoadingBloodGroups || isLoadingComponentTypes;
-    
+
     if (isLoading) {
       return (
         <div className="flex justify-center items-center min-h-[200px]">
@@ -467,8 +446,8 @@ const DonateBloodPage = () => {
             />
           ) : (
             <Alert
-              message="Find donation centers near you"
-              description="Click the button below to find donation centers sorted by distance from your current location."
+              message="Finding donation centers near you"
+              description="We're trying to access your location to show donation centers sorted by distance."
               type="info"
               showIcon
               className="mb-4"
@@ -479,34 +458,29 @@ const DonateBloodPage = () => {
             label="Select Donation Location"
             rules={[{ required: true, message: 'Please select a donation location' }]}
             extra={
-              !userCoordinates.latitude && !isGettingUserLocation ? (
-                <Button 
-                  type="primary" 
-                  icon={<EnvironmentOutlined />} 
-                  onClick={handleFindNearbyLocations} 
-                  className="mt-2"
-                >
-                  Find Nearby Locations
-                </Button>
-              ) : isGettingUserLocation ? (
+              isGettingUserLocation ? (
                 <div className="mt-2 flex items-center">
                   <Spin size="small" className="mr-2" />
                   <span className="text-gray-500">Getting your location...</span>
                 </div>
+              ) : !userCoordinates.latitude ? (
+                <div className="mt-2 text-yellow-600">
+                  Unable to get your location automatically. You can still select a location from the list.
+                </div>
               ) : null
             }
           >
-            <Select 
+            <Select
               placeholder="Select a donation location"
               optionLabelProp="label"
               showSearch
-              filterOption={(input, option) => 
+              filterOption={(input, option) =>
                 (option?.label as string).toLowerCase().includes(input.toLowerCase())
               }
             >
               {locations.map(location => (
-                <Option 
-                  key={location.id} 
+                <Option
+                  key={location.id}
                   value={location.id}
                   label={location.name}
                 >
@@ -581,24 +555,24 @@ const DonateBloodPage = () => {
     const navigateToPreviousWeek = () => {
       setCurrentWeekStart(currentWeekStart.clone().subtract(1, 'week'));
     };
-    
+
     const navigateToNextWeek = () => {
       setCurrentWeekStart(currentWeekStart.clone().add(1, 'week'));
     };
-    
+
     const navigateToCurrentWeek = () => {
       setCurrentWeekStart(dayjs().tz().startOf('week'));
     };
-    
+
     // Function to select a time slot from capacity
-    const handleSelectCapacity = (capacity: Capacity, hourSlot: {startHour: number, endHour: number}) => {
+    const handleSelectCapacity = (capacity: Capacity, hourSlot: { startHour: number, endHour: number }) => {
       const hourLabel = hourSlots[capacity.timeSlot as keyof typeof hourSlots]
         .find(h => h.startHour === hourSlot.startHour && h.endHour === hourSlot.endHour)?.label || '';
-      
+
       // Create a date object for the selected day
       const dayDate = weekDates.find(d => d.value === capacity.dayOfWeek)?.date;
       if (!dayDate) return;
-      
+
       // Get the date part from the current day of week
       // But use the time from capacity's effectiveDate
       const effectiveDate = dayjs(capacity.effectiveDate);
@@ -607,9 +581,9 @@ const DonateBloodPage = () => {
         .minute(effectiveDate.minute())
         .second(effectiveDate.second())
         .millisecond(effectiveDate.millisecond());
-      
+
       setSelectedDate(selectedDateTime.toDate());
-      
+
       // Store the display format for UI
       const displayTimeSlot = `${capacity.timeSlot} (${hourLabel})`;
       setSelectedTimeSlot(displayTimeSlot);
@@ -628,8 +602,8 @@ const DonateBloodPage = () => {
 
         {/* Week Navigation */}
         <div className="flex justify-between items-center mb-4 bg-white p-3 rounded-lg shadow-sm">
-                    <Button
-            icon={<LeftOutlined />} 
+          <Button
+            icon={<LeftOutlined />}
             onClick={navigateToPreviousWeek}
           >
             Previous Week
@@ -641,13 +615,13 @@ const DonateBloodPage = () => {
             <Button type="link" onClick={navigateToCurrentWeek}>
               Go to Current Week
             </Button>
-                      </div>
-          <Button 
+          </div>
+          <Button
             icon={<RightOutlined />}
             onClick={navigateToNextWeek}
           >
             Next Week
-                    </Button>
+          </Button>
         </div>
 
         <div className="overflow-x-auto">
@@ -676,19 +650,19 @@ const DonateBloodPage = () => {
                     const hourKey = `${hourSlot.startHour}-${hourSlot.endHour}`;
                     // Check if there's a capacity matching this specific day, time slot and hour
                     const capacity = groupedCapacities[day.value]?.['Morning']?.[hourKey];
-                    
+
                     // Check if this is the selected slot
-                    const isSelected = selectedCapacity?.id === capacity?.id && 
-                                       selectedHourSlot?.startHour === hourSlot.startHour &&
-                                       selectedHourSlot?.endHour === hourSlot.endHour;
-                    
+                    const isSelected = selectedCapacity?.id === capacity?.id &&
+                      selectedHourSlot?.startHour === hourSlot.startHour &&
+                      selectedHourSlot?.endHour === hourSlot.endHour;
+
                     // Calculate button color based on selection state
                     const buttonType = isSelected ? 'primary' : 'default';
-                    
+
                     // Check if this time slot is in the past
                     const slotDateTime = day.date.hour(hourSlot.startHour);
                     const isPastSlot = isDateInPast(slotDateTime);
-                    
+
                     return (
                       <td key={`Morning-${day.value}-${hourKey}`} className="border p-3 text-center">
                         {capacity ? (
@@ -705,8 +679,8 @@ const DonateBloodPage = () => {
                               )}
                               <span className="font-medium">Capacity: {capacity.totalCapacity}</span>
                             </div>
-                            <Button 
-                              type={buttonType} 
+                            <Button
+                              type={buttonType}
                               size="small"
                               onClick={() => handleSelectCapacity(capacity, hourSlot)}
                               disabled={!capacity.isActive || isPastSlot}
@@ -722,7 +696,7 @@ const DonateBloodPage = () => {
                   })}
                 </tr>
               ))}
-              
+
               <tr className="bg-orange-50">
                 <td colSpan={8} className="border p-3 font-medium text-orange-700">
                   Afternoon (1PM-6PM)
@@ -734,19 +708,19 @@ const DonateBloodPage = () => {
                   {weekDates.map(day => {
                     const hourKey = `${hourSlot.startHour}-${hourSlot.endHour}`;
                     const capacity = groupedCapacities[day.value]?.['Afternoon']?.[hourKey];
-                    
+
                     // Check if this is the selected slot
-                    const isSelected = selectedCapacity?.id === capacity?.id && 
-                                       selectedHourSlot?.startHour === hourSlot.startHour &&
-                                       selectedHourSlot?.endHour === hourSlot.endHour;
-                    
+                    const isSelected = selectedCapacity?.id === capacity?.id &&
+                      selectedHourSlot?.startHour === hourSlot.startHour &&
+                      selectedHourSlot?.endHour === hourSlot.endHour;
+
                     // Calculate button color based on selection state
                     const buttonType = isSelected ? 'primary' : 'default';
-                    
+
                     // Check if this time slot is in the past
                     const slotDateTime = day.date.hour(hourSlot.startHour);
                     const isPastSlot = isDateInPast(slotDateTime);
-                    
+
                     return (
                       <td key={`Afternoon-${day.value}-${hourKey}`} className="border p-3 text-center">
                         {capacity ? (
@@ -763,15 +737,15 @@ const DonateBloodPage = () => {
                               )}
                               <span className="font-medium">Capacity: {capacity.totalCapacity}</span>
                             </div>
-                            <Button 
-                              type={buttonType} 
+                            <Button
+                              type={buttonType}
                               size="small"
                               onClick={() => handleSelectCapacity(capacity, hourSlot)}
                               disabled={!capacity.isActive || isPastSlot}
                             >
                               Select
                             </Button>
-                </div>
+                          </div>
                         ) : (
                           <span className="text-gray-400 text-xs">No slots available</span>
                         )}
@@ -780,7 +754,7 @@ const DonateBloodPage = () => {
                   })}
                 </tr>
               ))}
-              
+
               <tr className="bg-blue-50">
                 <td colSpan={8} className="border p-3 font-medium text-blue-700">
                   Evening (6PM-9PM)
@@ -792,19 +766,19 @@ const DonateBloodPage = () => {
                   {weekDates.map(day => {
                     const hourKey = `${hourSlot.startHour}-${hourSlot.endHour}`;
                     const capacity = groupedCapacities[day.value]?.['Evening']?.[hourKey];
-                    
+
                     // Check if this is the selected slot
-                    const isSelected = selectedCapacity?.id === capacity?.id && 
-                                       selectedHourSlot?.startHour === hourSlot.startHour &&
-                                       selectedHourSlot?.endHour === hourSlot.endHour;
-                    
+                    const isSelected = selectedCapacity?.id === capacity?.id &&
+                      selectedHourSlot?.startHour === hourSlot.startHour &&
+                      selectedHourSlot?.endHour === hourSlot.endHour;
+
                     // Calculate button color based on selection state
                     const buttonType = isSelected ? 'primary' : 'default';
-                    
+
                     // Check if this time slot is in the past
                     const slotDateTime = day.date.hour(hourSlot.startHour);
                     const isPastSlot = isDateInPast(slotDateTime);
-                    
+
                     return (
                       <td key={`Evening-${day.value}-${hourKey}`} className="border p-3 text-center">
                         {capacity ? (
@@ -821,7 +795,7 @@ const DonateBloodPage = () => {
                               )}
                               <span className="font-medium">Capacity: {capacity.totalCapacity}</span>
                             </div>
-                            <Button 
+                            <Button
                               type={buttonType}
                               size="small"
                               onClick={() => handleSelectCapacity(capacity, hourSlot)}
@@ -829,7 +803,7 @@ const DonateBloodPage = () => {
                             >
                               Select
                             </Button>
-            </div>
+                          </div>
                         ) : (
                           <span className="text-gray-400 text-xs">No slots available</span>
                         )}
@@ -852,13 +826,13 @@ const DonateBloodPage = () => {
             </div>
           </div>
         )}
-        
+
         <div className="flex justify-between mt-6">
           <Button onClick={prev}>
             Previous
           </Button>
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             onClick={next}
             disabled={!selectedDate || !selectedTimeSlot}
           >
@@ -872,7 +846,7 @@ const DonateBloodPage = () => {
   // Render confirmation step
   const renderConfirmationStep = () => {
     const locationName = locations.find(loc => loc.id === selectedLocation)?.name || '';
-    const bloodGroupName = form.getFieldValue('bloodGroupId') ? 
+    const bloodGroupName = form.getFieldValue('bloodGroupId') ?
       bloodGroups.find(bg => bg.id === form.getFieldValue('bloodGroupId'))?.groupName : 'Not specified';
     const componentTypeName = form.getFieldValue('componentTypeId') ?
       componentTypes.find(ct => ct.id === form.getFieldValue('componentTypeId'))?.name : 'Not specified';
@@ -881,7 +855,7 @@ const DonateBloodPage = () => {
       <div className="space-y-6">
         <div className="bg-gray-50 p-6 rounded-lg">
           <h3 className="text-lg font-medium mb-4">Appointment Details</h3>
-          
+
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -930,8 +904,8 @@ const DonateBloodPage = () => {
             <Button onClick={prev}>
               Previous
             </Button>
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               htmlType="submit"
               loading={isSubmitting}
             >
@@ -951,15 +925,15 @@ const DonateBloodPage = () => {
         title="Appointment Booked Successfully!"
         subTitle="Your blood donation appointment has been scheduled. Thank you for your contribution."
         extra={[
-          <Button 
-            type="primary" 
-            key="dashboard" 
+          <Button
+            type="primary"
+            key="dashboard"
             onClick={() => router.push('/member/appointments')}
           >
             View My Appointments
           </Button>,
-          <Button 
-            key="home" 
+          <Button
+            key="home"
             onClick={() => router.push('/')}
           >
             Back to Home
@@ -998,7 +972,7 @@ const DonateBloodPage = () => {
             <Step title="Confirmation" description="Review & submit" />
             <Step title="Success" description="Appointment booked" />
           </Steps>
-          
+
           {renderStepContent()}
         </Card>
       </div>

@@ -26,8 +26,8 @@ const { Title } = Typography;
 // Create a context for the sidebar collapsed state
 export const SidebarContext = createContext({
   collapsed: false,
-  setCollapsed: (collapsed: boolean) => {},
-  toggleCollapsed: () => {}
+  setCollapsed: (collapsed: boolean) => { },
+  toggleCollapsed: () => { }
 });
 
 // Custom hook to use the sidebar context
@@ -106,11 +106,11 @@ export default function StaffSidebar() {
     //   icon: <BarChartOutlined />,
     //   label: <Link href="/staff/reports">Reports</Link>,
     // },
-    {
-      key: 'profile',
-      icon: <SettingOutlined />,
-      label: <Link href="/staff/profile">Profile</Link>,
-    },
+    // {
+    //   key: 'profile',
+    //   icon: <SettingOutlined />,
+    //   label: <Link href="/staff/profile">Profile</Link>,
+    // },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
@@ -148,7 +148,7 @@ export default function StaffSidebar() {
           <span className="text-2xl mx-auto text-red-500" role="img" aria-label="Blood Drop">🩸</span>
         )}
       </div>
-      
+
       <Menu
         mode="inline"
         selectedKeys={[getSelectedKey()]}

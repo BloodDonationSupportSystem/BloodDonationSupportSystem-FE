@@ -3,34 +3,34 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { 
-  Typography, 
-  Card, 
-  Spin, 
-  List, 
-  Tag, 
-  Button, 
-  Space, 
-  Tabs, 
-  Badge, 
-  Switch, 
-  Empty, 
-  Divider, 
-  Dropdown, 
-  Menu, 
-  Form, 
-  Checkbox, 
-  Radio, 
+import {
+  Typography,
+  Card,
+  Spin,
+  List,
+  Tag,
+  Button,
+  Space,
+  Tabs,
+  Badge,
+  Switch,
+  Empty,
+  Divider,
+  Dropdown,
+  Menu,
+  Form,
+  Checkbox,
+  Radio,
   Modal,
   TimePicker,
   Pagination,
   App
 } from 'antd';
-import { 
-  BellOutlined, 
-  CheckCircleOutlined, 
-  ClockCircleOutlined, 
-  WarningOutlined, 
+import {
+  BellOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  WarningOutlined,
   InfoCircleOutlined,
   DeleteOutlined,
   SettingOutlined,
@@ -91,15 +91,17 @@ export default function NotificationsPage() {
   const { message, modal } = App.useApp();
 
   // Use our custom hook for notifications
-  const { 
-    notifications, 
-    pagination, 
-    loading: notificationsLoading, 
+  const {
+    notifications,
+    pagination,
+    loading: notificationsLoading,
     error,
     fetchNotifications,
     markAsRead,
     markAllAsRead,
-    deleteNotification
+    deleteNotification,
+    unreadCount,
+    fetchUnreadCount
   } = useNotifications();
 
   // Redirect if not logged in
@@ -126,6 +128,9 @@ export default function NotificationsPage() {
       }
 
       fetchNotifications(params);
+
+      // Fetch unread count
+      fetchUnreadCount(user.id);
     }
   }, [user?.id, activeTab, pagination.pageNumber, pagination.pageSize]);
 
@@ -157,15 +162,19 @@ export default function NotificationsPage() {
     const result = await markAsRead(id);
     if (result) {
       message.success('Notification marked as read');
+      if (user?.id) {
+        fetchUnreadCount(user.id);
+      }
     }
   };
 
   const handleMarkAllAsRead = async () => {
     if (!user?.id) return;
-    
+
     const result = await markAllAsRead(user.id);
     if (result) {
       message.success('All notifications marked as read');
+      fetchUnreadCount(user.id);
     }
   };
 
@@ -173,6 +182,9 @@ export default function NotificationsPage() {
     const result = await deleteNotification(id);
     if (result) {
       message.success('Notification deleted');
+      if (user?.id) {
+        fetchUnreadCount(user.id);
+      }
     }
   };
 
@@ -190,7 +202,7 @@ export default function NotificationsPage() {
 
   const handlePageChange = (page: number, pageSize?: number) => {
     if (!user?.id) return;
-    
+
     fetchNotifications({
       userId: user.id,
       pageNumber: page,
@@ -211,7 +223,7 @@ export default function NotificationsPage() {
 
   const handleSettingsSave = (values: any) => {
     console.log('Settings values:', values);
-    
+
     // Create updated settings object
     const updatedSettings = {
       email: values.emailNotifications,
@@ -232,7 +244,7 @@ export default function NotificationsPage() {
         endTime: values.quietHours?.[1] || '08:00',
       },
     };
-    
+
     setNotificationSettings(updatedSettings);
     setSettingsModalVisible(false);
     message.success('Notification settings updated');
@@ -281,8 +293,6 @@ export default function NotificationsPage() {
         return <BellOutlined />;
     }
   };
-
-  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   // Define tab items for Tabs component
   const tabItems = [
@@ -334,10 +344,10 @@ export default function NotificationsPage() {
               Stay updated with your donation activities and important alerts
             </Paragraph>
           </div>
-          
+
           <div className="flex mt-4 md:mt-0">
-            <Button 
-              icon={<SettingOutlined />} 
+            <Button
+              icon={<SettingOutlined />}
               onClick={showSettingsModal}
               className="mr-2"
             >
@@ -353,14 +363,14 @@ export default function NotificationsPage() {
                     onClick: handleMarkAllAsRead,
                     disabled: unreadCount === 0,
                   },
-                  {
-                    key: '2',
-                    label: 'Clear all notifications',
-                    icon: <DeleteOutlined />,
-                    onClick: clearAllNotifications,
-                    danger: true,
-                    disabled: notifications.length === 0,
-                  },
+                  // {
+                  //   key: '2',
+                  //   label: 'Clear all notifications',
+                  //   icon: <DeleteOutlined />,
+                  //   onClick: clearAllNotifications,
+                  //   danger: true,
+                  //   disabled: notifications.length === 0,
+                  // },
                 ],
               }}
               placement="bottomRight"
@@ -372,8 +382,8 @@ export default function NotificationsPage() {
         </div>
 
         <Card className="shadow-md">
-          <Tabs 
-            activeKey={activeTab} 
+          <Tabs
+            activeKey={activeTab}
             onChange={(key) => setActiveTab(key)}
             items={tabItems}
             tabBarExtraContent={
@@ -384,7 +394,7 @@ export default function NotificationsPage() {
               </Badge>
             }
           />
-          
+
           {notificationsLoading ? (
             <div className="py-12 flex justify-center">
               <Spin size="large" />
@@ -400,33 +410,33 @@ export default function NotificationsPage() {
                     actions={[
                       <Space key="actions">
                         {!item.isRead && (
-                          <Button 
-                            type="text" 
-                            size="small" 
-                            icon={<ReadOutlined />} 
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<ReadOutlined />}
                             onClick={() => handleMarkAsRead(item.id)}
                           >
                             Mark as read
                           </Button>
                         )}
-                        <Button 
-                          type="text" 
-                          size="small" 
-                          danger 
-                          icon={<DeleteOutlined />} 
+                        {/* <Button
+                          type="text"
+                          size="small"
+                          danger
+                          icon={<DeleteOutlined />}
                           onClick={() => handleDeleteNotification(item.id)}
-                        />
+                        /> */}
                       </Space>
                     ]}
                   >
                     <List.Item.Meta
                       avatar={
-                        <Badge 
-                          dot={!item.isRead} 
+                        <Badge
+                          dot={!item.isRead}
                           color="blue"
                           offset={[-3, 3]}
                         >
-                          <div 
+                          <div
                             className="flex items-center justify-center w-10 h-10 rounded-full text-white"
                             style={{ backgroundColor: getNotificationColor(item.type) }}
                           >
@@ -455,7 +465,7 @@ export default function NotificationsPage() {
                   </List.Item>
                 )}
               />
-              
+
               <div className="mt-4 flex justify-center">
                 <Pagination
                   current={pagination.pageNumber}
@@ -468,8 +478,8 @@ export default function NotificationsPage() {
               </div>
             </>
           ) : (
-            <Empty 
-              image={Empty.PRESENTED_IMAGE_SIMPLE} 
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
                 <span>
                   No notifications {
@@ -495,9 +505,9 @@ export default function NotificationsPage() {
             <Button key="cancel" onClick={handleSettingsCancel}>
               Cancel
             </Button>,
-            <Button 
-              key="save" 
-              type="primary" 
+            <Button
+              key="save"
+              type="primary"
               onClick={() => form.submit()}
               className="bg-blue-600 hover:bg-blue-700"
             >
@@ -517,8 +527,8 @@ export default function NotificationsPage() {
                 Choose how you want to receive notifications
               </Paragraph>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Form.Item 
-                  name="emailNotifications" 
+                <Form.Item
+                  name="emailNotifications"
                   valuePropName="checked"
                 >
                   <Checkbox>
@@ -528,9 +538,9 @@ export default function NotificationsPage() {
                     </Space>
                   </Checkbox>
                 </Form.Item>
-                
-                <Form.Item 
-                  name="smsNotifications" 
+
+                <Form.Item
+                  name="smsNotifications"
                   valuePropName="checked"
                 >
                   <Checkbox>
@@ -540,9 +550,9 @@ export default function NotificationsPage() {
                     </Space>
                   </Checkbox>
                 </Form.Item>
-                
-                <Form.Item 
-                  name="pushNotifications" 
+
+                <Form.Item
+                  name="pushNotifications"
                   valuePropName="checked"
                 >
                   <Checkbox>
@@ -554,9 +564,9 @@ export default function NotificationsPage() {
                 </Form.Item>
               </div>
             </div>
-            
+
             <Divider />
-            
+
             <div className="mb-4">
               <Title level={5}>Notification Categories</Title>
               <Paragraph className="text-gray-500">
@@ -609,29 +619,29 @@ export default function NotificationsPage() {
                 </Checkbox.Group>
               </Form.Item>
             </div>
-            
+
             <Divider />
-            
+
             <div>
               <Title level={5}>Quiet Hours</Title>
               <Paragraph className="text-gray-500">
                 Set times when you don't want to receive notifications
               </Paragraph>
-              <Form.Item 
-                name="doNotDisturb" 
+              <Form.Item
+                name="doNotDisturb"
                 valuePropName="checked"
               >
                 <Switch />
                 <span className="ml-2">Enable Do Not Disturb mode during specific hours</span>
               </Form.Item>
-              
-              <Form.Item 
-                name="quietHours" 
+
+              <Form.Item
+                name="quietHours"
                 label="Quiet Hours"
                 className="mb-0"
                 tooltip="We won't send notifications during these hours except for emergency requests"
               >
-                <TimePicker.RangePicker 
+                <TimePicker.RangePicker
                   format="HH:mm"
                   className="w-full"
                   disabled={!form.getFieldValue('doNotDisturb')}

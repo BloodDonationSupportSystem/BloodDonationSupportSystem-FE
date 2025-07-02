@@ -152,7 +152,7 @@ export const getLocationCapacities = async (locationId: string): Promise<ApiResp
 
 // Create a new capacity for a location
 export const createLocationCapacity = async (
-  locationId: string, 
+  locationId: string,
   data: CreateCapacityRequest
 ): Promise<ApiResponse<Capacity>> => {
   try {
@@ -201,11 +201,11 @@ export const deleteLocationCapacity = async (
 
 // Create multiple capacities for a location
 export const createMultipleLocationCapacities = async (
-  locationId: string, 
+  locationId: string,
   data: CreateMultipleCapacitiesRequest
 ): Promise<ApiResponse<Capacity[]>> => {
   try {
-    const response = await apiClient.post(`/Locations/${locationId}/capacities/multiple`, data);
+    const response = await apiClient.post(`/Locations/${locationId}/capacities/bulk`, data);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {

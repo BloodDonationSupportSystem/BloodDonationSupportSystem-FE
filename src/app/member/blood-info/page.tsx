@@ -2,13 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Typography, Tabs, Select, Button, Card, Spin, Table, Space, Alert, Divider, List } from 'antd';
+import { Typography, Tabs, Select, Button, Card, Spin, Table, Space, Alert, Divider, List, Row, Col, Tag, Empty } from 'antd';
 import { SearchOutlined, InfoCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import DOMPurify from 'isomorphic-dompurify';
+import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(timezone);
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
-
 
 // Blood compatibility data
 const wholeBloodCompatibility = {
@@ -85,6 +89,12 @@ export default function BloodInfoPage() {
   const [bloodTypeDocuments, setBloodTypeDocuments] = useState<BloodTypeDocument[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<BloodTypeDocument | null>(null);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Fetch blood type documents
   useEffect(() => {
@@ -113,10 +123,10 @@ export default function BloodInfoPage() {
     // No actual search needed as we have the data locally
     // This is just for user experience
     console.log('Searching for compatibility with blood type:', selectedBloodType);
-    
+
     // If there's a document for the selected blood type, select it
     if (selectedBloodType && documentsTab === 'documents') {
-      const document = bloodTypeDocuments.find(doc => 
+      const document = bloodTypeDocuments.find(doc =>
         doc.title.includes(selectedBloodType)
       );
       if (document) {
@@ -178,8 +188,8 @@ export default function BloodInfoPage() {
     if (!selectedBloodType) {
       return (
         <Alert
-          message="Select a Blood Type"
-          description="Please select a blood type to see compatibility information."
+          message="No Blood Type Selected"
+          description="Please select a blood type to view compatibility information."
           type="info"
           showIcon
         />
@@ -188,52 +198,57 @@ export default function BloodInfoPage() {
 
     if (!compatibilityData) return null;
 
-    const dataSource = [{
-      key: '1',
-      bloodType: selectedBloodType,
-      canDonateTo: compatibilityData.canDonateTo,
-      canReceiveFrom: compatibilityData.canReceiveFrom,
-    }];
-
     return (
-      <div>
-        <Table 
-          dataSource={dataSource} 
-          columns={wholeBloodColumns} 
-          pagination={false}
-          className="mb-8"
-        />
-        
-        <Card className="bg-gray-50">
-          <div className="text-center mb-4">
-            <Title level={4}>Blood Type {selectedBloodType} Compatibility Summary</Title>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-green-300 shadow-sm">
-              <Title level={5} className="text-green-700 mb-4">Can Donate To:</Title>
-              <div className="flex flex-wrap gap-2">
-                {compatibilityData.canDonateTo.map((type: string) => (
-                  <div key={type} className="bg-green-100 text-green-800 px-4 py-2 rounded-lg text-center">
-                    {type}
-                  </div>
-                ))}
-              </div>
-            </Card>
-            
-            <Card className="border-red-300 shadow-sm">
-              <Title level={5} className="text-red-700 mb-4">Can Receive From:</Title>
-              <div className="flex flex-wrap gap-2">
-                {compatibilityData.canReceiveFrom.map((type: string) => (
-                  <div key={type} className="bg-red-100 text-red-800 px-4 py-2 rounded-lg text-center">
-                    {type}
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        </Card>
-      </div>
+      <Card className="shadow-sm">
+        <div className="text-center mb-4">
+          <Title level={3}>
+            Blood Type: <span className="text-red-600">{selectedBloodType}</span>
+          </Title>
+          <Paragraph className="text-gray-500">
+            {activeTab === 'whole'
+              ? 'Whole Blood Compatibility'
+              : `${selectedComponent === 'redCells' ? 'Red Blood Cells' : selectedComponent === 'plasma' ? 'Plasma' : 'Platelets'} Compatibility`}
+          </Paragraph>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="border-green-200">
+            <Title level={4} className="text-green-700">Can Donate To:</Title>
+            <div className="flex flex-wrap gap-2 mt-4">
+              {compatibilityData.canDonateTo.map(type => (
+                <Tag key={type} color="green" className="text-base py-1 px-3">
+                  {type}
+                </Tag>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="border-red-200">
+            <Title level={4} className="text-red-700">Can Receive From:</Title>
+            <div className="flex flex-wrap gap-2 mt-4">
+              {compatibilityData.canReceiveFrom.map(type => (
+                <Tag key={type} color="red" className="text-base py-1 px-3">
+                  {type}
+                </Tag>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        <Paragraph className="mt-6 text-gray-600">
+          {activeTab === 'whole' ? (
+            <>
+              <strong>Note:</strong> Whole blood compatibility is based on both red blood cells and plasma compatibility.
+              In emergency situations, O- is the universal donor for red blood cells, and AB+ is the universal recipient.
+            </>
+          ) : (
+            <>
+              <strong>Note:</strong> Component compatibility can differ from whole blood. For red cells, O- is the universal donor.
+              For plasma, AB is the universal donor. Platelet compatibility is more complex and ideally matched to the recipient.
+            </>
+          )}
+        </Paragraph>
+      </Card>
     );
   };
 
@@ -242,24 +257,35 @@ export default function BloodInfoPage() {
       return <Spin size="large" className="my-8 flex justify-center" />;
     }
 
+    if (bloodTypeDocuments.length === 0) {
+      return <Empty description="No documents found" />;
+    }
+
     return (
       <List
         itemLayout="horizontal"
         dataSource={bloodTypeDocuments}
         renderItem={(document) => (
           <List.Item
-            className="cursor-pointer hover:bg-gray-50 transition-colors"
+            className={`cursor-pointer hover:bg-gray-50 transition-colors ${selectedDocument?.id === document.id ? 'bg-red-50' : ''}`}
             onClick={() => setSelectedDocument(document)}
           >
             <List.Item.Meta
-              avatar={<FileTextOutlined className="text-2xl text-red-500" />}
-              title={<Text strong>{document.title}</Text>}
-              description={`Created: ${new Date(document.createdDate).toLocaleDateString()}`}
+              title={document.title}
+              description={`Created: ${dayjs(document.createdDate).format('MMM D, YYYY')}`}
             />
           </List.Item>
         )}
       />
     );
+  };
+
+  // Sanitize HTML content
+  const createSafeHtml = (content: string) => {
+    if (!isMounted) return { __html: '' }; // Don't render HTML during SSR
+    return {
+      __html: DOMPurify.sanitize(content)
+    };
   };
 
   const renderSelectedDocument = () => {
@@ -278,9 +304,9 @@ export default function BloodInfoPage() {
       <Card className="shadow-sm">
         <Title level={4}>{selectedDocument.title}</Title>
         <Divider />
-        <div 
+        <div
           className="blood-document-content"
-          dangerouslySetInnerHTML={{ __html: selectedDocument.content }}
+          dangerouslySetInnerHTML={createSafeHtml(selectedDocument.content)}
         />
       </Card>
     );
@@ -296,8 +322,8 @@ export default function BloodInfoPage() {
       </div>
 
       <Card className="mb-6">
-        <Tabs 
-          defaultActiveKey="compatibility" 
+        <Tabs
+          defaultActiveKey="compatibility"
           onChange={(key) => setDocumentsTab(key)}
           className="mb-6"
           items={[
@@ -305,8 +331,8 @@ export default function BloodInfoPage() {
               key: 'compatibility',
               label: 'Compatibility Calculator',
               children: (
-                <Tabs 
-                  defaultActiveKey="whole" 
+                <Tabs
+                  defaultActiveKey="whole"
                   onChange={(key) => setActiveTab(key)}
                   className="mb-6"
                   items={[
@@ -353,7 +379,7 @@ export default function BloodInfoPage() {
               label: 'Blood Type Documents',
               children: (
                 <Paragraph>
-                  Access detailed medical information about different blood types, their characteristics, 
+                  Access detailed medical information about different blood types, their characteristics,
                   and medical significance.
                 </Paragraph>
               )
@@ -373,7 +399,7 @@ export default function BloodInfoPage() {
               onChange={(value) => setSelectedBloodType(value)}
             />
           </div>
-          <Button 
+          <Button
             type="primary"
             icon={<SearchOutlined />}
             onClick={handleSearch}
@@ -405,9 +431,9 @@ export default function BloodInfoPage() {
           <div>
             <Title level={5} className="text-blue-700">Important Note</Title>
             <Paragraph className="text-blue-600">
-              This information is provided as a general guide. In emergency situations, 
-              medical professionals will determine the most appropriate blood type for transfusion 
-              based on testing and specific patient needs. Always consult with healthcare providers 
+              This information is provided as a general guide. In emergency situations,
+              medical professionals will determine the most appropriate blood type for transfusion
+              based on testing and specific patient needs. Always consult with healthcare providers
               for medical decisions.
             </Paragraph>
           </div>

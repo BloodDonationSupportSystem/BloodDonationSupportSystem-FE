@@ -8,6 +8,7 @@ export const useNotifications = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const [pagination, setPagination] = useState({
     totalCount: 0,
     pageNumber: 1,
@@ -53,19 +54,42 @@ export const useNotifications = () => {
     }
   };
 
+  const fetchUnreadCount = async (userId: string) => {
+    if (!userId) {
+      setError('User ID is required');
+      return null;
+    }
+
+    try {
+      const response = await notificationsService.getUnreadCount(userId);
+
+      if (response.success) {
+        setUnreadCount(response.data);
+        return response.data;
+      } else {
+        setError(response.message || 'Failed to fetch unread count');
+        return null;
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching unread count';
+      setError(errorMessage);
+      return null;
+    }
+  };
+
   const markAsRead = async (notificationId: string) => {
     if (!user?.id) return null;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await notificationsService.markAsRead(notificationId);
-      
+
       if (response.success) {
         // Update the local state
-        setNotifications(prev => 
-          prev.map(notif => 
+        setNotifications(prev =>
+          prev.map(notif =>
             notif.id === notificationId ? { ...notif, isRead: true } : notif
           )
         );
@@ -85,18 +109,19 @@ export const useNotifications = () => {
 
   const markAllAsRead = async (userId: string) => {
     if (!userId) return null;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await notificationsService.markAllAsRead(userId);
-      
+
       if (response.success) {
         // Update the local state
-        setNotifications(prev => 
+        setNotifications(prev =>
           prev.map(notif => ({ ...notif, isRead: true }))
         );
+        setUnreadCount(0); // Reset unread count to zero
         return response;
       } else {
         setError(response.message || 'Failed to mark all notifications as read');
@@ -114,15 +139,22 @@ export const useNotifications = () => {
   const deleteNotification = async (notificationId: string) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await notificationsService.deleteNotification(notificationId);
-      
+
       if (response.success) {
         // Update the local state
-        setNotifications(prev => 
+        const deletedNotification = notifications.find(n => n.id === notificationId);
+        setNotifications(prev =>
           prev.filter(notif => notif.id !== notificationId)
         );
+
+        // If the deleted notification was unread, decrement the unread count
+        if (deletedNotification && !deletedNotification.isRead) {
+          setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+
         return response;
       } else {
         setError(response.message || 'Failed to delete notification');
@@ -142,7 +174,9 @@ export const useNotifications = () => {
     pagination,
     loading,
     error,
+    unreadCount,
     fetchNotifications,
+    fetchUnreadCount,
     markAsRead,
     markAllAsRead,
     deleteNotification,

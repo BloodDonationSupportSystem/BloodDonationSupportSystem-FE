@@ -27,6 +27,15 @@ export interface NotificationsResponse {
   hasNextPage: boolean;
 }
 
+export interface NotificationCountResponse {
+  success: boolean;
+  message: string;
+  statusCode: number;
+  errors: string[];
+  data: number;
+  count: number;
+}
+
 export interface NotificationsParams {
   userId: string;
   pageNumber?: number;
@@ -42,17 +51,37 @@ export interface NotificationsParams {
  */
 export const getNotifications = async (params: NotificationsParams): Promise<NotificationsResponse> => {
   try {
+    // Build query params properly, excluding undefined values
+    const queryParams: Record<string, string | number | boolean> = {};
+
+    if (params.pageNumber !== undefined) {
+      queryParams.PageNumber = params.pageNumber;
+    }
+
+    if (params.pageSize !== undefined) {
+      queryParams.PageSize = params.pageSize;
+    }
+
+    if (params.type !== undefined && params.type !== null) {
+      queryParams.Type = params.type;
+    }
+
+    if (params.isRead !== undefined) {
+      queryParams.IsRead = params.isRead;
+    }
+
+    if (params.sortBy !== undefined) {
+      queryParams.SortBy = params.sortBy;
+    }
+
+    if (params.sortAscending !== undefined) {
+      queryParams.SortAscending = params.sortAscending;
+    }
+
+    console.log(`Fetching notifications for user ${params.userId} with params:`, queryParams);
+
     const response = await apiClient.get<NotificationsResponse>(
-      `/notifications/user/${params.userId}/paged`, {
-        params: {
-          PageNumber: params.pageNumber || 1,
-          PageSize: params.pageSize || 10,
-          Type: params.type || undefined,
-          IsRead: params.isRead !== undefined ? params.isRead : undefined,
-          SortBy: params.sortBy || 'createdTime',
-          SortAscending: params.sortAscending !== undefined ? params.sortAscending : false,
-        }
-      }
+      `/Notifications/user/${params.userId}/paged`, { params: queryParams }
     );
     return response.data;
   } catch (error) {
@@ -64,11 +93,26 @@ export const getNotifications = async (params: NotificationsParams): Promise<Not
 };
 
 /**
+ * Gets the count of unread notifications for a user
+ */
+export const getUnreadCount = async (userId: string): Promise<NotificationCountResponse> => {
+  try {
+    const response = await apiClient.get<NotificationCountResponse>(`/Notifications/user/${userId}/unread/count`);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as NotificationCountResponse;
+    }
+    throw error;
+  }
+};
+
+/**
  * Marks a notification as read
  */
 export const markAsRead = async (notificationId: string): Promise<any> => {
   try {
-    const response = await apiClient.put(`/notifications/${notificationId}/read`);
+    const response = await apiClient.post(`/Notifications/${notificationId}/mark-read`);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -83,7 +127,7 @@ export const markAsRead = async (notificationId: string): Promise<any> => {
  */
 export const markAllAsRead = async (userId: string): Promise<any> => {
   try {
-    const response = await apiClient.put(`/notifications/user/${userId}/read-all`);
+    const response = await apiClient.post(`/Notifications/user/${userId}/mark-all-read`);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
@@ -98,7 +142,7 @@ export const markAllAsRead = async (userId: string): Promise<any> => {
  */
 export const deleteNotification = async (notificationId: string): Promise<any> => {
   try {
-    const response = await apiClient.delete(`/notifications/${notificationId}`);
+    const response = await apiClient.delete(`/Notifications/${notificationId}`);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {

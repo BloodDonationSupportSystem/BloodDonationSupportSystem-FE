@@ -1,98 +1,121 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Table, Tag, Button, Space, Select, Input, Card, Badge } from 'antd';
-import { SearchOutlined, UserOutlined, HistoryOutlined, HeartOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Table, Tag, Button, Space, Select, Input, Card, Badge, message } from 'antd';
+import { SearchOutlined, UserOutlined, HistoryOutlined } from '@ant-design/icons';
 import StaffLayout from '@/components/Layout/StaffLayout';
+import dayjs from 'dayjs';
+import { usePaginatedDonors } from '@/hooks/api/useDonorProfile';
+import { DonorProfile, DonorProfilesQueryParams } from '@/services/api/donorProfileService';
+import DonorAppointmentHistory from '@/components/DonorAppointmentHistory';
+import DonorProfileDetails from '@/components/DonorProfileDetails';
 
 const { Option } = Select;
 
 export default function StaffDonorsPage() {
-  // Mock data for donors
-  const donors = [
-    {
-      id: 'D001',
-      name: 'John Doe',
-      bloodType: 'A+',
-      lastDonation: '2023-05-15',
-      nextEligible: '2023-07-15',
-      donationCount: 5,
-      status: 'Eligible',
-      email: 'john.doe@example.com',
-      phone: '555-123-4567',
-    },
-    {
-      id: 'D002',
-      name: 'Jane Smith',
-      bloodType: 'O-',
-      lastDonation: '2023-04-20',
-      nextEligible: '2023-06-20',
-      donationCount: 8,
-      status: 'Eligible',
-      email: 'jane.smith@example.com',
-      phone: '555-234-5678',
-    },
-    {
-      id: 'D003',
-      name: 'Bob Johnson',
-      bloodType: 'B+',
-      lastDonation: '2023-06-01',
-      nextEligible: '2023-08-01',
-      donationCount: 3,
-      status: 'Ineligible',
-      email: 'bob.johnson@example.com',
-      phone: '555-345-6789',
-    },
-    {
-      id: 'D004',
-      name: 'Alice Williams',
-      bloodType: 'AB+',
-      lastDonation: '2022-12-15',
-      nextEligible: '2023-02-15',
-      donationCount: 12,
-      status: 'Eligible',
-      email: 'alice.williams@example.com',
-      phone: '555-456-7890',
-    },
-    {
-      id: 'D005',
-      name: 'Charlie Brown',
-      bloodType: 'A-',
-      lastDonation: '2023-05-30',
-      nextEligible: '2023-07-30',
-      donationCount: 7,
-      status: 'Ineligible',
-      email: 'charlie.brown@example.com',
-      phone: '555-567-8901',
-    },
-    {
-      id: 'D006',
-      name: 'David Miller',
-      bloodType: 'O+',
-      lastDonation: '2023-03-10',
-      nextEligible: '2023-05-10',
-      donationCount: 4,
-      status: 'Eligible',
-      email: 'david.miller@example.com',
-      phone: '555-678-9012',
-    },
-  ];
-
+  const [searchText, setSearchText] = useState('');
+  const [bloodTypeFilter, setBloodTypeFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [filteredInfo, setFilteredInfo] = useState<any>({});
   const [sortedInfo, setSortedInfo] = useState<any>({});
+  const [queryParams, setQueryParams] = useState<DonorProfilesQueryParams>({
+    pageNumber: 1,
+    pageSize: 10
+  });
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [selectedDonor, setSelectedDonor] = useState<DonorProfile | null>(null);
 
-  const handleChange = (pagination: any, filters: any, sorter: any) => {
+  const { donors, isLoading, error, pagination, fetchDonors } = usePaginatedDonors(queryParams);
+
+  useEffect(() => {
+    if (error) {
+      message.error(error);
+    }
+  }, [error]);
+
+  const handleTableChange = (paginationConfig: any, filters: any, sorter: any) => {
     setFilteredInfo(filters);
     setSortedInfo(sorter);
+
+    const params: DonorProfilesQueryParams = {
+      pageNumber: paginationConfig.current,
+      pageSize: paginationConfig.pageSize
+    };
+
+    // Handle sorting
+    if (sorter.field && sorter.order) {
+      params.sortBy = sorter.field;
+      params.sortDirection = sorter.order === 'ascend' ? 'asc' : 'desc';
+    }
+
+    setQueryParams(params);
+    fetchDonors(params);
   };
+
+  const handleSearch = () => {
+    console.log('Searching with bloodType:', bloodTypeFilter);
+
+    // Create a clean params object
+    const params: DonorProfilesQueryParams = {
+      pageNumber: 1, // Reset to first page on new search
+      pageSize: queryParams.pageSize
+    };
+
+    // Add search parameters if they exist
+    if (searchText) {
+      params.searchTerm = searchText;
+    }
+
+    if (bloodTypeFilter) {
+      params.bloodGroupName = bloodTypeFilter;
+    }
+
+    if (statusFilter) {
+      params.isEligible = statusFilter === 'Eligible';
+    }
+
+    console.log('Search params:', params);
+    setQueryParams(params);
+    fetchDonors(params);
+  };
+
+  // Auto-search when filter values change
+  useEffect(() => {
+    if (bloodTypeFilter !== null || statusFilter !== null) {
+      console.log('Filter changed to:', { bloodType: bloodTypeFilter, status: statusFilter });
+      handleSearch();
+    }
+  }, [bloodTypeFilter, statusFilter]);
 
   const clearFilters = () => {
     setFilteredInfo({});
+    setBloodTypeFilter(null);
+    setStatusFilter(null);
+    setSearchText('');
+
+    const params: DonorProfilesQueryParams = {
+      pageNumber: 1,
+      pageSize: queryParams.pageSize
+    };
+
+    console.log('Clearing filters, new params:', params);
+    setQueryParams(params);
+    fetchDonors(params);
   };
 
-  const clearAll = () => {
-    setFilteredInfo({});
-    setSortedInfo({});
+  const formatDate = (dateString: string) => {
+    return dateString ? dayjs(dateString).format('YYYY-MM-DD') : '-';
+  };
+
+  const showDonorHistory = (donor: DonorProfile) => {
+    setSelectedDonor(donor);
+    setHistoryModalVisible(true);
+  };
+
+  const showDonorProfile = (donor: DonorProfile) => {
+    setSelectedDonor(donor);
+    setProfileModalVisible(true);
   };
 
   const columns = [
@@ -100,91 +123,91 @@ export default function StaffDonorsPage() {
       title: 'Donor ID',
       dataIndex: 'id',
       key: 'id',
-      sorter: (a: any, b: any) => a.id.localeCompare(b.id),
+      render: (id: string) => id.substring(0, 8),
+      sorter: true,
       sortOrder: sortedInfo.columnKey === 'id' && sortedInfo.order,
     },
     {
       title: 'Name',
-      dataIndex: 'name',
       key: 'name',
-      sorter: (a: any, b: any) => a.name.localeCompare(b.name),
+      render: (text: any, record: DonorProfile) => `${record.firstName || ''} ${record.lastName || ''}`,
+      sorter: true,
       sortOrder: sortedInfo.columnKey === 'name' && sortedInfo.order,
     },
     {
       title: 'Blood Type',
-      dataIndex: 'bloodType',
-      key: 'bloodType',
-      filters: [
-        { text: 'A+', value: 'A+' },
-        { text: 'A-', value: 'A-' },
-        { text: 'B+', value: 'B+' },
-        { text: 'B-', value: 'B-' },
-        { text: 'AB+', value: 'AB+' },
-        { text: 'AB-', value: 'AB-' },
-        { text: 'O+', value: 'O+' },
-        { text: 'O-', value: 'O-' },
-      ],
-      filteredValue: filteredInfo.bloodType || null,
-      onFilter: (value: any, record: any) => record.bloodType === value,
+      dataIndex: 'bloodGroupName',
+      key: 'bloodGroupName',
       render: (bloodType: string) => (
         <Tag color="red">{bloodType}</Tag>
       ),
     },
     {
       title: 'Last Donation',
-      dataIndex: 'lastDonation',
-      key: 'lastDonation',
-      sorter: (a: any, b: any) => new Date(a.lastDonation).getTime() - new Date(b.lastDonation).getTime(),
-      sortOrder: sortedInfo.columnKey === 'lastDonation' && sortedInfo.order,
+      dataIndex: 'lastDonationDate',
+      key: 'lastDonationDate',
+      render: (date: string) => formatDate(date),
+      sorter: true,
+      sortOrder: sortedInfo.columnKey === 'lastDonationDate' && sortedInfo.order,
     },
     {
       title: 'Next Eligible',
-      dataIndex: 'nextEligible',
-      key: 'nextEligible',
-      sorter: (a: any, b: any) => new Date(a.nextEligible).getTime() - new Date(b.nextEligible).getTime(),
-      sortOrder: sortedInfo.columnKey === 'nextEligible' && sortedInfo.order,
+      dataIndex: 'nextAvailableDonationDate',
+      key: 'nextAvailableDonationDate',
+      render: (date: string) => formatDate(date),
+      sorter: true,
+      sortOrder: sortedInfo.columnKey === 'nextAvailableDonationDate' && sortedInfo.order,
     },
     {
       title: 'Donations',
-      dataIndex: 'donationCount',
-      key: 'donationCount',
-      sorter: (a: any, b: any) => a.donationCount - b.donationCount,
-      sortOrder: sortedInfo.columnKey === 'donationCount' && sortedInfo.order,
+      dataIndex: 'totalDonations',
+      key: 'totalDonations',
+      sorter: true,
+      sortOrder: sortedInfo.columnKey === 'totalDonations' && sortedInfo.order,
       render: (count: number) => (
-        <Badge count={count} style={{ backgroundColor: '#52c41a' }} />
+        <Badge count={count || 0} style={{ backgroundColor: '#52c41a' }} />
       ),
     },
     {
       title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      filters: [
-        { text: 'Eligible', value: 'Eligible' },
-        { text: 'Ineligible', value: 'Ineligible' },
-      ],
-      filteredValue: filteredInfo.status || null,
-      onFilter: (value: any, record: any) => record.status === value,
-      render: (status: string) => {
-        let color = status === 'Eligible' ? 'green' : 'volcano';
+      dataIndex: 'isEligible',
+      key: 'isEligible',
+      render: (isEligible: boolean) => {
+        const status = isEligible ? 'Eligible' : 'Ineligible';
+        const color = isEligible ? 'green' : 'volcano';
         return <Tag color={color}>{status}</Tag>;
+      },
+    },
+    {
+      title: 'Emergency',
+      dataIndex: 'isAvailableForEmergency',
+      key: 'isAvailableForEmergency',
+      render: (isAvailable: boolean) => {
+        return isAvailable ?
+          <Tag color="blue">Available</Tag> :
+          <Tag color="default">Unavailable</Tag>;
       },
     },
     {
       title: 'Actions',
       key: 'actions',
-      render: (text: any, record: any) => (
+      render: (text: any, record: DonorProfile) => (
         <Space size="small">
-          <Button type="primary" size="small" icon={<UserOutlined />}>
+          <Button
+            type="primary"
+            size="small"
+            icon={<UserOutlined />}
+            onClick={() => showDonorProfile(record)}
+          >
             Profile
           </Button>
-          <Button size="small" icon={<HistoryOutlined />}>
+          <Button
+            size="small"
+            icon={<HistoryOutlined />}
+            onClick={() => showDonorHistory(record)}
+          >
             History
           </Button>
-          {record.status === 'Eligible' && (
-            <Button type="default" size="small" icon={<HeartOutlined />}>
-              Schedule
-            </Button>
-          )}
         </Space>
       ),
     },
@@ -204,7 +227,13 @@ export default function StaffDonorsPage() {
           <div className="flex flex-wrap gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Blood Type</label>
-              <Select placeholder="Filter by blood type" style={{ width: 150 }} allowClear>
+              <Select
+                placeholder="Filter by blood type"
+                style={{ width: 150 }}
+                allowClear
+                value={bloodTypeFilter}
+                onChange={setBloodTypeFilter}
+              >
                 <Option value="A+">A+</Option>
                 <Option value="A-">A-</Option>
                 <Option value="B+">B+</Option>
@@ -217,18 +246,31 @@ export default function StaffDonorsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <Select placeholder="Filter by status" style={{ width: 150 }} allowClear>
+              <Select
+                placeholder="Filter by status"
+                style={{ width: 150 }}
+                allowClear
+                value={statusFilter}
+                onChange={setStatusFilter}
+              >
                 <Option value="Eligible">Eligible</Option>
                 <Option value="Ineligible">Ineligible</Option>
               </Select>
             </div>
-            <div className="flex-grow">
+            {/* <div className="flex-grow">
               <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-              <Input placeholder="Search by name or donor ID" prefix={<SearchOutlined />} />
+              <Input
+                placeholder="Search by name or donor ID"
+                prefix={<SearchOutlined />}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onPressEnter={handleSearch}
+              />
             </div>
-            <div className="self-end">
-              <Button onClick={clearAll}>Clear Filters</Button>
-            </div>
+            <div className="self-end flex gap-2">
+              <Button onClick={handleSearch} type="primary">Search</Button>
+              <Button onClick={clearFilters}>Clear Filters</Button>
+            </div> */}
           </div>
         </Card>
 
@@ -236,9 +278,33 @@ export default function StaffDonorsPage() {
           columns={columns}
           dataSource={donors}
           rowKey="id"
-          onChange={handleChange}
-          pagination={{ pageSize: 10 }}
+          loading={isLoading}
+          onChange={handleTableChange}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50'],
+          }}
         />
+
+        {selectedDonor && (
+          <>
+            <DonorAppointmentHistory
+              visible={historyModalVisible}
+              onClose={() => setHistoryModalVisible(false)}
+              donorId={selectedDonor.id}
+              donorName={`${selectedDonor.firstName || ''} ${selectedDonor.lastName || ''}`}
+            />
+
+            <DonorProfileDetails
+              visible={profileModalVisible}
+              onClose={() => setProfileModalVisible(false)}
+              donor={selectedDonor}
+            />
+          </>
+        )}
       </div>
     </StaffLayout>
   );

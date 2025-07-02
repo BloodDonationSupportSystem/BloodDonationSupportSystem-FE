@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as donorProfileService from '@/services/api/donorProfileService';
-import { DonorProfileUpdateRequest, DonorProfile, EligibilityResponse } from '@/services/api/donorProfileService';
+import { DonorProfileUpdateRequest, DonorProfile, EligibilityResponse, DonorProfilesQueryParams } from '@/services/api/donorProfileService';
 import { useAuth } from '@/context/AuthContext';
 
 interface UseDonorProfileReturn {
@@ -29,13 +29,13 @@ export function useDonorProfile(): UseDonorProfileReturn {
       setIsLoading(false);
       return;
     }
-    
+
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await donorProfileService.getDonorProfile(user.id);
-      
+
       if (response.success && response.data) {
         setProfile(response.data);
       } else {
@@ -51,12 +51,12 @@ export function useDonorProfile(): UseDonorProfileReturn {
 
   const updateProfile = async (data: DonorProfileUpdateRequest): Promise<boolean> => {
     if (!profile?.id) return false;
-    
+
     setIsUpdating(true);
-    
+
     try {
       const response = await donorProfileService.updateDonorProfile(profile.id, data);
-      
+
       if (response.success) {
         // Refetch the profile to get updated data
         await fetchDonorProfile();
@@ -76,12 +76,12 @@ export function useDonorProfile(): UseDonorProfileReturn {
 
   const checkEligibility = async (): Promise<EligibilityResponse | null> => {
     if (!user?.id) return null;
-    
+
     setIsCheckingEligibility(true);
-    
+
     try {
       const response = await donorProfileService.checkEligibility(user.id);
-      
+
       if (response.success && response.data) {
         setEligibility(response.data);
         return response.data;
@@ -135,9 +135,9 @@ export function useAllDonors(): UseAllDonorsReturn {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await donorProfileService.getAllDonorProfiles();
-      
+
       if (response.success && response.data) {
         setDonors(response.data);
         setFilteredDonors(response.data);
@@ -157,13 +157,13 @@ export function useAllDonors(): UseAllDonorsReturn {
       setFilteredDonors(donors);
       return;
     }
-    
+
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await donorProfileService.getDonorProfilesByBloodGroup(bloodGroupId);
-      
+
       if (response.success && response.data) {
         setFilteredDonors(response.data);
       } else {
@@ -194,5 +194,91 @@ export function useAllDonors(): UseAllDonorsReturn {
     fetchDonors,
     filterDonorsByBloodGroup,
     resetFilter
+  };
+}
+
+interface PaginatedDonorsResult {
+  donors: DonorProfile[];
+  isLoading: boolean;
+  error: string | null;
+  pagination: {
+    current: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  fetchDonors: (params?: DonorProfilesQueryParams) => Promise<void>;
+}
+
+export function usePaginatedDonors(initialParams?: DonorProfilesQueryParams): PaginatedDonorsResult {
+  const [donors, setDonors] = useState<DonorProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    current: initialParams?.pageNumber || 1,
+    pageSize: initialParams?.pageSize || 10,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false
+  });
+
+  const fetchDonors = useCallback(async (params?: DonorProfilesQueryParams) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const queryParams: DonorProfilesQueryParams = {
+        pageNumber: pagination.current,
+        pageSize: pagination.pageSize,
+        ...initialParams,
+        ...params
+      };
+
+      // Update current page if specifically requested in params
+      if (params?.pageNumber) {
+        setPagination(prev => ({
+          ...prev,
+          current: params.pageNumber || prev.current
+        }));
+      }
+
+      console.log('Fetching donors with params:', queryParams);
+
+      const response = await donorProfileService.getDonorProfilesPaginated(queryParams);
+
+      if (response.success && response.data) {
+        setDonors(response.data);
+        setPagination({
+          current: response.pageNumber || 1,
+          pageSize: response.pageSize || 10,
+          total: response.totalCount || 0,
+          totalPages: response.totalPages || 0,
+          hasNext: response.hasNextPage || false,
+          hasPrev: response.hasPreviousPage || false
+        });
+      } else {
+        setError(response.message || 'Failed to load donor profiles');
+      }
+    } catch (err) {
+      console.error('Error fetching paginated donor profiles:', err);
+      setError('An error occurred while fetching donor profiles');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pagination.current, pagination.pageSize, initialParams]);
+
+  useEffect(() => {
+    fetchDonors();
+  }, [fetchDonors]);
+
+  return {
+    donors,
+    isLoading,
+    error,
+    pagination,
+    fetchDonors
   };
 } 

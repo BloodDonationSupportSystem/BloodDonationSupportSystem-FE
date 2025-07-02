@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import './globals.css';
-import ThemeProvider from "@/theme/ThemeProvider";
-import { AuthProvider } from "@/context/AuthContext";
 import Providers from "@/app/providers";
 import AppLayout from "@/components/Layout/AppLayout";
 
@@ -29,13 +27,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <ThemeProvider>
-          <Providers>
-            <AppLayout>
-              {children}
-            </AppLayout>
-          </Providers>
-        </ThemeProvider>
+        <Providers>
+          <AppLayout>
+            {children}
+          </AppLayout>
+        </Providers>
       </body>
     </html>
   );

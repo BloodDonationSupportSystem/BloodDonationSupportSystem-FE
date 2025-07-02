@@ -1,18 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Layout, Menu, Button, Dropdown, Avatar, Space, Badge } from 'antd';
-import { 
-  UserOutlined, 
-  MenuOutlined, 
-  LogoutOutlined, 
-  ProfileOutlined, 
-  SettingOutlined, 
-  HeartOutlined, 
-  DashboardOutlined, 
-  SearchOutlined, 
-  TeamOutlined, 
+import {
+  UserOutlined,
+  MenuOutlined,
+  LogoutOutlined,
+  ProfileOutlined,
+  SettingOutlined,
+  HeartOutlined,
+  DashboardOutlined,
+  SearchOutlined,
+  TeamOutlined,
   CalendarOutlined,
   BellOutlined,
   HistoryOutlined,
@@ -24,12 +24,37 @@ import {
 import type { MenuProps } from 'antd';
 import { useAuth } from '@/context/AuthContext';
 import { usePathname } from 'next/navigation';
+import { getUnreadCount } from '@/services/api/notificationsService';
 
 const { Header: AntHeader } = Layout;
 
 export default function Header() {
   const { user, isLoggedIn, logout } = useAuth();
   const pathname = usePathname() || '';
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch unread notification count when user is logged in
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (isLoggedIn && user?.id) {
+        try {
+          const response = await getUnreadCount(user.id);
+          if (response.success) {
+            setUnreadCount(response.data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch unread notifications count:', error);
+        }
+      }
+    };
+
+    fetchUnreadCount();
+
+    // Set up interval to refresh the count every minute
+    const intervalId = setInterval(fetchUnreadCount, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [isLoggedIn, user?.id]);
 
   // Get the active menu item based on the current path
   const getActiveMenuItem = () => {
@@ -134,7 +159,16 @@ export default function Header() {
         {
           key: 'notifications',
           icon: <BellOutlined />,
-          label: <Link href="/member/notifications">Notifications</Link>
+          label: (
+            <Link href="/member/notifications">
+              <div className="flex items-center justify-between">
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <Badge count={unreadCount} size="small" className="ml-2" />
+                )}
+              </div>
+            </Link>
+          )
         },
         // {
         //   key: 'settings',
@@ -165,23 +199,35 @@ export default function Header() {
     { key: 'divider', type: 'divider' },
     ...(isLoggedIn
       ? [
-          { key: 'dashboard', label: <Link href="/member/dashboard">Dashboard</Link> },
-          { key: 'donate', label: <Link href="/member/donate-blood">Schedule Donation</Link> },
-          { key: 'appointments', label: <Link href="/member/appointments">My Appointments</Link> },
-          { key: 'bloodInfo', label: <Link href="/member/blood-info">Blood Type Info</Link> },
-          { key: 'nearby', label: <Link href="/member/nearby-search">Find Donors/Recipients</Link> },
-          { key: 'emergency', label: <Link href="/member/emergency-request">Emergency Request</Link> },
-          { key: 'history', label: <Link href="/member/donation-history">Donation History</Link> },
-          { key: 'profile', label: <Link href="/member/profile">My Profile</Link> },
-          { key: 'achievements', label: <Link href="/member/achievements">Achievements</Link> },
-          { key: 'notifications', label: <Link href="/member/notifications">Notifications</Link> },
-          { key: 'settings', label: <Link href="/member/settings">Settings</Link> },
-          { key: 'logout', label: <span className="cursor-pointer">Logout</span>, onClick: () => logout() }
-        ]
+        { key: 'dashboard', label: <Link href="/member/dashboard">Dashboard</Link> },
+        { key: 'donate', label: <Link href="/member/donate-blood">Schedule Donation</Link> },
+        { key: 'appointments', label: <Link href="/member/appointments">My Appointments</Link> },
+        { key: 'bloodInfo', label: <Link href="/member/blood-info">Blood Type Info</Link> },
+        { key: 'nearby', label: <Link href="/member/nearby-search">Find Donors/Recipients</Link> },
+        { key: 'emergency', label: <Link href="/member/emergency-request">Emergency Request</Link> },
+        { key: 'history', label: <Link href="/member/donation-history">Donation History</Link> },
+        { key: 'profile', label: <Link href="/member/profile">My Profile</Link> },
+        { key: 'achievements', label: <Link href="/member/achievements">Achievements</Link> },
+        {
+          key: 'notifications',
+          label: (
+            <Link href="/member/notifications">
+              <div className="flex items-center justify-between">
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <Badge count={unreadCount} size="small" className="ml-2" />
+                )}
+              </div>
+            </Link>
+          )
+        },
+        { key: 'settings', label: <Link href="/member/settings">Settings</Link> },
+        { key: 'logout', label: <span className="cursor-pointer">Logout</span>, onClick: () => logout() }
+      ]
       : [
-          { key: 'login', label: <Link href="/login">Login</Link> },
-          { key: 'register', label: <Link href="/register">Register</Link> }
-        ]
+        { key: 'login', label: <Link href="/login">Login</Link> },
+        { key: 'register', label: <Link href="/register">Register</Link> }
+      ]
     ),
   ];
 
@@ -193,25 +239,25 @@ export default function Header() {
             <span className="text-3xl mr-2" role="img" aria-label="Blood Drop">🩸</span>
             <span className="text-xl font-bold text-red-600 hidden sm:inline">Blood Donation</span>
           </Link>
-          
+
           {/* Desktop Navigation */}
           <div className="hidden md:block">
             <Menu mode="horizontal" className="border-0" selectedKeys={[activeMenuItem]} items={menuItems} />
           </div>
         </div>
-        
+
         <div className="flex items-center">
           {/* Desktop Auth Buttons or User Menu */}
           <div className="hidden md:flex items-center gap-4">
             {isLoggedIn ? (
               <>
-                <Badge count={3} size="small">
+                <Badge count={unreadCount} size="small">
                   <Link href="/member/notifications">
-                    <Button 
-                      type="text" 
-                      shape="circle" 
-                      icon={<BellOutlined />} 
-                      className="mr-2" 
+                    <Button
+                      type="text"
+                      shape="circle"
+                      icon={<BellOutlined />}
+                      className="mr-2"
                     />
                   </Link>
                 </Badge>
@@ -237,22 +283,22 @@ export default function Header() {
               </>
             )}
           </div>
-          
+
           {/* Mobile Menu */}
           <div className="md:hidden flex items-center">
             {isLoggedIn && (
-              <Badge count={3} size="small" className="mr-3">
+              <Badge count={unreadCount} size="small" className="mr-3">
                 <Link href="/member/notifications">
-                  <Button 
-                    type="text" 
-                    shape="circle" 
-                    icon={<BellOutlined />} 
+                  <Button
+                    type="text"
+                    shape="circle"
+                    icon={<BellOutlined />}
                   />
                 </Link>
               </Badge>
             )}
             <Dropdown menu={{ items: mobileMenuItems }} placement="bottomRight" trigger={['click']}>
-              <Button icon={<MenuOutlined />} />
+              <Button type="text" icon={<MenuOutlined />} />
             </Dropdown>
           </div>
         </div>

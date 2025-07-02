@@ -52,6 +52,11 @@ export interface RegisterResponse extends AuthResponse {
   data: User;
 }
 
+// Helper to check if we're in a browser environment
+const isBrowser = (): boolean => {
+  return typeof window !== 'undefined';
+};
+
 // API functions
 export const register = async (userData: RegisterRequest): Promise<RegisterResponse> => {
   try {
@@ -79,43 +84,55 @@ export const login = async (credentials: LoginRequest): Promise<LoginResponse> =
 
 // Save and retrieve auth tokens
 export const saveAuthTokens = (accessToken: string, refreshToken: string, expiration: string) => {
-  localStorage.setItem('accessToken', accessToken);
-  localStorage.setItem('refreshToken', refreshToken);
-  localStorage.setItem('tokenExpiration', expiration);
+  if (isBrowser()) {
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('tokenExpiration', expiration);
+  }
 };
 
 export const saveUserData = (user: User) => {
-  localStorage.setItem('user', JSON.stringify(user));
+  if (isBrowser()) {
+    localStorage.setItem('user', JSON.stringify(user));
+  }
 };
 
 export const getAccessToken = (): string | null => {
+  if (!isBrowser()) return null;
   return localStorage.getItem('accessToken');
 };
 
 export const getUser = (): User | null => {
+  if (!isBrowser()) return null;
   const userData = localStorage.getItem('user');
   return userData ? JSON.parse(userData) : null;
 };
 
 export const isAuthenticated = (): boolean => {
+  if (!isBrowser()) return false;
+
   const token = getAccessToken();
   if (!token) return false;
-  
+
   const expiration = localStorage.getItem('tokenExpiration');
   if (!expiration) return false;
-  
+
   return new Date(expiration) > new Date();
 };
 
 export const logout = () => {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
-  localStorage.removeItem('tokenExpiration');
-  localStorage.removeItem('user');
+  if (isBrowser()) {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('tokenExpiration');
+    localStorage.removeItem('user');
+  }
 };
 
 // Initialize axios interceptors for auth
 export const setupAuthInterceptor = () => {
+  if (!isBrowser()) return;
+
   apiClient.interceptors.request.use(
     (config) => {
       const token = getAccessToken();

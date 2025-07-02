@@ -1,5 +1,12 @@
-import { useState } from 'react';
-import { donationAppointmentService, DonationAppointmentRequest, AvailableTimeSlot, StaffAssignmentRequest } from '@/services/api';
+import { useState, useCallback } from 'react';
+import * as donationAppointmentService from '@/services/api/donationAppointmentService';
+import {
+  DonationAppointmentRequest,
+  AvailableTimeSlot,
+  StaffAssignmentRequest,
+  AppointmentHistoryQueryParams,
+  DonationAppointment
+} from '@/services/api/donationAppointmentService';
 import { format } from 'date-fns';
 
 interface UseDonationAppointmentReturn {
@@ -24,10 +31,10 @@ export function useDonationAppointment(): UseDonationAppointmentReturn {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const formattedDate = format(date, 'yyyy-MM-dd');
       const response = await donationAppointmentService.getAvailableTimeSlots(locationId, formattedDate, days);
-      
+
       if (response.success && response.data) {
         setAvailableTimeSlots(response.data);
       } else {
@@ -46,9 +53,9 @@ export function useDonationAppointment(): UseDonationAppointmentReturn {
       setIsSubmitting(true);
       setError(null);
       setSuccessMessage(null);
-      
+
       const response = await donationAppointmentService.createDonationAppointmentRequest(request);
-      
+
       if (response.success) {
         setSuccessMessage('Your donation appointment request has been submitted successfully!');
         return true;
@@ -70,9 +77,9 @@ export function useDonationAppointment(): UseDonationAppointmentReturn {
       setIsSubmitting(true);
       setError(null);
       setSuccessMessage(null);
-      
+
       const response = await donationAppointmentService.createStaffAssignment(request);
-      
+
       if (response.success) {
         setSuccessMessage('Donor assignment has been submitted successfully!');
         return true;
@@ -98,5 +105,90 @@ export function useDonationAppointment(): UseDonationAppointmentReturn {
     fetchAvailableTimeSlots,
     submitDonationRequest,
     submitStaffAssignment
+  };
+}
+
+interface UseDonorAppointmentHistoryResult {
+  appointments: DonationAppointment[];
+  isLoading: boolean;
+  error: string | null;
+  pagination: {
+    current: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  fetchAppointmentHistory: (donorId: string, params?: AppointmentHistoryQueryParams) => Promise<void>;
+}
+
+export function useDonorAppointmentHistory(
+  initialParams?: AppointmentHistoryQueryParams
+): UseDonorAppointmentHistoryResult {
+  const [appointments, setAppointments] = useState<DonationAppointment[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    current: initialParams?.pageNumber || 1,
+    pageSize: initialParams?.pageSize || 10,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false
+  });
+
+  // Store initialParams in a ref to avoid dependency issues
+  const initialParamsRef = useCallback(() => initialParams, []);
+
+  const fetchAppointmentHistory = useCallback(async (
+    donorId: string,
+    params?: AppointmentHistoryQueryParams
+  ) => {
+    if (!donorId) {
+      setError('Donor ID is required');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const queryParams: AppointmentHistoryQueryParams = {
+        pageNumber: pagination.current,
+        pageSize: pagination.pageSize,
+        ...initialParamsRef(),
+        ...params
+      };
+
+      const response = await donationAppointmentService.getDonorAppointmentHistory(donorId, queryParams);
+
+      if (response.success && response.data) {
+        setAppointments(response.data);
+        setPagination({
+          current: response.pageNumber || 1,
+          pageSize: response.pageSize || 10,
+          total: response.totalCount || 0,
+          totalPages: response.totalPages || 0,
+          hasNext: response.hasNextPage || false,
+          hasPrev: response.hasPreviousPage || false
+        });
+      } else {
+        setError(response.message || 'Failed to load appointment history');
+      }
+    } catch (err) {
+      console.error('Error fetching appointment history:', err);
+      setError('An error occurred while fetching appointment history');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pagination.current, pagination.pageSize, initialParamsRef]);
+
+  return {
+    appointments,
+    isLoading,
+    error,
+    pagination,
+    fetchAppointmentHistory
   };
 } 

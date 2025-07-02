@@ -17,11 +17,17 @@ export default function BlogPostItem({ post }: BlogPostItemProps) {
 
   // Extract plain text from HTML for preview
   const getTextPreview = (html: string, maxLength: number = 150) => {
-    // Create a temporary div to parse HTML
-    const temp = document.createElement('div');
-    temp.innerHTML = html;
-    const text = temp.textContent || temp.innerText || '';
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    if (typeof document !== 'undefined') {
+      // Client-side: Use DOM to parse HTML
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+      const text = temp.textContent || temp.innerText || '';
+      return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    } else {
+      // Server-side: Use regex to strip HTML tags
+      const text = html.replace(/<[^>]*>?/gm, '');
+      return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    }
   };
 
   return (

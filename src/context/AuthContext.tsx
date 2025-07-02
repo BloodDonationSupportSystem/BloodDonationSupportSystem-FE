@@ -2,12 +2,12 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  User, 
+import {
+  User,
   LoginResponse,
   login as loginService,
-  getUser, 
-  isAuthenticated, 
+  getUser,
+  isAuthenticated,
   logout as logoutService,
   setupAuthInterceptor
 } from '@/services/api/authService';
@@ -26,7 +26,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoggedIn: false,
   loading: true,
-  logout: () => {},
+  logout: () => { },
   isLoading: true,
   login: async () => ({
     success: false,
@@ -41,7 +41,7 @@ const AuthContext = createContext<AuthContextType>({
     },
     count: 0
   }),
-  redirectBasedOnRole: () => {}
+  redirectBasedOnRole: () => { }
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -54,17 +54,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isBrowser, setIsBrowser] = useState(false);
   const router = useRouter();
 
-  // Setup auth interceptor
+  // Check if we're in the browser
   useEffect(() => {
+    setIsBrowser(true);
     setupAuthInterceptor();
   }, []);
 
-  // Check authentication status on initial load
+  // Check authentication status on initial load - only run on client
   useEffect(() => {
-    const checkAuth = () => {
-      setLoading(true);
+    if (isBrowser) {
       if (isAuthenticated()) {
         const userData = getUser();
         setUser(userData);
@@ -74,16 +75,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoggedIn(false);
       }
       setLoading(false);
-    };
-
-    checkAuth();
-  }, []);
+    }
+  }, [isBrowser]);
 
   const logout = () => {
-    logoutService();
-    setUser(null);
-    setIsLoggedIn(false);
-    router.push('/login');
+    if (isBrowser) {
+      logoutService();
+      setUser(null);
+      setIsLoggedIn(false);
+      router.push('/login');
+    }
   };
 
   const login = async (username: string, password: string): Promise<LoginResponse> => {
@@ -92,11 +93,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.success) {
         setUser(response.data.user);
         setIsLoggedIn(true);
-        // Save user data to localStorage
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('accessToken', response.data.accessToken);
-        localStorage.setItem('refreshToken', response.data.refreshToken);
-        localStorage.setItem('tokenExpiration', response.data.expiration);
+
+        // Only access localStorage on the client
+        if (isBrowser) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+          localStorage.setItem('accessToken', response.data.accessToken);
+          localStorage.setItem('refreshToken', response.data.refreshToken);
+          localStorage.setItem('tokenExpiration', response.data.expiration);
+        }
       }
       return response;
     } catch (error) {
@@ -120,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const redirectBasedOnRole = () => {
     if (!user) return;
-    
+
     switch (user.roleName) {
       case 'Admin':
         router.push('/admin');

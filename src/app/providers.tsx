@@ -20,8 +20,11 @@ const ScrollToTop = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Scroll to top when path changes
-    window.scrollTo(0, 0);
+    // Only run on client-side
+    if (typeof window !== 'undefined') {
+      // Scroll to top when path changes
+      window.scrollTo(0, 0);
+    }
   }, [pathname]);
 
   return <>{children}</>;

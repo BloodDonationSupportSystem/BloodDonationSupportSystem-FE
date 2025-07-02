@@ -20,11 +20,16 @@ export default function BlogDetailPage() {
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const fetchPost = async () => {
       if (!id) return;
-      
+
       setLoading(true);
       setError(null);
       try {
@@ -53,6 +58,7 @@ export default function BlogDetailPage() {
 
   // Sanitize HTML content
   const createMarkup = (htmlContent: string) => {
+    if (!isMounted) return { __html: '' }; // Don't render HTML during SSR
     return {
       __html: DOMPurify.sanitize(htmlContent)
     };
@@ -60,111 +66,84 @@ export default function BlogDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
+      <div className="flex justify-center items-center min-h-[60vh]">
         <Spin size="large" />
       </div>
     );
   }
 
-  if (error) {
+  if (error || !post) {
     return (
-      <div className="container mx-auto p-4">
+      <div className="max-w-4xl mx-auto py-8 px-4">
         <Alert
           message="Error"
-          description={error}
+          description={error || 'Blog post not found'}
           type="error"
           showIcon
-          action={
-            <Button size="small" type="primary" onClick={() => router.push('/blog')}>
-              Return to Blog
-            </Button>
-          }
         />
-      </div>
-    );
-  }
-
-  if (!post) {
-    return (
-      <div className="container mx-auto p-4">
-        <Alert
-          message="Blog Post Not Found"
-          description="The blog post you are looking for does not exist or has been removed."
-          type="warning"
-          showIcon
-          action={
-            <Button size="small" type="primary" onClick={() => router.push('/blog')}>
-              Return to Blog
-            </Button>
-          }
-        />
+        <div className="mt-4">
+          <Button
+            onClick={() => router.push('/blog')}
+            icon={<ArrowLeftOutlined />}
+          >
+            Back to Blog
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4">
-      {/* Breadcrumb navigation */}
-      <Breadcrumb
-        className="mb-4"
-        items={[
-          {
-            title: 'Home',
-            href: '/'
-          },
-          {
-            title: 'Blog',
-            href: '/blog'
-          },
-          {
-            title: post.title || 'Blog Post',
-          },
-        ]}
-      />
+    <div className="max-w-4xl mx-auto py-8 px-4">
+      <Breadcrumb className="mb-6">
+        <Breadcrumb.Item>
+          <Link href="/">Home</Link>
+        </Breadcrumb.Item>
+        <Breadcrumb.Item>
+          <Link href="/blog">Blog</Link>
+        </Breadcrumb.Item>
+        <Breadcrumb.Item>{post.title}</Breadcrumb.Item>
+      </Breadcrumb>
 
-      {/* Back button */}
-      <Button 
-        icon={<ArrowLeftOutlined />} 
-        className="mb-6" 
+      <Button
         onClick={() => router.push('/blog')}
+        icon={<ArrowLeftOutlined />}
+        className="mb-6"
       >
         Back to Blog
       </Button>
 
-      {/* Blog post content */}
-      <Card className="shadow-lg rounded-lg">
-        <div className="flex justify-between items-center mb-4">
-          <Tag color={post.isPublished ? "green" : "orange"} className="text-sm px-3 py-1">
-            {post.isPublished ? "Published" : "Draft"}
-          </Tag>
+      <Card className="shadow-md">
+        <Title level={2} className="text-red-700">{post.title}</Title>
+
+        <Space className="mb-4">
           <Space>
-            <Text type="secondary">
-              <HistoryOutlined className="mr-1" />
-              Last updated: {formatDate(post.lastUpdatedTime)}
-            </Text>
+            <Avatar icon={<UserOutlined />} />
+            <Text>{post.authorName || 'Unknown Author'}</Text>
           </Space>
-        </div>
+          <Divider type="vertical" />
+          <Space>
+            <CalendarOutlined />
+            <Text>{formatDate(post.createdTime)}</Text>
+          </Space>
+          {post.lastUpdatedTime && (
+            <>
+              <Divider type="vertical" />
+              <Space>
+                <HistoryOutlined />
+                <Text>Updated: {formatDate(post.lastUpdatedTime)}</Text>
+              </Space>
+            </>
+          )}
+        </Space>
 
-        <Title level={1} className="mb-6">{post.title}</Title>
-
-        <div className="flex items-center mb-6">
-          <Avatar icon={<UserOutlined />} size="large" className="mr-3" />
-          <div>
-            <Text strong className="block">{post.authorName}</Text>
-            <Text type="secondary">
-              <CalendarOutlined className="mr-1" />
-              {formatDate(post.createdTime)}
-            </Text>
-          </div>
-        </div>
+        <Tag color={post.isPublished ? "green" : "orange"} className="mb-4">
+          {post.isPublished ? "Published" : "Draft"}
+        </Tag>
 
         <Divider />
 
-        {/* Blog content with HTML */}
-        <div 
-          className="prose max-w-none blog-content"
-          dangerouslySetInnerHTML={createMarkup(post.body)}
-        />
+        <div className="blog-content prose max-w-none" dangerouslySetInnerHTML={createMarkup(post.body)} />
       </Card>
     </div>
   );
