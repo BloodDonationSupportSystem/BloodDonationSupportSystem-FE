@@ -62,6 +62,7 @@ export default function StaffSidebar() {
     if (pathname === '/staff') return 'dashboard';
     if (pathname.includes('/staff/appointments')) return 'appointments';
     if (pathname.includes('/staff/donation-events')) return 'donation-events';
+    if (pathname.includes('/staff/blood-request')) return 'blood-request';
     if (pathname.includes('/staff/donors')) return 'donors';
     if (pathname.includes('/staff/blood-drives')) return 'blood-drives';
     if (pathname.includes('/staff/reports')) return 'reports';
@@ -72,15 +73,20 @@ export default function StaffSidebar() {
   };
 
   const menuItems = [
-    // {
-    //   key: 'dashboard',
-    //   icon: <DashboardOutlined />,
-    //   label: <Link href="/staff">Dashboard</Link>,
-    // },
+    {
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: <Link href="/staff">Dashboard</Link>,
+    },
     {
       key: 'appointments',
       icon: <CalendarOutlined />,
       label: <Link href="/staff/appointments">Appointments</Link>,
+    },
+    {
+      key: 'blood-request',
+      icon: <FileTextOutlined />,
+      label: <Link href="/staff/blood-request">Blood Requests</Link>,
     },
     {
       key: 'donation-events',

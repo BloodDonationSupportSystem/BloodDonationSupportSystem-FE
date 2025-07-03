@@ -170,13 +170,13 @@ export default function MemberDashboardPage() {
               value={mockData.totalDonations}
               prefix={<HeartOutlined className="text-red-500" />}
             />
-            <div className="mt-4">
+            {/* <div className="mt-4">
               <Link href="/member/donation-history">
                 <Button type="link" className="p-0 flex items-center text-blue-600">
                   View History <RightOutlined className="ml-1" />
                 </Button>
               </Link>
-            </div>
+            </div> */}
           </Card>
         </Col>
         <Col xs={24} md={8}>
@@ -279,11 +279,11 @@ export default function MemberDashboardPage() {
                 </List.Item>
               )}
             />
-            <div className="mt-4 text-center">
+            {/* <div className="mt-4 text-center">
               <Link href="/member/emergency-request">
                 <Button type="primary" className="bg-red-600 hover:bg-red-700">View All Requests</Button>
               </Link>
-            </div>
+            </div> */}
           </Card>
         </Col>
 

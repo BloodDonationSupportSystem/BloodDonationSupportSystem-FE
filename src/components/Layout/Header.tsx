@@ -65,6 +65,7 @@ export default function Header() {
     if (pathname.includes('/blood-compatibility')) return 'bloodCompatibility';
     if (pathname.includes('/blog')) return 'blog';
     if (pathname.includes('/contact')) return 'contact';
+    if (pathname.includes('/request-blood')) return 'requestBlood';
     return '';
   };
 
@@ -74,6 +75,7 @@ export default function Header() {
     { key: 'home', label: <Link href="/">Home</Link> },
     { key: 'about', label: <Link href="/about">About Us</Link> },
     { key: 'donate', label: <Link href="/donate-blood">Donate Blood</Link> },
+    { key: 'requestBlood', label: <Link href="/request-blood">Request Blood</Link> },
     { key: 'bloodInfo', label: <Link href="/blood-info">Blood Info</Link> },
     { key: 'bloodCompatibility', label: <Link href="/blood-compatibility">Blood Compatibility</Link> },
     { key: 'blog', label: <Link href="/blog">Blog</Link> },
@@ -82,11 +84,11 @@ export default function Header() {
 
   // Member-specific menu items if user is logged in
   const memberMenuItems: MenuProps['items'] = [
-    // {
-    //   key: 'dashboard',
-    //   icon: <DashboardOutlined />,
-    //   label: <Link href="/member/dashboard">Dashboard</Link>
-    // },
+    {
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: <Link href="/member/dashboard">Dashboard</Link>
+    },
     {
       type: 'group',
       label: 'Donation Management',
@@ -117,21 +119,21 @@ export default function Header() {
       type: 'group',
       label: 'Blood Services',
       children: [
-        {
-          key: 'bloodInfo',
-          icon: <SearchOutlined />,
-          label: <Link href="/member/blood-info">Blood Type Info</Link>
-        },
-        {
-          key: 'nearby',
-          icon: <TeamOutlined />,
-          label: <Link href="/member/nearby-search">Find Donors/Recipients</Link>
-        },
-        {
-          key: 'emergency',
-          icon: <MedicineBoxOutlined />,
-          label: <Link href="/member/emergency-request">Emergency Request</Link>
-        },
+        // {
+        //   key: 'bloodInfo',
+        //   icon: <SearchOutlined />,
+        //   label: <Link href="/member/blood-info">Blood Type Info</Link>
+        // },
+        // {
+        //   key: 'nearby',
+        //   icon: <TeamOutlined />,
+        //   label: <Link href="/member/nearby-search">Find Donors/Recipients</Link>
+        // },
+        // {
+        //   key: 'emergency',
+        //   icon: <MedicineBoxOutlined />,
+        //   label: <Link href="/member/emergency-request">Emergency Request</Link>
+        // },
         {
           key: 'requests',
           icon: <CommentOutlined />,
@@ -204,10 +206,11 @@ export default function Header() {
         { key: 'dashboard', label: <Link href="/member/dashboard">Dashboard</Link> },
         { key: 'donate', label: <Link href="/member/donate-blood">Schedule Donation</Link> },
         { key: 'appointments', label: <Link href="/member/appointments">My Appointments</Link> },
-        { key: 'bloodInfo', label: <Link href="/member/blood-info">Blood Type Info</Link> },
-        { key: 'nearby', label: <Link href="/member/nearby-search">Find Donors/Recipients</Link> },
-        { key: 'emergency', label: <Link href="/member/emergency-request">Emergency Request</Link> },
-        { key: 'history', label: <Link href="/member/donation-history">Donation History</Link> },
+        // { key: 'bloodInfo', label: <Link href="/member/blood-info">Blood Type Info</Link> },
+        // { key: 'nearby', label: <Link href="/member/nearby-search">Find Donors/Recipients</Link> },
+        // { key: 'emergency', label: <Link href="/member/emergency-request">Emergency Request</Link> },
+        { key: 'requestBlood', label: <Link href="/request-blood">Request Blood</Link> },
+        // { key: 'history', label: <Link href="/member/donation-history">Donation History</Link> },
         { key: 'profile', label: <Link href="/member/profile">My Profile</Link> },
         { key: 'achievements', label: <Link href="/member/achievements">Achievements</Link> },
         {

@@ -157,6 +157,14 @@ export interface WalkInDonationRequest {
   notes?: string;
 }
 
+// Create donation event from blood request
+export interface CreateDonationEventRequest {
+  requestId: string;
+  locationId: string;
+  notes?: string;
+  checkInventoryFirst: boolean;
+}
+
 // API functions
 export const getDonationEvents = async (params: DonationEventsParams): Promise<DonationEventsResponse> => {
   try {
@@ -437,6 +445,20 @@ export const recordComplicationProcess = async (data: ComplicationRequest): Prom
     console.error('Error recording complication:', error);
     if (axios.isAxiosError(error) && error.response) {
       console.error('Record complication error response:', error.response.data);
+      return error.response.data as ApiResponse<DonationEvent>;
+    }
+    throw error;
+  }
+};
+
+// Create donation event from blood request
+export const createDonationEvent = async (request: CreateDonationEventRequest): Promise<ApiResponse<DonationEvent>> => {
+  try {
+    const response = await apiClient.post('/DonationEvents', request);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating donation event:', error);
+    if (axios.isAxiosError(error) && error.response) {
       return error.response.data as ApiResponse<DonationEvent>;
     }
     throw error;

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { locationService } from '@/services/api';
-import { 
-  Location, 
-  Capacity, 
-  CreateCapacityRequest, 
+import {
+  Location,
+  Capacity,
+  CreateCapacityRequest,
   UpdateCapacityRequest,
   CreateMultipleCapacitiesRequest,
   getAllLocations,
@@ -19,17 +19,17 @@ export interface LocationWithDistance extends Location {
 
 // Function to calculate distance between two points using Haversine formula
 export function calculateDistance(
-  lat1: number, 
-  lon1: number, 
-  lat2: number, 
+  lat1: number,
+  lon1: number,
+  lat2: number,
   lon2: number
 ): number {
   const R = 6371; // Radius of the Earth in kilometers
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a = 
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distance = R * c; // Distance in kilometers
@@ -70,7 +70,7 @@ export function useLocations(): UseLocationsReturn {
 
     try {
       setIsGettingUserLocation(true);
-      
+
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject);
       });
@@ -79,7 +79,7 @@ export function useLocations(): UseLocationsReturn {
       setUserCoordinates({ latitude, longitude });
 
       // Update locations with distance information
-      setLocations(prevLocations => 
+      setLocations(prevLocations =>
         prevLocations.map(location => ({
           ...location,
           distance: calculateDistance(
@@ -89,8 +89,8 @@ export function useLocations(): UseLocationsReturn {
             parseFloat(location.longitude || '0')
           )
         }))
-        // Sort by distance
-        .sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity))
+          // Sort by distance
+          .sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity))
       );
     } catch (error) {
       console.error('Error getting user location:', error);
@@ -104,11 +104,11 @@ export function useLocations(): UseLocationsReturn {
     const locationsWithDistance = locations.map(location => {
       const lat = parseFloat(location.latitude);
       const lng = parseFloat(location.longitude);
-      
+
       if (isNaN(lat) || isNaN(lng)) {
         return { ...location, distance: Infinity };
       }
-      
+
       const distance = calculateDistance(userLat, userLng, lat, lng);
       return { ...location, distance };
     });
@@ -125,36 +125,36 @@ export function useLocations(): UseLocationsReturn {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await getAllLocations();
-      
+
       if (response.success && response.data) {
         const fetchedLocations = response.data as LocationWithDistance[];
-        
+
         // If we have user coordinates, calculate distances
         if (userCoordinates.latitude && userCoordinates.longitude) {
           const locationsWithDistance = fetchedLocations.map(location => {
             const lat = parseFloat(location.latitude);
             const lng = parseFloat(location.longitude);
-            
+
             if (isNaN(lat) || isNaN(lng)) {
               return { ...location, distance: Infinity };
             }
-            
+
             const distance = calculateDistance(
-              userCoordinates.latitude!, 
-              userCoordinates.longitude!, 
-              lat, 
+              userCoordinates.latitude!,
+              userCoordinates.longitude!,
+              lat,
               lng
             );
             return { ...location, distance };
           });
-          
+
           // Sort by distance (ascending)
           const sortedLocations = [...locationsWithDistance].sort((a, b) => {
             return (a.distance || Infinity) - (b.distance || Infinity);
           });
-          
+
           setLocations(sortedLocations);
         } else {
           setLocations(fetchedLocations);
@@ -181,14 +181,14 @@ export function useLocations(): UseLocationsReturn {
   const fetchLocationById = async (locationId: string): Promise<Location | null> => {
     try {
       const response = await getLocationById(locationId);
-      
+
       // Cast response to expected API response type
       const apiResponse = response as unknown as {
         success: boolean;
         message: string;
         data: Location;
       };
-      
+
       if (apiResponse && apiResponse.success && apiResponse.data) {
         return apiResponse.data;
       } else {
@@ -205,14 +205,14 @@ export function useLocations(): UseLocationsReturn {
   const fetchLocationCapacities = async (locationId: string): Promise<Capacity[] | null> => {
     try {
       const response = await getLocationCapacities(locationId);
-      
+
       // Cast response to expected API response type
       const apiResponse = response as unknown as {
         success: boolean;
         message: string;
         data: Capacity[];
       };
-      
+
       if (apiResponse && apiResponse.success && apiResponse.data) {
         return apiResponse.data;
       } else {
@@ -267,9 +267,9 @@ export function useLocationCapacities(): UseLocationCapacitiesReturn {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await locationService.getLocationCapacities(locationId);
-      
+
       if (response.success && response.data) {
         setCapacities(response.data);
         return response.data;
@@ -290,9 +290,9 @@ export function useLocationCapacities(): UseLocationCapacitiesReturn {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await locationService.createLocationCapacity(locationId, data);
-      
+
       if (response.success) {
         // Refresh capacities after successful creation
         await fetchCapacities(locationId);
@@ -314,9 +314,9 @@ export function useLocationCapacities(): UseLocationCapacitiesReturn {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await locationService.createMultipleLocationCapacities(locationId, data);
-      
+
       if (response.success) {
         // Refresh capacities after successful creation
         await fetchCapacities(locationId);
@@ -338,9 +338,9 @@ export function useLocationCapacities(): UseLocationCapacitiesReturn {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await locationService.updateLocationCapacity(locationId, capacityId, data);
-      
+
       if (response.success) {
         // Refresh capacities after successful update
         await fetchCapacities(locationId);
@@ -362,9 +362,9 @@ export function useLocationCapacities(): UseLocationCapacitiesReturn {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await locationService.deleteLocationCapacity(locationId, capacityId);
-      
+
       if (response.success) {
         // Refresh capacities after successful deletion
         await fetchCapacities(locationId);

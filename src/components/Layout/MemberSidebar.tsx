@@ -27,11 +27,11 @@ export default function MemberSidebar() {
   const pathname = usePathname() || '';
 
   const menuItems: MenuProps['items'] = [
-    // {
-    //   key: 'dashboard',
-    //   icon: <DashboardOutlined />,
-    //   label: <Link href="/member/dashboard">Dashboard</Link>
-    // },
+    {
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: <Link href="/member/dashboard">Dashboard</Link>
+    },
     {
       type: 'group',
       label: 'Donation Management',
@@ -62,21 +62,21 @@ export default function MemberSidebar() {
       type: 'group',
       label: 'Blood Services',
       children: [
-        {
-          key: 'blood-info',
-          icon: <SearchOutlined />,
-          label: <Link href="/member/blood-info">Blood Type Info</Link>
-        },
-        {
-          key: 'nearby-search',
-          icon: <TeamOutlined />,
-          label: <Link href="/member/nearby-search">Find Donors/Recipients</Link>
-        },
-        {
-          key: 'emergency-request',
-          icon: <MedicineBoxOutlined />,
-          label: <Link href="/member/emergency-request">Emergency Request</Link>
-        },
+        // {
+        //   key: 'blood-info',
+        //   icon: <SearchOutlined />,
+        //   label: <Link href="/member/blood-info">Blood Type Info</Link>
+        // },
+        // {
+        //   key: 'nearby-search',
+        //   icon: <TeamOutlined />,
+        //   label: <Link href="/member/nearby-search">Find Donors/Recipients</Link>
+        // },
+        // {
+        //   key: 'emergency-request',
+        //   icon: <MedicineBoxOutlined />,
+        //   label: <Link href="/member/emergency-request">Emergency Request</Link>
+        // },
         {
           key: 'my-requests',
           icon: <CommentOutlined />,

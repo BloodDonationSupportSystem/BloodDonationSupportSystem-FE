@@ -3,37 +3,39 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { 
-  Typography, 
-  Card, 
-  Spin, 
-  Tabs, 
-  Table, 
-  Tag, 
-  Button, 
-  Progress, 
-  Space, 
-  Steps, 
-  Tooltip, 
-  Badge, 
-  Dropdown, 
-  Modal, 
-  Empty, 
-  Alert, 
-  Descriptions, 
+import {
+  Typography,
+  Card,
+  Spin,
+  Tabs,
+  Table,
+  Tag,
+  Button,
+  Progress,
+  Space,
+  Steps,
+  Tooltip,
+  Badge,
+  Dropdown,
+  Modal,
+  Empty,
+  Alert,
+  Descriptions,
   Statistic,
   Timeline,
-  Collapse
+  Collapse,
+  Input,
+  message
 } from 'antd';
-import { 
-  PlusOutlined, 
-  EditOutlined, 
-  ClockCircleOutlined, 
-  CheckCircleOutlined, 
-  CloseCircleOutlined, 
-  UserOutlined, 
-  ExclamationCircleOutlined, 
-  HeartOutlined, 
+import {
+  PlusOutlined,
+  EditOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  UserOutlined,
+  ExclamationCircleOutlined,
+  HeartOutlined,
   FileTextOutlined,
   PhoneOutlined,
   MailOutlined,
@@ -48,6 +50,7 @@ import {
 import Link from 'next/link';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { BloodRequestDetail, getUserBloodRequests, updateRequestStatus } from '@/services/api/bloodRequestService';
 
 dayjs.extend(relativeTime);
 
@@ -55,127 +58,23 @@ const { Title, Paragraph, Text } = Typography;
 const { Step } = Steps;
 const { Panel } = Collapse;
 const { confirm } = Modal;
-
-// Mock data for blood requests
-const mockBloodRequests = [
-  {
-    id: 1,
-    patientName: 'Nguyen Van A (Self)',
-    bloodType: 'A+',
-    requiredComponents: ['Whole Blood'],
-    quantity: 2, // units
-    urgency: 'normal',
-    reason: 'Scheduled Surgery',
-    hospital: 'City General Hospital',
-    hospitalAddress: '123 Health St, District 1, HCMC',
-    date: '2023-12-05',
-    status: 'fulfilled',
-    progress: 100,
-    donorsMatched: 3,
-    donorsConfirmed: 2,
-    donorsCompleted: 2,
-    notes: 'Surgery went well. Thank you to all donors!',
-    updates: [
-      { time: '2023-11-20 09:15', message: 'Request created' },
-      { time: '2023-11-20 10:30', message: '3 potential donors matched' },
-      { time: '2023-11-22 14:20', message: '2 donors confirmed appointment' },
-      { time: '2023-12-01 11:45', message: '2 donors completed donation' },
-      { time: '2023-12-05 09:00', message: 'Blood used in successful surgery' },
-    ],
-    donors: [
-      { id: 101, name: 'Tran Van B', bloodType: 'A+', status: 'completed', date: '2023-11-30' },
-      { id: 102, name: 'Le Thi C', bloodType: 'O+', status: 'completed', date: '2023-12-01' },
-    ]
-  },
-  {
-    id: 2,
-    patientName: 'Pham Thi B (Family)',
-    bloodType: 'B-',
-    requiredComponents: ['Red Blood Cells', 'Platelets'],
-    quantity: 3, // units
-    urgency: 'high',
-    reason: 'Cancer Treatment',
-    hospital: 'Oncology Medical Center',
-    hospitalAddress: '456 Medical Blvd, District 3, HCMC',
-    date: '2023-12-15',
-    status: 'in-progress',
-    progress: 67,
-    donorsMatched: 5,
-    donorsConfirmed: 3,
-    donorsCompleted: 2,
-    notes: 'Need B- donors for ongoing cancer treatment',
-    updates: [
-      { time: '2023-12-01 14:20', message: 'Request created' },
-      { time: '2023-12-01 15:10', message: '5 potential donors matched' },
-      { time: '2023-12-02 10:45', message: '3 donors confirmed appointment' },
-      { time: '2023-12-05 16:30', message: '2 donors completed donation' },
-    ],
-    donors: [
-      { id: 103, name: 'Nguyen Van D', bloodType: 'B-', status: 'completed', date: '2023-12-04' },
-      { id: 104, name: 'Hoang Van E', bloodType: 'O-', status: 'completed', date: '2023-12-05' },
-      { id: 105, name: 'Tran Thi F', bloodType: 'B-', status: 'scheduled', date: '2023-12-10' },
-    ]
-  },
-  {
-    id: 3,
-    patientName: 'Do Van C (Friend)',
-    bloodType: 'O+',
-    requiredComponents: ['Whole Blood'],
-    quantity: 1, // units
-    urgency: 'emergency',
-    reason: 'Accident Victim',
-    hospital: 'Emergency Hospital',
-    hospitalAddress: '789 Urgent St, District 5, HCMC',
-    date: '2023-11-25',
-    status: 'fulfilled',
-    progress: 100,
-    donorsMatched: 4,
-    donorsConfirmed: 1,
-    donorsCompleted: 1,
-    notes: 'Emergency request for accident victim. Patient is now stable.',
-    updates: [
-      { time: '2023-11-25 08:30', message: 'Emergency request created' },
-      { time: '2023-11-25 08:35', message: '4 potential donors matched and notified' },
-      { time: '2023-11-25 09:15', message: '1 donor confirmed and arrived at hospital' },
-      { time: '2023-11-25 10:00', message: 'Donation completed' },
-      { time: '2023-11-25 11:30', message: 'Blood transfusion successful' },
-    ],
-    donors: [
-      { id: 106, name: 'Pham Van G', bloodType: 'O+', status: 'completed', date: '2023-11-25' },
-    ]
-  },
-  {
-    id: 4,
-    patientName: 'Ly Thi D (Self)',
-    bloodType: 'AB+',
-    requiredComponents: ['Plasma'],
-    quantity: 2, // units
-    urgency: 'normal',
-    reason: 'Chronic Condition',
-    hospital: 'Hematology Center',
-    hospitalAddress: '101 Blood St, District 10, HCMC',
-    date: '2023-12-20',
-    status: 'pending',
-    progress: 25,
-    donorsMatched: 3,
-    donorsConfirmed: 0,
-    donorsCompleted: 0,
-    notes: 'Regular plasma therapy',
-    updates: [
-      { time: '2023-12-07 11:20', message: 'Request created' },
-      { time: '2023-12-07 14:15', message: '3 potential donors matched' },
-    ],
-    donors: []
-  }
-];
+const { TextArea } = Input;
 
 export default function MyBloodRequestsPage() {
   const { user, isLoggedIn, loading } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('active');
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedRequest, setSelectedRequest] = useState<BloodRequestDetail | null>(null);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [donorsModalVisible, setDonorsModalVisible] = useState(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelLoading, setCancelLoading] = useState(false);
+
+  // API data states
+  const [bloodRequests, setBloodRequests] = useState<BloodRequestDetail[]>([]);
+  const [fetchingRequests, setFetchingRequests] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -184,12 +83,39 @@ export default function MyBloodRequestsPage() {
     }
   }, [isLoggedIn, loading, router]);
 
-  const showDetailsModal = (request: any) => {
+  // Fetch user's blood requests
+  useEffect(() => {
+    const fetchUserRequests = async () => {
+      if (!isLoggedIn || !user) return;
+
+      try {
+        setFetchingRequests(true);
+        setFetchError(null);
+
+        const response = await getUserBloodRequests(user.id);
+
+        if (response.success && response.data) {
+          setBloodRequests(response.data);
+        } else {
+          setFetchError(response.message || 'Failed to load blood requests');
+        }
+      } catch (error) {
+        console.error('Error fetching blood requests:', error);
+        setFetchError('An error occurred while loading your blood requests');
+      } finally {
+        setFetchingRequests(false);
+      }
+    };
+
+    fetchUserRequests();
+  }, [isLoggedIn, user]);
+
+  const showDetailsModal = (request: BloodRequestDetail) => {
     setSelectedRequest(request);
     setDetailsModalVisible(true);
   };
 
-  const showDonorsModal = (request: any) => {
+  const showDonorsModal = (request: BloodRequestDetail) => {
     setSelectedRequest(request);
     setDonorsModalVisible(true);
   };
@@ -202,50 +128,84 @@ export default function MyBloodRequestsPage() {
     setDonorsModalVisible(false);
   };
 
-  const showCancelConfirm = (requestId: number) => {
-    confirm({
-      title: 'Are you sure you want to cancel this blood request?',
-      icon: <ExclamationCircleOutlined />,
-      content: 'This action cannot be undone. Any matched donors will be notified.',
-      okText: 'Yes, Cancel Request',
-      okType: 'danger',
-      cancelText: 'No',
-      onOk() {
-        console.log('Cancelling request', requestId);
-        // Here you would make an API call to cancel the request
-      },
-    });
+  const showCancelModal = (request: BloodRequestDetail) => {
+    setSelectedRequest(request);
+    setCancelModalVisible(true);
+  };
+
+  const closeCancelModal = () => {
+    setCancelModalVisible(false);
+    setCancelReason('');
+  };
+
+  const handleCancelRequest = async () => {
+    if (!selectedRequest) return;
+
+    setCancelLoading(true);
+
+    try {
+      const response = await updateRequestStatus(selectedRequest.id, {
+        status: 'Cancelled',
+        notes: cancelReason || 'Cancelled by user',
+        isActive: false
+      });
+
+      if (response.success) {
+        message.success('Blood request cancelled successfully');
+
+        // Update the request in the local state
+        setBloodRequests(prev =>
+          prev.map(req =>
+            req.id === selectedRequest.id
+              ? { ...req, status: 'Cancelled', isActive: false }
+              : req
+          )
+        );
+
+        closeCancelModal();
+        closeDetailsModal();
+      } else {
+        message.error(response.message || 'Failed to cancel request');
+      }
+    } catch (error) {
+      console.error('Error cancelling request:', error);
+      message.error('An error occurred while cancelling the request');
+    } finally {
+      setCancelLoading(false);
+    }
   };
 
   // Filter requests based on status
-  const activeRequests = mockBloodRequests.filter(
-    request => ['pending', 'in-progress'].includes(request.status)
+  const activeRequests = bloodRequests.filter(
+    request => request.isActive && ['Pending', 'Processing', 'In Progress'].includes(request.status)
   );
 
-  const completedRequests = mockBloodRequests.filter(
-    request => ['fulfilled', 'cancelled'].includes(request.status)
+  const completedRequests = bloodRequests.filter(
+    request => !request.isActive || ['Fulfilled', 'Cancelled', 'Completed'].includes(request.status)
   );
 
   const getUrgencyTag = (urgency: string) => {
     switch (urgency.toLowerCase()) {
-      case 'emergency':
-        return <Tag color="red" icon={<ExclamationCircleOutlined />}>Emergency</Tag>;
+      case 'critical':
+        return <Tag color="red" icon={<ExclamationCircleOutlined />}>Critical</Tag>;
       case 'high':
         return <Tag color="orange">High</Tag>;
-      case 'normal':
-        return <Tag color="blue">Normal</Tag>;
+      case 'medium':
+        return <Tag color="blue">Medium</Tag>;
       default:
         return <Tag color="default">{urgency}</Tag>;
     }
   };
 
   const getStatusTag = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'pending':
         return <Tag color="gold" icon={<ClockCircleOutlined />}>Pending</Tag>;
-      case 'in-progress':
+      case 'processing':
+      case 'in progress':
         return <Tag color="processing" icon={<ClockCircleOutlined />}>In Progress</Tag>;
       case 'fulfilled':
+      case 'completed':
         return <Tag color="success" icon={<CheckCircleOutlined />}>Fulfilled</Tag>;
       case 'cancelled':
         return <Tag color="error" icon={<CloseCircleOutlined />}>Cancelled</Tag>;
@@ -254,13 +214,50 @@ export default function MyBloodRequestsPage() {
     }
   };
 
-  const getStatusSteps = (request: any) => {
+  // Calculate progress based on status
+  const calculateProgress = (request: BloodRequestDetail) => {
+    switch (request.status.toLowerCase()) {
+      case 'pending':
+        return 25;
+      case 'processing':
+      case 'in progress':
+        return 50;
+      case 'fulfilled':
+      case 'completed':
+        return 100;
+      case 'cancelled':
+        return 0;
+      default:
+        return 0;
+    }
+  };
+
+  const getStatusSteps = (request: BloodRequestDetail) => {
+    // Calculate the current step based on status
+    let currentStep = 0;
+    switch (request.status.toLowerCase()) {
+      case 'pending':
+        currentStep = 0;
+        break;
+      case 'processing':
+      case 'in progress':
+        currentStep = 2;
+        break;
+      case 'fulfilled':
+      case 'completed':
+        currentStep = 4;
+        break;
+      case 'cancelled':
+        currentStep = -1; // Special case for cancelled
+        break;
+    }
+
     const steps = [
-      { title: 'Request Created', status: 'finish' },
-      { title: 'Donors Matched', status: request.donorsMatched > 0 ? 'finish' : 'wait' },
-      { title: 'Donations Scheduled', status: request.donorsConfirmed > 0 ? 'finish' : 'wait' },
-      { title: 'Donations Complete', status: request.donorsCompleted >= request.quantity ? 'finish' : (request.donorsCompleted > 0 ? 'process' : 'wait') },
-      { title: 'Request Fulfilled', status: request.status === 'fulfilled' ? 'finish' : 'wait' },
+      { title: 'Request Created', status: currentStep >= 0 ? 'finish' : 'wait' },
+      { title: 'Request Processing', status: currentStep >= 1 ? 'finish' : (currentStep === 0 ? 'wait' : 'error') },
+      { title: 'Donors Matched', status: currentStep >= 2 ? 'finish' : (currentStep < 0 ? 'error' : 'wait') },
+      { title: 'Donations Complete', status: currentStep >= 3 ? 'finish' : (currentStep < 0 ? 'error' : 'wait') },
+      { title: 'Request Fulfilled', status: currentStep >= 4 ? 'finish' : (currentStep < 0 ? 'error' : 'wait') },
     ];
 
     return steps;
@@ -271,36 +268,36 @@ export default function MyBloodRequestsPage() {
       title: 'Request Info',
       dataIndex: 'patientName',
       key: 'patientName',
-      render: (text: string, record: any) => (
+      render: (text: string, record: BloodRequestDetail) => (
         <div>
           <div className="font-medium">{text}</div>
           <div className="text-sm text-gray-500">
-            <Badge color="red" /> {record.bloodType} • {record.requiredComponents.join(', ')}
+            <Badge color="red" /> {record.bloodGroupName} • {record.componentTypeName}
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            {getUrgencyTag(record.urgency)} {record.reason}
+            {getUrgencyTag(record.urgencyLevel)} {record.isEmergency ? 'Emergency' : 'Regular'}
           </div>
         </div>
       ),
     },
     {
       title: 'Hospital',
-      dataIndex: 'hospital',
-      key: 'hospital',
-      render: (text: string, record: any) => (
+      dataIndex: 'hospitalName',
+      key: 'hospitalName',
+      render: (text: string, record: BloodRequestDetail) => (
         <div>
           <div>{text}</div>
           <div className="text-xs text-gray-500 mt-1">
             <EnvironmentOutlined className="mr-1" />
-            {record.hospitalAddress}
+            {record.address}
           </div>
         </div>
       ),
     },
     {
       title: 'Date',
-      dataIndex: 'date',
-      key: 'date',
+      dataIndex: 'neededByDate',
+      key: 'neededByDate',
       render: (text: string) => (
         <div>
           <div>{dayjs(text).format('MMM D, YYYY')}</div>
@@ -314,18 +311,18 @@ export default function MyBloodRequestsPage() {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (text: string, record: any) => (
+      render: (text: string, record: BloodRequestDetail) => (
         <div>
           {getStatusTag(text)}
-          <Progress 
-            percent={record.progress} 
-            size="small" 
-            status={record.status === 'fulfilled' ? 'success' : 'active'} 
+          <Progress
+            percent={calculateProgress(record)}
+            size="small"
+            status={record.status.toLowerCase() === 'fulfilled' || record.status.toLowerCase() === 'completed' ? 'success' : 'active'}
             className="mt-2"
           />
           <div className="text-xs text-gray-500 mt-1">
             <TeamOutlined className="mr-1" />
-            {record.donorsCompleted}/{record.quantity} units collected
+            {record.quantityUnits} units requested
           </div>
         </div>
       ),
@@ -333,20 +330,20 @@ export default function MyBloodRequestsPage() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: any) => (
+      render: (_: any, record: BloodRequestDetail) => (
         <Space>
-          <Button 
-            type="primary" 
-            size="small" 
-            icon={<FileTextOutlined />} 
+          <Button
+            type="primary"
+            size="small"
+            icon={<FileTextOutlined />}
             onClick={() => showDetailsModal(record)}
             className="bg-blue-600 hover:bg-blue-700"
           >
             Details
           </Button>
-          {record.status !== 'fulfilled' && (
-            <Dropdown 
-              menu={{ 
+          {record.status.toLowerCase() === 'pending' && (
+            <Dropdown
+              menu={{
                 items: [
                   {
                     key: '1',
@@ -355,20 +352,14 @@ export default function MyBloodRequestsPage() {
                     onClick: () => router.push(`/member/emergency-request/edit/${record.id}`),
                   },
                   {
-                    key: '2',
-                    icon: <TeamOutlined />,
-                    label: 'View Donors',
-                    onClick: () => showDonorsModal(record),
-                  },
-                  {
                     key: '3',
                     icon: <CloseCircleOutlined />,
                     label: 'Cancel Request',
                     danger: true,
-                    onClick: () => showCancelConfirm(record.id),
+                    onClick: () => showCancelModal(record),
                   },
                 ]
-              }} 
+              }}
               placement="bottomRight"
             >
               <Button icon={<MoreOutlined />} size="small" />
@@ -384,111 +375,16 @@ export default function MyBloodRequestsPage() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: any) => (
+      render: (_: any, record: BloodRequestDetail) => (
         <Space>
-          <Button 
-            type="primary" 
-            size="small" 
-            icon={<FileTextOutlined />} 
+          <Button
+            type="primary"
+            size="small"
+            icon={<FileTextOutlined />}
             onClick={() => showDetailsModal(record)}
             className="bg-blue-600 hover:bg-blue-700"
           >
             Details
-          </Button>
-          <Button 
-            type="default" 
-            size="small" 
-            icon={<TeamOutlined />} 
-            onClick={() => showDonorsModal(record)}
-          >
-            Donors
-          </Button>
-        </Space>
-      ),
-    },
-  ];
-
-  // Donor list columns for the donors modal
-  const donorColumns = [
-    {
-      title: 'Donor',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string, record: any) => (
-        <div className="flex items-center">
-          <UserOutlined className="mr-2" />
-          <span>{text}</span>
-        </div>
-      ),
-    },
-    {
-      title: 'Blood Type',
-      dataIndex: 'bloodType',
-      key: 'bloodType',
-      render: (text: string) => (
-        <Tag color="red">{text}</Tag>
-      ),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (text: string) => {
-        let icon, color;
-        switch (text) {
-          case 'completed':
-            icon = <CheckCircleOutlined />;
-            color = 'success';
-            break;
-          case 'scheduled':
-            icon = <ClockCircleOutlined />;
-            color = 'processing';
-            break;
-          case 'cancelled':
-            icon = <CloseCircleOutlined />;
-            color = 'error';
-            break;
-          default:
-            icon = <ClockCircleOutlined />;
-            color = 'default';
-        }
-        
-        return (
-          <Tag icon={icon} color={color}>
-            {text.charAt(0).toUpperCase() + text.slice(1)}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: 'Date',
-      dataIndex: 'date',
-      key: 'date',
-      render: (text: string) => (
-        dayjs(text).format('MMM D, YYYY')
-      ),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_: any, record: any) => (
-        <Space>
-          {record.status === 'completed' && (
-            <Button 
-              type="primary" 
-              size="small" 
-              icon={<LikeOutlined />}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              Thank
-            </Button>
-          )}
-          <Button 
-            type="default" 
-            size="small" 
-            icon={<MessageOutlined />}
-          >
-            Contact
           </Button>
         </Space>
       ),
@@ -505,22 +401,34 @@ export default function MyBloodRequestsPage() {
           <span className="ml-2">Active Requests</span>
         </span>
       ),
-      children: activeRequests.length > 0 ? (
-        <Table 
-          dataSource={activeRequests} 
-          columns={activeColumns} 
-          rowKey="id" 
+      children: fetchingRequests ? (
+        <div className="text-center py-12">
+          <Spin size="large" />
+          <div className="mt-4">Loading your blood requests...</div>
+        </div>
+      ) : fetchError ? (
+        <Alert
+          message="Error Loading Requests"
+          description={fetchError}
+          type="error"
+          showIcon
+        />
+      ) : activeRequests.length > 0 ? (
+        <Table
+          dataSource={activeRequests}
+          columns={activeColumns}
+          rowKey="id"
           pagination={false}
           className="shadow-sm"
         />
       ) : (
-        <Empty 
-          description="No active blood requests" 
+        <Empty
+          description="No active blood requests"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
           <Link href="/member/emergency-request">
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               className="bg-red-600 hover:bg-red-700 mt-4"
             >
               Create New Request
@@ -537,17 +445,29 @@ export default function MyBloodRequestsPage() {
           <span className="ml-2">Completed</span>
         </span>
       ),
-      children: completedRequests.length > 0 ? (
-        <Table 
-          dataSource={completedRequests} 
-          columns={completedColumns} 
-          rowKey="id" 
+      children: fetchingRequests ? (
+        <div className="text-center py-12">
+          <Spin size="large" />
+          <div className="mt-4">Loading your blood requests...</div>
+        </div>
+      ) : fetchError ? (
+        <Alert
+          message="Error Loading Requests"
+          description={fetchError}
+          type="error"
+          showIcon
+        />
+      ) : completedRequests.length > 0 ? (
+        <Table
+          dataSource={completedRequests}
+          columns={completedColumns}
+          rowKey="id"
           pagination={false}
           className="shadow-sm"
         />
       ) : (
-        <Empty 
-          description="No completed blood requests" 
+        <Empty
+          description="No completed blood requests"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       )
@@ -577,11 +497,11 @@ export default function MyBloodRequestsPage() {
               Manage blood requests for yourself, family members, or friends
             </Paragraph>
           </div>
-          
+
           <Link href="/member/emergency-request">
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />} 
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
               size="large"
               className="bg-red-600 hover:bg-red-700 mt-4 md:mt-0"
             >
@@ -590,8 +510,8 @@ export default function MyBloodRequestsPage() {
           </Link>
         </div>
 
-        <Tabs 
-          activeKey={activeTab} 
+        <Tabs
+          activeKey={activeTab}
           onChange={(key) => setActiveTab(key)}
           type="card"
           items={tabItems}
@@ -611,11 +531,11 @@ export default function MyBloodRequestsPage() {
             <Button key="close" onClick={closeDetailsModal}>
               Close
             </Button>,
-            selectedRequest && selectedRequest.status !== 'fulfilled' && selectedRequest.status !== 'cancelled' && (
-              <Button 
-                key="edit" 
-                type="primary" 
-                icon={<EditOutlined />} 
+            selectedRequest && selectedRequest.status.toLowerCase() === 'pending' && (
+              <Button
+                key="edit"
+                type="primary"
+                icon={<EditOutlined />}
                 onClick={() => {
                   closeDetailsModal();
                   router.push(`/member/emergency-request/edit/${selectedRequest.id}`);
@@ -632,34 +552,38 @@ export default function MyBloodRequestsPage() {
             <div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <Card className="shadow-sm">
-                  <Statistic 
-                    title="Status" 
-                    value={selectedRequest.status.charAt(0).toUpperCase() + selectedRequest.status.slice(1)} 
-                    valueStyle={{ color: selectedRequest.status === 'fulfilled' ? '#52c41a' : selectedRequest.status === 'cancelled' ? '#ff4d4f' : '#1890ff' }}
+                  <Statistic
+                    title="Status"
+                    value={selectedRequest.status.charAt(0).toUpperCase() + selectedRequest.status.slice(1)}
+                    valueStyle={{
+                      color: selectedRequest.status.toLowerCase() === 'fulfilled' || selectedRequest.status.toLowerCase() === 'completed' ? '#52c41a' :
+                        selectedRequest.status.toLowerCase() === 'cancelled' ? '#ff4d4f' :
+                          '#1890ff'
+                    }}
                     prefix={
-                      selectedRequest.status === 'fulfilled' ? <CheckCircleOutlined /> : 
-                      selectedRequest.status === 'cancelled' ? <CloseCircleOutlined /> : 
-                      <ClockCircleOutlined />
+                      selectedRequest.status.toLowerCase() === 'fulfilled' || selectedRequest.status.toLowerCase() === 'completed' ? <CheckCircleOutlined /> :
+                        selectedRequest.status.toLowerCase() === 'cancelled' ? <CloseCircleOutlined /> :
+                          <ClockCircleOutlined />
                     }
                   />
                 </Card>
                 <Card className="shadow-sm">
-                  <Statistic 
-                    title="Blood Type Needed" 
-                    value={selectedRequest.bloodType} 
+                  <Statistic
+                    title="Blood Type Needed"
+                    value={selectedRequest.bloodGroupName}
                     valueStyle={{ color: '#ff4d4f' }}
                     prefix={<HeartOutlined />}
                   />
                 </Card>
                 <Card className="shadow-sm">
-                  <Statistic 
-                    title="Progress" 
-                    value={`${selectedRequest.donorsCompleted}/${selectedRequest.quantity} units`} 
+                  <Statistic
+                    title="Quantity"
+                    value={`${selectedRequest.quantityUnits} units`}
                     prefix={<TeamOutlined />}
                   />
-                  <Progress 
-                    percent={selectedRequest.progress} 
-                    status={selectedRequest.status === 'fulfilled' ? 'success' : 'active'} 
+                  <Progress
+                    percent={calculateProgress(selectedRequest)}
+                    status={selectedRequest.status.toLowerCase() === 'fulfilled' || selectedRequest.status.toLowerCase() === 'completed' ? 'success' : 'active'}
                     className="mt-2"
                   />
                 </Card>
@@ -667,24 +591,27 @@ export default function MyBloodRequestsPage() {
 
               <Descriptions title="Request Information" bordered column={{ xxl: 3, xl: 3, lg: 3, md: 2, sm: 1, xs: 1 }}>
                 <Descriptions.Item label="Patient">{selectedRequest.patientName}</Descriptions.Item>
-                <Descriptions.Item label="Components Needed">{selectedRequest.requiredComponents.join(', ')}</Descriptions.Item>
-                <Descriptions.Item label="Urgency">{getUrgencyTag(selectedRequest.urgency)}</Descriptions.Item>
-                <Descriptions.Item label="Reason">{selectedRequest.reason}</Descriptions.Item>
-                <Descriptions.Item label="Date Needed">{dayjs(selectedRequest.date).format('MMMM D, YYYY')}</Descriptions.Item>
-                <Descriptions.Item label="Created">{dayjs(selectedRequest.updates[0].time).format('MMMM D, YYYY')}</Descriptions.Item>
-                <Descriptions.Item label="Hospital" span={2}>{selectedRequest.hospital}</Descriptions.Item>
-                <Descriptions.Item label="Address" span={2}>{selectedRequest.hospitalAddress}</Descriptions.Item>
+                <Descriptions.Item label="Component Needed">{selectedRequest.componentTypeName}</Descriptions.Item>
+                <Descriptions.Item label="Urgency">{getUrgencyTag(selectedRequest.urgencyLevel)}</Descriptions.Item>
+                <Descriptions.Item label="Type">{selectedRequest.isEmergency ? 'Emergency' : 'Regular'}</Descriptions.Item>
+                <Descriptions.Item label="Date Needed">{dayjs(selectedRequest.neededByDate).format('MMMM D, YYYY')}</Descriptions.Item>
+                <Descriptions.Item label="Created">{dayjs(selectedRequest.createdTime).format('MMMM D, YYYY')}</Descriptions.Item>
+                <Descriptions.Item label="Hospital" span={2}>{selectedRequest.hospitalName}</Descriptions.Item>
+                <Descriptions.Item label="Address" span={2}>{selectedRequest.address}</Descriptions.Item>
+                {selectedRequest.medicalNotes && (
+                  <Descriptions.Item label="Medical Notes" span={3}>{selectedRequest.medicalNotes}</Descriptions.Item>
+                )}
               </Descriptions>
 
               <div className="mt-6">
-                <Collapse defaultActiveKey={['1', '2']}>
+                <Collapse defaultActiveKey={['1']}>
                   <Panel header="Request Progress" key="1">
-                    <Steps 
+                    <Steps
                       current={getStatusSteps(selectedRequest).findIndex(step => step.status === 'process')}
                       status={
-                        selectedRequest.status === 'cancelled' ? 'error' : 
-                        getStatusSteps(selectedRequest).some(step => step.status === 'process') ? 'process' : 
-                        getStatusSteps(selectedRequest).every(step => step.status === 'finish') ? 'finish' : 'wait'
+                        selectedRequest.status.toLowerCase() === 'cancelled' ? 'error' :
+                          getStatusSteps(selectedRequest).some(step => step.status === 'process') ? 'process' :
+                            getStatusSteps(selectedRequest).every(step => step.status === 'finish') ? 'finish' : 'wait'
                       }
                       direction="horizontal"
                       size="small"
@@ -695,45 +622,17 @@ export default function MyBloodRequestsPage() {
                       ))}
                     </Steps>
                   </Panel>
-                  
-                  <Panel header="Activity Timeline" key="2">
-                    <Timeline className="mt-4">
-                      {selectedRequest.updates.map((update: any, index: number) => (
-                        <Timeline.Item key={index} color={index === 0 ? 'green' : 'blue'}>
-                          <p>{update.message}</p>
-                          <p className="text-xs text-gray-500">{dayjs(update.time).format('MMM D, YYYY h:mm A')}</p>
-                        </Timeline.Item>
-                      ))}
-                    </Timeline>
-                  </Panel>
-                  
-                  {selectedRequest.notes && (
-                    <Panel header="Additional Notes" key="3">
-                      <Paragraph>{selectedRequest.notes}</Paragraph>
-                    </Panel>
-                  )}
                 </Collapse>
               </div>
 
               <div className="mt-6 flex justify-between">
-                <Button 
-                  type="default" 
-                  icon={<TeamOutlined />}
-                  onClick={() => {
-                    closeDetailsModal();
-                    showDonorsModal(selectedRequest);
-                  }}
-                >
-                  View Donors ({selectedRequest.donors.length})
-                </Button>
-                
-                {selectedRequest.status !== 'fulfilled' && selectedRequest.status !== 'cancelled' && (
-                  <Button 
-                    danger 
+                {selectedRequest.status.toLowerCase() === 'pending' && (
+                  <Button
+                    danger
                     icon={<CloseCircleOutlined />}
                     onClick={() => {
                       closeDetailsModal();
-                      showCancelConfirm(selectedRequest.id);
+                      showCancelModal(selectedRequest);
                     }}
                   >
                     Cancel Request
@@ -744,67 +643,48 @@ export default function MyBloodRequestsPage() {
           )}
         </Modal>
 
-        {/* Donors Modal */}
+        {/* Cancel Request Modal */}
         <Modal
           title={
-            <div className="flex items-center">
-              <TeamOutlined className="mr-2" />
-              <span>Donors for Request #{selectedRequest?.id}</span>
+            <div className="flex items-center text-red-500">
+              <CloseCircleOutlined className="mr-2" />
+              <span>Cancel Blood Request</span>
             </div>
           }
-          open={donorsModalVisible}
-          onCancel={closeDonorsModal}
+          open={cancelModalVisible}
+          onCancel={closeCancelModal}
           footer={[
-            <Button key="close" onClick={closeDonorsModal}>
-              Close
-            </Button>
+            <Button key="back" onClick={closeCancelModal}>
+              No, Keep Request
+            </Button>,
+            <Button
+              key="submit"
+              type="primary"
+              danger
+              loading={cancelLoading}
+              onClick={handleCancelRequest}
+            >
+              Yes, Cancel Request
+            </Button>,
           ]}
-          width={800}
         >
-          {selectedRequest && (
-            <div>
-              <Alert 
-                message={
-                  <div className="flex items-center">
-                    <HeartOutlined className="text-red-500 mr-2" />
-                    <span>
-                      <strong>{selectedRequest.bloodType}</strong> {selectedRequest.requiredComponents.join(', ')} • 
-                      {selectedRequest.donorsCompleted}/{selectedRequest.quantity} units collected
-                    </span>
-                  </div>
-                }
-                type="info"
-                className="mb-4"
-              />
-              
-              {selectedRequest.donors.length > 0 ? (
-                <Table 
-                  dataSource={selectedRequest.donors} 
-                  columns={donorColumns} 
-                  rowKey="id" 
-                  pagination={false}
-                />
-              ) : (
-                <Empty description="No donors have been matched yet" />
-              )}
-              
-              {selectedRequest.status === 'pending' || selectedRequest.status === 'in-progress' ? (
-                <div className="mt-6">
-                  <Alert
-                    type="info"
-                    showIcon
-                    message="Finding More Donors"
-                    description={
-                      <div>
-                        <p>Our system is actively looking for more donors that match your requirements.</p>
-                        <p className="mt-2">You'll be notified when new donors are found.</p>
-                      </div>
-                    }
-                  />
-                </div>
-              ) : null}
-            </div>
-          )}
+          <Alert
+            message="Are you sure you want to cancel this blood request?"
+            description="This action cannot be undone. The request will be marked as cancelled and will no longer be active."
+            type="warning"
+            showIcon
+            className="mb-4"
+          />
+
+          <div className="mb-4">
+            <p className="mb-2 font-medium">Reason for cancellation (optional):</p>
+            <TextArea
+              rows={4}
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Please provide a reason for cancelling this request"
+            />
+          </div>
         </Modal>
       </div>
     </div>
