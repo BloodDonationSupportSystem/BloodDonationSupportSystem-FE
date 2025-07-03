@@ -25,7 +25,11 @@ import {
   Timeline,
   Collapse,
   Input,
-  message
+  message,
+  Form,
+  Select,
+  DatePicker,
+  InputNumber
 } from 'antd';
 import {
   PlusOutlined,
@@ -50,7 +54,10 @@ import {
 import Link from 'next/link';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { BloodRequestDetail, getUserBloodRequests, updateRequestStatus } from '@/services/api/bloodRequestService';
+import { BloodRequestDetail, getUserBloodRequests, updateRequestStatus, updateBloodRequest, UpdateBloodRequestRequest } from '@/services/api/bloodRequestService';
+import { useBloodGroups } from '@/hooks/api/useBloodGroups';
+import { useComponentTypes } from '@/hooks/api/useComponentTypes';
+import { useLocations } from '@/hooks/api/useLocations';
 
 dayjs.extend(relativeTime);
 
@@ -70,11 +77,19 @@ export default function MyBloodRequestsPage() {
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editForm] = Form.useForm();
+  const [editLoading, setEditLoading] = useState(false);
 
   // API data states
   const [bloodRequests, setBloodRequests] = useState<BloodRequestDetail[]>([]);
   const [fetchingRequests, setFetchingRequests] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Fetch blood groups, component types, and locations for edit form
+  const { bloodGroups, isLoading: bloodGroupsLoading } = useBloodGroups();
+  const { componentTypes, isLoading: componentTypesLoading } = useComponentTypes();
+  const { locations, isLoading: locationsLoading } = useLocations();
 
   // Redirect if not logged in
   useEffect(() => {
@@ -172,6 +187,75 @@ export default function MyBloodRequestsPage() {
       message.error('An error occurred while cancelling the request');
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  const showEditModal = (request: BloodRequestDetail) => {
+    setSelectedRequest(request);
+
+    // Set form values
+    editForm.setFieldsValue({
+      patientName: request.patientName,
+      quantityUnits: request.quantityUnits,
+      urgencyLevel: request.urgencyLevel,
+      neededByDate: dayjs(request.neededByDate),
+      bloodGroupId: request.bloodGroupId,
+      componentTypeId: request.componentTypeId,
+      locationId: request.locationId,
+      hospitalName: request.hospitalName,
+      contactInfo: request.contactInfo,
+      address: request.address,
+      medicalNotes: request.medicalNotes || '',
+      isEmergency: request.isEmergency
+    });
+
+    setEditModalVisible(true);
+  };
+
+  const closeEditModal = () => {
+    setEditModalVisible(false);
+    editForm.resetFields();
+  };
+
+  const handleEditRequest = async (values: any) => {
+    if (!selectedRequest) return;
+
+    setEditLoading(true);
+
+    try {
+      const updateData: UpdateBloodRequestRequest = {
+        ...values,
+        neededByDate: values.neededByDate.toISOString()
+      };
+
+      const response = await updateBloodRequest(selectedRequest.id, updateData);
+
+      if (response.success) {
+        message.success('Blood request updated successfully');
+
+        // Update the request in the local state
+        const updatedRequest = { ...selectedRequest, ...updateData };
+        setBloodRequests(prev =>
+          prev.map(req => req.id === selectedRequest.id ? updatedRequest : req)
+        );
+
+        closeEditModal();
+
+        // Refresh the requests list
+        if (user) {
+          const refreshResponse = await getUserBloodRequests(user.id);
+          if (refreshResponse.success && refreshResponse.data) {
+            setBloodRequests(refreshResponse.data);
+          }
+        }
+      } else {
+        message.error(response.message || 'Failed to update request');
+      }
+    } catch (error) {
+      console.error('Error updating request:', error);
+      message.error('An error occurred while updating the request');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -349,7 +433,7 @@ export default function MyBloodRequestsPage() {
                     key: '1',
                     icon: <EditOutlined />,
                     label: 'Edit Request',
-                    onClick: () => router.push(`/member/emergency-request/edit/${record.id}`),
+                    onClick: () => showEditModal(record),
                   },
                   {
                     key: '3',
@@ -538,7 +622,7 @@ export default function MyBloodRequestsPage() {
                 icon={<EditOutlined />}
                 onClick={() => {
                   closeDetailsModal();
-                  router.push(`/member/emergency-request/edit/${selectedRequest.id}`);
+                  showEditModal(selectedRequest);
                 }}
                 className="bg-blue-600 hover:bg-blue-700"
               >
@@ -686,7 +770,168 @@ export default function MyBloodRequestsPage() {
             />
           </div>
         </Modal>
+
+        {/* Edit Request Modal */}
+        <Modal
+          title={
+            <div className="flex items-center">
+              <EditOutlined className="text-blue-500 mr-2" />
+              <span>Edit Blood Request</span>
+            </div>
+          }
+          open={editModalVisible}
+          onCancel={closeEditModal}
+          footer={null}
+          width={800}
+        >
+          <Form
+            form={editForm}
+            layout="vertical"
+            onFinish={handleEditRequest}
+            initialValues={{
+              urgencyLevel: 'Medium',
+              isEmergency: false
+            }}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Form.Item
+                name="patientName"
+                label="Patient Name"
+                rules={[{ required: true, message: 'Please enter patient name' }]}
+              >
+                <Input placeholder="Enter patient name" />
+              </Form.Item>
+
+              <Form.Item
+                name="quantityUnits"
+                label="Quantity (Units)"
+                rules={[{ required: true, message: 'Please enter quantity' }]}
+              >
+                <InputNumber min={1} max={10} style={{ width: '100%' }} placeholder="Enter quantity" />
+              </Form.Item>
+
+              <Form.Item
+                name="urgencyLevel"
+                label="Urgency Level"
+                rules={[{ required: true, message: 'Please select urgency level' }]}
+              >
+                <Select placeholder="Select urgency level">
+                  <Select.Option value="Critical">Critical</Select.Option>
+                  <Select.Option value="High">High</Select.Option>
+                  <Select.Option value="Medium">Medium</Select.Option>
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                name="neededByDate"
+                label="Needed By Date"
+                rules={[{ required: true, message: 'Please select needed by date' }]}
+              >
+                <DatePicker
+                  style={{ width: '100%' }}
+                  disabledDate={(current) => current && current < dayjs().startOf('day')}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="bloodGroupId"
+                label="Blood Group"
+                rules={[{ required: true, message: 'Please select blood group' }]}
+              >
+                <Select placeholder="Select blood group" loading={bloodGroupsLoading}>
+                  {bloodGroups.map(group => (
+                    <Select.Option key={group.id} value={group.id}>
+                      {group.groupName}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                name="componentTypeId"
+                label="Component Type"
+                rules={[{ required: true, message: 'Please select component type' }]}
+              >
+                <Select placeholder="Select component type" loading={componentTypesLoading}>
+                  {componentTypes.map(type => (
+                    <Select.Option key={type.id} value={type.id}>
+                      {type.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                name="locationId"
+                label="Location"
+                rules={[{ required: true, message: 'Please select location' }]}
+              >
+                <Select placeholder="Select location" loading={locationsLoading}>
+                  {locations.map(location => (
+                    <Select.Option key={location.id} value={location.id}>
+                      {location.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                name="hospitalName"
+                label="Hospital Name"
+                rules={[{ required: true, message: 'Please enter hospital name' }]}
+              >
+                <Input placeholder="Enter hospital name" />
+              </Form.Item>
+
+              <Form.Item
+                name="contactInfo"
+                label="Contact Information"
+                rules={[{ required: true, message: 'Please enter contact information' }]}
+              >
+                <Input placeholder="Enter contact information" />
+              </Form.Item>
+
+              <Form.Item
+                name="address"
+                label="Address"
+                rules={[{ required: true, message: 'Please enter address' }]}
+              >
+                <Input placeholder="Enter address" />
+              </Form.Item>
+
+              <Form.Item
+                name="medicalNotes"
+                label="Medical Notes"
+                className="col-span-1 md:col-span-2"
+              >
+                <TextArea rows={4} placeholder="Enter any relevant medical notes" />
+              </Form.Item>
+
+              <Form.Item
+                name="isEmergency"
+                valuePropName="checked"
+                className="col-span-1 md:col-span-2"
+              >
+                <Alert
+                  message="This is an emergency request"
+                  description="Emergency requests are prioritized and will be processed immediately."
+                  type="warning"
+                  showIcon
+                />
+              </Form.Item>
+            </div>
+
+            <div className="flex justify-end mt-4">
+              <Button onClick={closeEditModal} className="mr-2">
+                Cancel
+              </Button>
+              <Button type="primary" htmlType="submit" loading={editLoading} className="bg-blue-600 hover:bg-blue-700">
+                Update Request
+              </Button>
+            </div>
+          </Form>
+        </Modal>
       </div>
     </div>
   );
-} 
+}

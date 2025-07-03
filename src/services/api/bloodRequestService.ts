@@ -335,4 +335,39 @@ export const updateRequestStatus = async (requestId: string, statusData: UpdateS
         console.error('Error updating blood request status:', error);
         throw error;
     }
+};
+
+// Update blood request
+export interface UpdateBloodRequestRequest {
+    quantityUnits?: number;
+    status?: string;
+    isEmergency?: boolean;
+    neededByDate?: string;
+    patientName?: string;
+    urgencyLevel?: string;
+    contactInfo?: string;
+    hospitalName?: string;
+    bloodGroupId?: string;
+    componentTypeId?: string;
+    locationId?: string;
+    address?: string;
+    latitude?: string;
+    longitude?: string;
+    medicalNotes?: string;
+    isActive?: boolean;
+}
+
+export const updateBloodRequest = async (requestId: string, requestData: UpdateBloodRequestRequest): Promise<ApiResponse<any>> => {
+    try {
+        console.log(`Updating blood request ${requestId}:`, requestData);
+        const response = await apiClient.put<ApiResponse<any>>(`/BloodRequests/${requestId}`, requestData);
+        console.log('Update blood request response:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error updating blood request:', error);
+        if (axios.isAxiosError(error)) {
+            console.error('API error details:', error.response?.data);
+        }
+        throw error;
+    }
 }; 
