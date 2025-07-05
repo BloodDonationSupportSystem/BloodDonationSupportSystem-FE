@@ -350,15 +350,15 @@ export default function StaffDonationEventsPage() {
             sorter: true,
             sortOrder: sortedInfo.columnKey === 'donorName' && sortedInfo.order,
             render: (text: string, record: DonationEvent) => (
-                <div>
-                    <div className="font-medium">{text || 'Unknown'}</div>
+                <div className="max-w-[200px]">
+                    <div className="font-medium truncate" title={text || 'Unknown'}>{text || 'Unknown'}</div>
                     {record.donorEmail && (
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 truncate" title={record.donorEmail}>
                             <span className="mr-1">Email:</span>{record.donorEmail}
                         </div>
                     )}
                     {record.donorPhone && (
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 truncate" title={record.donorPhone}>
                             <span className="mr-1">SĐT:</span>{record.donorPhone}
                         </div>
                     )}
@@ -394,10 +394,12 @@ export default function StaffDonationEventsPage() {
             dataIndex: 'locationName',
             key: 'locationName',
             render: (text: string, record: DonationEvent) => (
-                <div>
-                    <div>{text}</div>
+                <div className="max-w-[200px]">
+                    <div className="truncate">{text}</div>
                     {record.locationAddress && (
-                        <div className="text-xs text-gray-500">{record.locationAddress}</div>
+                        <div className="text-xs text-gray-500 truncate" title={record.locationAddress}>
+                            {record.locationAddress}
+                        </div>
                     )}
                 </div>
             ),
@@ -463,6 +465,22 @@ export default function StaffDonationEventsPage() {
 
     return (
         <StaffLayout title="Donation Events" breadcrumbItems={[{ title: 'Donation Events' }]}>
+            <style jsx global>{`
+                .responsive-descriptions .ant-descriptions-item-label, 
+                .responsive-descriptions .ant-descriptions-item-content {
+                    word-break: break-word;
+                    white-space: normal;
+                }
+                .ant-table-cell {
+                    white-space: normal;
+                    word-break: break-word;
+                }
+                .ant-table-cell .truncate {
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+            `}</style>
             <div className="mb-6">
                 <div className="flex justify-between items-center mb-4">
                     <div>
@@ -552,6 +570,8 @@ export default function StaffDonationEventsPage() {
                             showSizeChanger: true,
                             showTotal: (total) => `Total ${total} items`,
                         }}
+                        scroll={{ x: 'max-content' }}
+                        className="overflow-x-auto"
                     />
                 )}
             </div>
@@ -567,6 +587,7 @@ export default function StaffDonationEventsPage() {
                     </Button>
                 ]}
                 width={800}
+                bodyStyle={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}
             >
                 {loadingEventDetail ? (
                     <div className="flex justify-center items-center py-10">
@@ -575,7 +596,12 @@ export default function StaffDonationEventsPage() {
                 ) : selectedEvent ? (
                     <div>
                         <Card className="mb-4">
-                            <Descriptions title="Thông tin người hiến máu" bordered column={2}>
+                            <Descriptions
+                                title="Thông tin người hiến máu"
+                                bordered
+                                column={{ xxl: 2, xl: 2, lg: 2, md: 2, sm: 1, xs: 1 }}
+                                className="responsive-descriptions"
+                            >
                                 <Descriptions.Item label="Họ tên" span={2}>
                                     <strong>{selectedEvent.donorName || 'Không xác định'}</strong>
                                 </Descriptions.Item>
@@ -598,7 +624,12 @@ export default function StaffDonationEventsPage() {
                         </Card>
 
                         <Card className="mb-4">
-                            <Descriptions title="Thông tin sự kiện hiến máu" bordered column={2}>
+                            <Descriptions
+                                title="Thông tin sự kiện hiến máu"
+                                bordered
+                                column={{ xxl: 2, xl: 2, lg: 2, md: 2, sm: 1, xs: 1 }}
+                                className="responsive-descriptions"
+                            >
                                 <Descriptions.Item label="Mã sự kiện" span={2}>
                                     {selectedEvent.id}
                                 </Descriptions.Item>
@@ -661,7 +692,12 @@ export default function StaffDonationEventsPage() {
 
                         {(selectedEvent.bloodPressure || selectedEvent.temperature || selectedEvent.hemoglobinLevel || selectedEvent.weight || selectedEvent.height) && (
                             <Card className="mb-4">
-                                <Descriptions title="Thông tin kiểm tra sức khỏe" bordered column={2}>
+                                <Descriptions
+                                    title="Thông tin kiểm tra sức khỏe"
+                                    bordered
+                                    column={{ xxl: 2, xl: 2, lg: 2, md: 2, sm: 1, xs: 1 }}
+                                    className="responsive-descriptions"
+                                >
                                     {selectedEvent.bloodPressure && (
                                         <Descriptions.Item label="Huyết áp">
                                             {selectedEvent.bloodPressure}
@@ -698,7 +734,12 @@ export default function StaffDonationEventsPage() {
 
                         {(selectedEvent.donationDate || selectedEvent.quantityDonated) && (
                             <Card className="mb-4">
-                                <Descriptions title="Thông tin hiến máu" bordered column={2}>
+                                <Descriptions
+                                    title="Thông tin hiến máu"
+                                    bordered
+                                    column={{ xxl: 2, xl: 2, lg: 2, md: 2, sm: 1, xs: 1 }}
+                                    className="responsive-descriptions"
+                                >
                                     {selectedEvent.donationDate && (
                                         <Descriptions.Item label="Ngày hiến máu">
                                             {dayjs(selectedEvent.donationDate).format('DD/MM/YYYY HH:mm')}
@@ -722,7 +763,12 @@ export default function StaffDonationEventsPage() {
 
                         {(selectedEvent.complicationType || selectedEvent.complicationDetails) && (
                             <Card>
-                                <Descriptions title="Thông tin biến chứng" bordered column={1}>
+                                <Descriptions
+                                    title="Thông tin biến chứng"
+                                    bordered
+                                    column={{ xxl: 1, xl: 1, lg: 1, md: 1, sm: 1, xs: 1 }}
+                                    className="responsive-descriptions"
+                                >
                                     {selectedEvent.complicationType && (
                                         <Descriptions.Item label="Loại biến chứng">
                                             {selectedEvent.complicationType}
@@ -754,6 +800,7 @@ export default function StaffDonationEventsPage() {
                 onCancel={() => setIsWalkInModalVisible(false)}
                 footer={null}
                 width={800}
+                bodyStyle={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}
             >
                 <Spin spinning={loadingInitialData || creatingWalkIn}>
                     <Form
@@ -945,6 +992,7 @@ export default function StaffDonationEventsPage() {
                         Start Donation Process
                     </Button>
                 ]}
+                bodyStyle={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}
             >
                 <Spin spinning={processingDonation}>
                     {selectedEvent && (
@@ -952,7 +1000,12 @@ export default function StaffDonationEventsPage() {
                             <p className="mb-4">
                                 You are about to start the donation process for:
                             </p>
-                            <Descriptions bordered column={1} size="small">
+                            <Descriptions
+                                bordered
+                                column={{ xxl: 1, xl: 1, lg: 1, md: 1, sm: 1, xs: 1 }}
+                                size="small"
+                                className="responsive-descriptions"
+                            >
                                 <Descriptions.Item label="Donor Name">
                                     <strong>{selectedEvent.donorName || 'Unknown'}</strong>
                                 </Descriptions.Item>

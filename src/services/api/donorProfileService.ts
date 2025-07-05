@@ -268,4 +268,94 @@ export const checkCurrentUserHasProfile = async (): Promise<boolean> => {
     console.error('Error checking if user has profile:', error);
     return false;
   }
+};
+
+/**
+ * Gets nearby available donors for regular blood requests
+ */
+export const getNearbyAvailableDonors = async (
+  latitude: string,
+  longitude: string,
+  bloodGroupId?: string,
+  radiusKm: number = 50,
+  isAvailable: boolean = true,
+  isAvailableNow: boolean = true
+): Promise<ApiResponse<DonorProfile[]>> => {
+  try {
+    const queryParams = new URLSearchParams();
+
+    // Required parameters
+    queryParams.append('Latitude', latitude);
+    queryParams.append('Longitude', longitude);
+    queryParams.append('RadiusKm', radiusKm.toString());
+
+    // Optional parameters
+    if (bloodGroupId) {
+      queryParams.append('BloodGroupId', bloodGroupId);
+    }
+
+    if (isAvailable !== undefined) {
+      queryParams.append('IsAvailable', isAvailable.toString());
+    }
+
+    if (isAvailableNow !== undefined) {
+      queryParams.append('IsAvailableNow', isAvailableNow.toString());
+    }
+
+    const response = await apiClient.get<ApiResponse<DonorProfile[]>>(
+      `/DonorProfiles/nearby/available?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching nearby available donors:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as ApiResponse<DonorProfile[]>;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Gets nearby emergency donors for emergency blood requests
+ */
+export const getNearbyEmergencyDonors = async (
+  latitude: string,
+  longitude: string,
+  bloodGroupId?: string,
+  radiusKm: number = 50,
+  isAvailable: boolean = true,
+  isAvailableForEmergency: boolean = true
+): Promise<ApiResponse<DonorProfile[]>> => {
+  try {
+    const queryParams = new URLSearchParams();
+
+    // Required parameters
+    queryParams.append('Latitude', latitude);
+    queryParams.append('Longitude', longitude);
+    queryParams.append('RadiusKm', radiusKm.toString());
+
+    // Optional parameters
+    if (bloodGroupId) {
+      queryParams.append('BloodGroupId', bloodGroupId);
+    }
+
+    if (isAvailable !== undefined) {
+      queryParams.append('IsAvailable', isAvailable.toString());
+    }
+
+    if (isAvailableForEmergency !== undefined) {
+      queryParams.append('IsAvailableForEmergency', isAvailableForEmergency.toString());
+    }
+
+    const response = await apiClient.get<ApiResponse<DonorProfile[]>>(
+      `/DonorProfiles/nearby/emergency?${queryParams.toString()}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching nearby emergency donors:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as ApiResponse<DonorProfile[]>;
+    }
+    throw error;
+  }
 }; 

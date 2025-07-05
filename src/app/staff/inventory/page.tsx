@@ -82,16 +82,38 @@ export default function StaffInventoryPage() {
         }
 
         // Apply tab-based filters
-        if (activeTab === 'expired') {
-            params.isExpired = true;
-            params.isExpiringSoon = false;
-        } else if (activeTab === 'expiring') {
-            params.isExpired = false;
-            params.isExpiringSoon = true;
-        } else {
-            // All tab - clear these specific filters
-            params.isExpired = false;
-            params.isExpiringSoon = false;
+        switch (activeTab) {
+            case 'expired':
+                params.isExpired = true;
+                params.isExpiringSoon = false;
+                params.status = undefined;
+                break;
+            case 'expiring':
+                params.isExpired = false;
+                params.isExpiringSoon = true;
+                params.status = undefined;
+                break;
+            case 'available':
+                params.isExpired = false;
+                params.isExpiringSoon = false;
+                params.status = 'Available';
+                break;
+            case 'used':
+                params.isExpired = false;
+                params.isExpiringSoon = false;
+                params.status = 'Used';
+                break;
+            case 'dispatched':
+                params.isExpired = false;
+                params.isExpiringSoon = false;
+                params.status = 'Dispatched';
+                break;
+            default:
+                // All tab - clear all specific filters
+                params.isExpired = false;
+                params.isExpiringSoon = false;
+                params.status = undefined;
+                break;
         }
 
         fetchInventories(params);
@@ -109,6 +131,12 @@ export default function StaffInventoryPage() {
 
         // Update the active tab
         setActiveTab(key);
+
+        // Clear other filters when changing tabs to avoid conflicting filters
+        setBloodGroupFilter(null);
+        setComponentTypeFilter(null);
+        setExpirationDateRange(null);
+        setSearchText('');
     };
 
     // Handle table change
@@ -129,12 +157,32 @@ export default function StaffInventoryPage() {
         // Reset pagination
         pagination.current = 1;
 
-        fetchInventories({
+        // Prepare params based on active tab
+        const params: BloodInventoryParams = {
             pageNumber: 1,
-            pageSize: pagination.pageSize,
-            isExpired: activeTab === 'expired',
-            isExpiringSoon: activeTab === 'expiring'
-        });
+            pageSize: pagination.pageSize
+        };
+
+        // Maintain the active tab's filter
+        switch (activeTab) {
+            case 'expired':
+                params.isExpired = true;
+                break;
+            case 'expiring':
+                params.isExpiringSoon = true;
+                break;
+            case 'available':
+                params.status = 'Available';
+                break;
+            case 'used':
+                params.status = 'Used';
+                break;
+            case 'dispatched':
+                params.status = 'Dispatched';
+                break;
+        }
+
+        fetchInventories(params);
     };
 
     // Check if a blood unit is expiring soon (within 7 days)
@@ -166,40 +214,56 @@ export default function StaffInventoryPage() {
 
     // Group inventories by blood group and component type for visualization
     const groupedInventories = React.useMemo(() => {
-        const grouped: Record<string, Record<string, { quantity: number, expiring: boolean, expired: boolean, actualQuantity: number }>> = {};
+        // Changed to track status separately
+        const grouped: Record<string, Record<string, Record<string, {
+            quantity: number,
+            expiring: boolean,
+            expired: boolean,
+            actualQuantity: number,
+            status: string
+        }>>> = {};
 
         inventories.forEach(inventory => {
             const bloodGroup = inventory.bloodGroupName || 'Unknown';
             const componentType = inventory.componentTypeName || 'Unknown';
+            const status = inventory.status || 'Available';
 
             if (!grouped[bloodGroup]) {
                 grouped[bloodGroup] = {};
             }
 
             if (!grouped[bloodGroup][componentType]) {
-                grouped[bloodGroup][componentType] = {
+                grouped[bloodGroup][componentType] = {};
+            }
+
+            if (!grouped[bloodGroup][componentType][status]) {
+                grouped[bloodGroup][componentType][status] = {
                     quantity: 0,
                     expiring: false,
                     expired: false,
-                    actualQuantity: 0
+                    actualQuantity: 0,
+                    status: status
                 };
             }
 
-            grouped[bloodGroup][componentType].quantity += inventory.quantityUnits;
+            grouped[bloodGroup][componentType][status].quantity += inventory.quantityUnits;
 
             // Use actual donated quantity if available
             if (inventory.donationEvent?.quantityDonated) {
-                grouped[bloodGroup][componentType].actualQuantity += inventory.donationEvent.quantityDonated;
+                grouped[bloodGroup][componentType][status].actualQuantity += inventory.donationEvent.quantityDonated;
             } else {
                 // Default to 450ml per unit if not specified
-                grouped[bloodGroup][componentType].actualQuantity += inventory.quantityUnits * 450;
+                grouped[bloodGroup][componentType][status].actualQuantity += inventory.quantityUnits * 450;
             }
 
             // Check if any units are expiring or expired
             if (isExpired(inventory.expirationDate)) {
-                grouped[bloodGroup][componentType].expired = true;
-            } else if (isExpiringSoon(inventory.expirationDate) && !grouped[bloodGroup][componentType].expired) {
-                grouped[bloodGroup][componentType].expiring = true;
+                grouped[bloodGroup][componentType][status].expired = true;
+                if (status.toLowerCase() !== 'used' && status.toLowerCase() !== 'dispatched') {
+                    grouped[bloodGroup][componentType][status].status = 'Expired';
+                }
+            } else if (isExpiringSoon(inventory.expirationDate) && !grouped[bloodGroup][componentType][status].expired) {
+                grouped[bloodGroup][componentType][status].expiring = true;
             }
         });
 
@@ -266,13 +330,44 @@ export default function StaffInventoryPage() {
             key: 'status',
             render: (text: string, record: BloodInventory) => {
                 let statusTag;
-                if (isExpired(record.expirationDate)) {
-                    statusTag = <Tag color="red">Expired</Tag>;
-                } else if (isExpiringSoon(record.expirationDate)) {
-                    statusTag = <Tag color="orange">Expiring Soon</Tag>;
-                } else {
-                    statusTag = <Tag color="green">Available</Tag>;
+                let statusColor = '';
+                let statusText = '';
+
+                // First determine the status based on the database status field
+                switch (record.status?.toLowerCase()) {
+                    case 'available':
+                        statusColor = 'green';
+                        statusText = 'Available';
+                        break;
+                    case 'used':
+                        statusColor = 'blue';
+                        statusText = 'Used';
+                        break;
+                    case 'dispatched':
+                        statusColor = 'purple';
+                        statusText = 'Dispatched';
+                        break;
+                    default:
+                        // If status is not one of the above, check expiration
+                        if (isExpired(record.expirationDate)) {
+                            statusColor = 'red';
+                            statusText = 'Expired';
+                        } else if (isExpiringSoon(record.expirationDate)) {
+                            statusColor = 'orange';
+                            statusText = 'Expiring Soon';
+                        } else {
+                            statusColor = 'green';
+                            statusText = 'Available';
+                        }
                 }
+
+                // Override status display if expired, regardless of database status
+                if (isExpired(record.expirationDate) && record.status?.toLowerCase() !== 'used' && record.status?.toLowerCase() !== 'dispatched') {
+                    statusColor = 'red';
+                    statusText = 'Expired';
+                }
+
+                statusTag = <Tag color={statusColor}>{statusText}</Tag>;
 
                 return (
                     <div>
@@ -282,7 +377,9 @@ export default function StaffInventoryPage() {
                 );
             },
             filters: [
-                { text: 'Available', value: 'available' },
+                { text: 'Available', value: 'Available' },
+                { text: 'Used', value: 'Used' },
+                { text: 'Dispatched', value: 'Dispatched' },
                 { text: 'Expiring Soon', value: 'expiring' },
                 { text: 'Expired', value: 'expired' },
             ],
@@ -291,7 +388,9 @@ export default function StaffInventoryPage() {
                 if (value === 'expired') {
                     return isExpired(record.expirationDate);
                 } else if (value === 'expiring') {
-                    return isExpiringSoon(record.expirationDate);
+                    return isExpiringSoon(record.expirationDate) && !isExpired(record.expirationDate);
+                } else if (value === 'Available' || value === 'Used' || value === 'Dispatched') {
+                    return record.status === value;
                 } else {
                     return !isExpired(record.expirationDate) && !isExpiringSoon(record.expirationDate);
                 }
@@ -344,13 +443,37 @@ export default function StaffInventoryPage() {
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
                     <Card>
                         <Statistic
                             title="Total Blood Units"
                             value={inventorySummary.totalUnits}
                             prefix={<CheckCircleOutlined />}
                             valueStyle={{ color: '#3f8600' }}
+                        />
+                    </Card>
+                    <Card>
+                        <Statistic
+                            title="Available"
+                            value={inventorySummary.availableCount}
+                            prefix={<CheckCircleOutlined />}
+                            valueStyle={{ color: '#52c41a' }}
+                        />
+                    </Card>
+                    <Card>
+                        <Statistic
+                            title="Used"
+                            value={inventorySummary.usedCount}
+                            prefix={<CheckCircleOutlined />}
+                            valueStyle={{ color: '#1890ff' }}
+                        />
+                    </Card>
+                    <Card>
+                        <Statistic
+                            title="Dispatched"
+                            value={inventorySummary.dispatchedCount}
+                            prefix={<CheckCircleOutlined />}
+                            valueStyle={{ color: '#722ed1' }}
                         />
                     </Card>
                     <Card>
@@ -369,14 +492,6 @@ export default function StaffInventoryPage() {
                             valueStyle={{ color: '#cf1322' }}
                         />
                     </Card>
-                    <Card>
-                        <Statistic
-                            title="Blood Types"
-                            value={inventorySummary.bloodTypeCount}
-                            prefix={<CheckCircleOutlined />}
-                            valueStyle={{ color: '#1890ff' }}
-                        />
-                    </Card>
                 </div>
 
                 {/* Blood visualization */}
@@ -386,18 +501,29 @@ export default function StaffInventoryPage() {
                         <div className="flex flex-wrap justify-center">
                             {Object.entries(groupedInventories).map(([bloodGroup, components]) => (
                                 <div key={bloodGroup} className="m-4">
-                                    <div className="flex">
-                                        {Object.entries(components).map(([componentType, data]) => (
-                                            <BloodVialCanvas
-                                                key={`${bloodGroup}-${componentType}`}
-                                                bloodType={bloodGroup}
-                                                componentType={componentType}
-                                                quantity={data.quantity}
-                                                actualQuantity={data.actualQuantity}
-                                                expiring={data.expiring}
-                                                expired={data.expired}
-                                            />
-                                        ))}
+                                    <div className="flex flex-col">
+                                        <div className="text-center font-bold mb-2">{bloodGroup}</div>
+                                        <div className="flex">
+                                            {Object.entries(components).map(([componentType, statusGroups]) => (
+                                                <div key={`${bloodGroup}-${componentType}`} className="mx-2">
+                                                    <div className="text-center text-sm mb-1">{componentType}</div>
+                                                    <div className="flex">
+                                                        {Object.entries(statusGroups).map(([status, data]) => (
+                                                            <BloodVialCanvas
+                                                                key={`${bloodGroup}-${componentType}-${status}`}
+                                                                bloodType={bloodGroup}
+                                                                componentType={componentType}
+                                                                quantity={data.quantity}
+                                                                actualQuantity={data.actualQuantity}
+                                                                expiring={data.expiring}
+                                                                expired={data.expired}
+                                                                status={data.status}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -467,6 +593,9 @@ export default function StaffInventoryPage() {
                     type="card"
                 >
                     <TabPane tab="All" key="all" />
+                    <TabPane tab="Available" key="available" />
+                    <TabPane tab="Used" key="used" />
+                    <TabPane tab="Dispatched" key="dispatched" />
                     <TabPane tab="Expiring Soon" key="expiring" />
                     <TabPane tab="Expired" key="expired" />
                 </Tabs>

@@ -31,6 +31,7 @@ import {
   DatePicker,
   InputNumber
 } from 'antd';
+import HtmlContent from '@/components/Common/HtmlContent';
 import {
   PlusOutlined,
   EditOutlined,
@@ -70,7 +71,7 @@ const { TextArea } = Input;
 export default function MyBloodRequestsPage() {
   const { user, isLoggedIn, loading } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('active');
+  const [activeTab, setActiveTab] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState<BloodRequestDetail | null>(null);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [donorsModalVisible, setDonorsModalVisible] = useState(false);
@@ -398,12 +399,12 @@ export default function MyBloodRequestsPage() {
       render: (text: string, record: BloodRequestDetail) => (
         <div>
           {getStatusTag(text)}
-          <Progress
+          {/* <Progress
             percent={calculateProgress(record)}
             size="small"
             status={record.status.toLowerCase() === 'fulfilled' || record.status.toLowerCase() === 'completed' ? 'success' : 'active'}
             className="mt-2"
-          />
+          /> */}
           <div className="text-xs text-gray-500 mt-1">
             <TeamOutlined className="mr-1" />
             {record.quantityUnits} units requested
@@ -478,6 +479,41 @@ export default function MyBloodRequestsPage() {
   // Define tab items for Tabs component
   const tabItems = [
     {
+      key: 'all',
+      label: (
+        <span>
+          <Badge status="default" />
+          <span className="ml-2">All Requests</span>
+        </span>
+      ),
+      children: fetchingRequests ? (
+        <div className="text-center py-12">
+          <Spin size="large" />
+          <div className="mt-4">Loading your blood requests...</div>
+        </div>
+      ) : fetchError ? (
+        <Alert
+          message="Error Loading Requests"
+          description={fetchError}
+          type="error"
+          showIcon
+        />
+      ) : bloodRequests.length > 0 ? (
+        <Table
+          dataSource={bloodRequests}
+          columns={activeColumns}
+          rowKey="id"
+          pagination={false}
+          className="shadow-sm"
+        />
+      ) : (
+        <Empty
+          description="No blood requests"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      )
+    },
+    {
       key: 'active',
       label: (
         <span>
@@ -510,14 +546,14 @@ export default function MyBloodRequestsPage() {
           description="No active blood requests"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
-          <Link href="/member/emergency-request">
+          {/* <Link href="/member/emergency-request">
             <Button
               type="primary"
               className="bg-red-600 hover:bg-red-700 mt-4"
             >
               Create New Request
             </Button>
-          </Link>
+          </Link> */}
         </Empty>
       )
     },
@@ -582,7 +618,7 @@ export default function MyBloodRequestsPage() {
             </Paragraph>
           </div>
 
-          <Link href="/member/emergency-request">
+          {/* <Link href="/member/emergency-request">
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -591,7 +627,7 @@ export default function MyBloodRequestsPage() {
             >
               New Request
             </Button>
-          </Link>
+          </Link> */}
         </div>
 
         <Tabs
@@ -665,11 +701,11 @@ export default function MyBloodRequestsPage() {
                     value={`${selectedRequest.quantityUnits} units`}
                     prefix={<TeamOutlined />}
                   />
-                  <Progress
+                  {/* <Progress
                     percent={calculateProgress(selectedRequest)}
                     status={selectedRequest.status.toLowerCase() === 'fulfilled' || selectedRequest.status.toLowerCase() === 'completed' ? 'success' : 'active'}
                     className="mt-2"
-                  />
+                  /> */}
                 </Card>
               </div>
 
@@ -683,11 +719,13 @@ export default function MyBloodRequestsPage() {
                 <Descriptions.Item label="Hospital" span={2}>{selectedRequest.hospitalName}</Descriptions.Item>
                 <Descriptions.Item label="Address" span={2}>{selectedRequest.address}</Descriptions.Item>
                 {selectedRequest.medicalNotes && (
-                  <Descriptions.Item label="Medical Notes" span={3}>{selectedRequest.medicalNotes}</Descriptions.Item>
+                  <Descriptions.Item label="Medical Notes" span={3}>
+                    <HtmlContent content={selectedRequest.medicalNotes} />
+                  </Descriptions.Item>
                 )}
               </Descriptions>
 
-              <div className="mt-6">
+              {/* <div className="mt-6">
                 <Collapse defaultActiveKey={['1']}>
                   <Panel header="Request Progress" key="1">
                     <Steps
@@ -707,7 +745,7 @@ export default function MyBloodRequestsPage() {
                     </Steps>
                   </Panel>
                 </Collapse>
-              </div>
+              </div> */}
 
               <div className="mt-6 flex justify-between">
                 {selectedRequest.status.toLowerCase() === 'pending' && (
@@ -907,7 +945,7 @@ export default function MyBloodRequestsPage() {
                 <TextArea rows={4} placeholder="Enter any relevant medical notes" />
               </Form.Item>
 
-              <Form.Item
+              {/* <Form.Item
                 name="isEmergency"
                 valuePropName="checked"
                 className="col-span-1 md:col-span-2"
@@ -918,7 +956,7 @@ export default function MyBloodRequestsPage() {
                   type="warning"
                   showIcon
                 />
-              </Form.Item>
+              </Form.Item> */}
             </div>
 
             <div className="flex justify-end mt-4">

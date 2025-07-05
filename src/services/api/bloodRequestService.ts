@@ -67,6 +67,12 @@ export interface BloodRequestDetail {
     distanceKm: number;
     medicalNotes: string;
     isActive: boolean;
+    fulfilledDate?: string;
+    fulfilledByStaffId?: string;
+    fulfilledByStaffName?: string;
+    isPickedUp?: boolean;
+    pickupDate?: string;
+    pickupNotes?: string;
     createdTime: string;
     lastUpdatedTime: string;
 }
@@ -285,10 +291,15 @@ export const checkInventory = async (requestId: string) => {
 };
 
 // Fulfill blood request from inventory
-export const fulfillFromInventory = async (requestId: string) => {
+export const fulfillFromInventory = async (requestId: string, staffId: string, notes?: string) => {
     try {
         console.log(`Fulfilling blood request ${requestId} from inventory`);
-        const response = await apiClient.post(`/BloodRequests/${requestId}/fulfill-from-inventory`);
+        const requestBody = {
+            staffId,
+            notes: notes || "Fulfilled from inventory"
+        };
+        console.log('Request body:', requestBody);
+        const response = await apiClient.post(`/BloodRequests/${requestId}/fulfill-from-inventory`, requestBody);
         console.log('Fulfill from inventory response:', response.data);
         return {
             success: true,
@@ -323,17 +334,25 @@ export interface UpdateStatusRequest {
     status: string;
     notes?: string;
     isActive?: boolean;
+    isPickedUp?: boolean;
+    pickupNotes?: string;
 }
 
 export const updateRequestStatus = async (requestId: string, statusData: UpdateStatusRequest): Promise<ApiResponse<any>> => {
     try {
-        console.log(`Updating blood request ${requestId} status:`, statusData);
-        const response = await apiClient.put<ApiResponse<any>>(`/BloodRequests/${requestId}/status`, statusData);
-        console.log('Update status response:', response.data);
-        return response.data;
+        const response = await apiClient.put(`/BloodRequests/${requestId}/status`, statusData);
+        return {
+            success: true,
+            message: response.data.message || 'Status updated successfully',
+            data: response.data
+        };
     } catch (error) {
         console.error('Error updating blood request status:', error);
-        throw error;
+        return {
+            success: false,
+            message: 'Failed to update status',
+            errors: [error instanceof Error ? error.message : 'Unknown error']
+        };
     }
 };
 

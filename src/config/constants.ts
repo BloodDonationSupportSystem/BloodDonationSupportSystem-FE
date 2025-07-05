@@ -33,6 +33,7 @@ export const BLOOD_REQUEST_STATUS = {
     PENDING: 'Pending',
     PROCESSING: 'Processing',
     FULFILLED: 'Fulfilled',
+    COMPLETED: 'Picked Up',
     CANCELLED: 'Cancelled',
     EXPIRED: 'Expired',
     FAILED: 'Failed',

@@ -5,8 +5,11 @@ import { Tabs, Spin, Alert } from 'antd';
 import EmergencyRequestsTab from './EmergencyRequestsTab';
 import RegularRequestsTab from './RegularRequestsTab';
 import { useStaffBloodRequest } from '@/hooks/api/useStaffBloodRequest';
+import { useAuth } from '@/context/AuthContext';
+import { fulfillFromInventory } from '@/services/api/bloodRequestService';
 
 export default function BloodRequestManagement() {
+    const { user } = useAuth();
     const [activeKey, setActiveKey] = useState('emergency');
     const {
         loading,
@@ -22,6 +25,28 @@ export default function BloodRequestManagement() {
     // Handle tab change
     const handleTabChange = (key: string) => {
         setActiveKey(key);
+    };
+
+    // Wrapper for createFromInventory that includes fulfillFromInventory call
+    const handleCreateFromInventory = async (requestId: string, locationId: string, notes?: string, staffId?: string) => {
+        if (!staffId && user?.id) {
+            staffId = user.id;
+        }
+
+        try {
+            // First call the fulfillFromInventory API
+            const fulfillResponse = await fulfillFromInventory(requestId, staffId || '', notes);
+
+            if (!fulfillResponse.success) {
+                throw new Error('Failed to fulfill from inventory');
+            }
+
+            // Then create the donation event
+            return await createDonationEventFromInventory(requestId, locationId, notes);
+        } catch (error) {
+            console.error('Error in handleCreateFromInventory:', error);
+            return false;
+        }
     };
 
     // Display loading or error states
@@ -45,59 +70,27 @@ export default function BloodRequestManagement() {
     }
 
     return (
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-            <Tabs
-                activeKey={activeKey}
-                onChange={handleTabChange}
-                items={[
-                    {
-                        key: 'emergency',
-                        label: (
-                            <span className="text-red-600">
-                                🚨 Emergency Requests
-                                {emergencyRequests.length > 0 && (
-                                    <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
-                                        {emergencyRequests.length}
-                                    </span>
-                                )}
-                            </span>
-                        ),
-                        children: (
-                            <EmergencyRequestsTab
-                                requests={emergencyRequests}
-                                loading={loading}
-                                checkInventory={checkInventoryForRequest}
-                                createFromInventory={createDonationEventFromInventory}
-                                createNeedingDonor={createDonationEventNeedingDonor}
-                                refreshRequests={refreshRequests}
-                            />
-                        ),
-                    },
-                    {
-                        key: 'regular',
-                        label: (
-                            <span>
-                                📋 Regular Requests
-                                {regularRequests.length > 0 && (
-                                    <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">
-                                        {regularRequests.length}
-                                    </span>
-                                )}
-                            </span>
-                        ),
-                        children: (
-                            <RegularRequestsTab
-                                requests={regularRequests}
-                                loading={loading}
-                                checkInventory={checkInventoryForRequest}
-                                createFromInventory={createDonationEventFromInventory}
-                                createNeedingDonor={createDonationEventNeedingDonor}
-                                refreshRequests={refreshRequests}
-                            />
-                        ),
-                    },
-                ]}
-            />
-        </div>
+        <Tabs activeKey={activeKey} onChange={handleTabChange} type="card">
+            <Tabs.TabPane tab="Emergency Requests" key="emergency">
+                <EmergencyRequestsTab
+                    requests={emergencyRequests}
+                    loading={loading}
+                    checkInventory={checkInventoryForRequest}
+                    createFromInventory={handleCreateFromInventory}
+                    createNeedingDonor={createDonationEventNeedingDonor}
+                    refreshRequests={refreshRequests}
+                />
+            </Tabs.TabPane>
+            <Tabs.TabPane tab="Regular Requests" key="regular">
+                <RegularRequestsTab
+                    requests={regularRequests}
+                    loading={loading}
+                    checkInventory={checkInventoryForRequest}
+                    createFromInventory={handleCreateFromInventory}
+                    createNeedingDonor={createDonationEventNeedingDonor}
+                    refreshRequests={refreshRequests}
+                />
+            </Tabs.TabPane>
+        </Tabs>
     );
 } 

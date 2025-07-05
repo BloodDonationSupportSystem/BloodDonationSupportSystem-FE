@@ -20,9 +20,13 @@ interface UseBloodInventoryReturn {
         totalUnits: number;
         expiringCount: number;
         expiredCount: number;
+        availableCount: number;
+        usedCount: number;
+        dispatchedCount: number;
         bloodTypeCount: number;
         byBloodGroup: Record<string, number>;
         byComponentType: Record<string, number>;
+        byStatus: Record<string, number>;
     };
 }
 
@@ -100,8 +104,12 @@ export function useBloodInventory(initialParams?: BloodInventoryParams): UseBloo
     const inventorySummary = useMemo(() => {
         const byBloodGroup: Record<string, number> = {};
         const byComponentType: Record<string, number> = {};
+        const byStatus: Record<string, number> = {};
         let expiringCount = 0;
         let expiredCount = 0;
+        let availableCount = 0;
+        let usedCount = 0;
+        let dispatchedCount = 0;
         let totalUnits = 0;
 
         inventories.forEach(item => {
@@ -119,6 +127,22 @@ export function useBloodInventory(initialParams?: BloodInventoryParams): UseBloo
             }
             byComponentType[componentType] += item.quantityUnits;
 
+            // Count by status
+            const status = item.status || 'Unknown';
+            if (!byStatus[status]) {
+                byStatus[status] = 0;
+            }
+            byStatus[status] += item.quantityUnits;
+
+            // Count by specific statuses
+            if (status.toLowerCase() === 'available') {
+                availableCount += item.quantityUnits;
+            } else if (status.toLowerCase() === 'used') {
+                usedCount += item.quantityUnits;
+            } else if (status.toLowerCase() === 'dispatched') {
+                dispatchedCount += item.quantityUnits;
+            }
+
             // Count expiring and expired
             if (isExpired(item.expirationDate)) {
                 expiredCount += item.quantityUnits;
@@ -134,9 +158,13 @@ export function useBloodInventory(initialParams?: BloodInventoryParams): UseBloo
             totalUnits,
             expiringCount,
             expiredCount,
+            availableCount,
+            usedCount,
+            dispatchedCount,
             bloodTypeCount: Object.keys(byBloodGroup).length,
             byBloodGroup,
-            byComponentType
+            byComponentType,
+            byStatus
         };
     }, [inventories]);
 

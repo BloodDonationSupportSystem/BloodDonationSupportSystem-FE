@@ -29,6 +29,12 @@ export interface BloodRequestDetail {
     neededByDate: string;
     requestedBy: string;
     requestedByName?: string;
+    fulfilledDate?: string;
+    fulfilledByStaffId?: string;
+    fulfilledByStaffName?: string;
+    isPickedUp?: boolean;
+    pickupDate?: string;
+    pickupNotes?: string;
     createdAt: string;
     updatedAt: string;
 }

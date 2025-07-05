@@ -202,8 +202,8 @@ export const checkInDonor = async (request: CheckInRequest): Promise<ApiResponse
 // 2. Perform health check for donation
 export const performHealthCheck = async (request: HealthCheckRequest): Promise<ApiResponse<DonationEvent>> => {
   try {
-    // Build URL and log for debugging
-    const url = `/DonationEvents/health-check`;
+    // Build URL with the correct format
+    const url = `/DonationEvents/${request.donationEventId}/health-check`;
 
     // Validate required fields
     if (!request.donationEventId) {
@@ -230,7 +230,6 @@ export const performHealthCheck = async (request: HealthCheckRequest): Promise<A
 
     // Format request correctly - API expects request body as is, no need for wrapper
     const formattedRequest = {
-      donationEventId: request.donationEventId,
       bloodPressure: request.bloodPressure,
       temperature: request.temperature,
       hemoglobinLevel: request.hemoglobinLevel,
@@ -286,11 +285,13 @@ export const performHealthCheck = async (request: HealthCheckRequest): Promise<A
 // 3. Start donation process
 export const startDonation = async (request: StartDonationRequest): Promise<ApiResponse<DonationEvent>> => {
   try {
-    const url = `/DonationEvents/start`;
+    const url = `/DonationEvents/${request.donationEventId}/start-donation`;
     console.log('Start donation API URL:', url);
     console.log('Start donation request body:', request);
 
-    const response = await apiClient.post(url, request);
+    const response = await apiClient.post(url, {
+      notes: request.notes
+    });
     console.log('Start donation response:', response.data);
     return response.data;
   } catch (error) {
@@ -306,11 +307,16 @@ export const startDonation = async (request: StartDonationRequest): Promise<ApiR
 // 4a. Complete donation process
 export const completeDonation = async (request: CompleteDonationRequest): Promise<ApiResponse<DonationEvent>> => {
   try {
-    const url = `/DonationEvents/complete`;
+    const url = `/DonationEvents/${request.donationEventId}/complete`;
     console.log('Complete donation API URL:', url);
     console.log('Complete donation request body:', request);
 
-    const response = await apiClient.post(url, request);
+    const response = await apiClient.post(url, {
+      donationDate: request.donationDate,
+      quantityDonated: request.quantityDonated,
+      quantityUnits: request.quantityUnits,
+      notes: request.notes
+    });
     console.log('Complete donation response:', response.data);
     return response.data;
   } catch (error) {
@@ -326,11 +332,17 @@ export const completeDonation = async (request: CompleteDonationRequest): Promis
 // 4b. Record complication during donation
 export const recordComplication = async (request: ComplicationRequest): Promise<ApiResponse<DonationEvent>> => {
   try {
-    const url = `/DonationEvents/complication`;
+    const url = `/DonationEvents/${request.donationEventId}/complication`;
     console.log('Record complication API URL:', url);
     console.log('Record complication request body:', request);
 
-    const response = await apiClient.post(url, request);
+    const response = await apiClient.post(url, {
+      complicationType: request.complicationType,
+      description: request.description,
+      collectedAmount: request.collectedAmount,
+      isUsable: request.isUsable,
+      actionTaken: request.actionTaken
+    });
     console.log('Record complication response:', response.data);
     return response.data;
   } catch (error) {
@@ -391,60 +403,55 @@ export const createWalkInDonation = async (data: WalkInDonationRequest): Promise
   }
 };
 
-// Submit health check results
-export const submitHealthCheck = async (data: HealthCheckRequest): Promise<ApiResponse<DonationEvent>> => {
-  try {
-    const response = await apiClient.post(`/DonationEvents/${data.donationEventId}/health-check`, data);
-    return response.data;
-  } catch (error) {
-    console.error('Error submitting health check:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('Health check error response:', error.response.data);
-      return error.response.data as ApiResponse<DonationEvent>;
-    }
-    throw error;
-  }
-};
-
 // Start donation process
 export const startDonationProcess = async (data: StartDonationRequest): Promise<ApiResponse<DonationEvent>> => {
   try {
-    const response = await apiClient.post(`/DonationEvents/${data.donationEventId}/start-donation`, data);
+    const response = await apiClient.post(`/DonationEvents/${data.donationEventId}/start-donation`, {
+      notes: data.notes
+    });
     return response.data;
   } catch (error) {
-    console.error('Error starting donation:', error);
+    console.error('Error starting donation process:', error);
     if (axios.isAxiosError(error) && error.response) {
-      console.error('Start donation error response:', error.response.data);
       return error.response.data as ApiResponse<DonationEvent>;
     }
     throw error;
   }
 };
 
-// Complete donation
+// Complete donation process
 export const completeDonationProcess = async (data: CompleteDonationRequest): Promise<ApiResponse<DonationEvent>> => {
   try {
-    const response = await apiClient.post(`/DonationEvents/${data.donationEventId}/complete`, data);
+    const response = await apiClient.post(`/DonationEvents/${data.donationEventId}/complete`, {
+      donationDate: data.donationDate,
+      quantityDonated: data.quantityDonated,
+      quantityUnits: data.quantityUnits,
+      notes: data.notes
+    });
     return response.data;
   } catch (error) {
-    console.error('Error completing donation:', error);
+    console.error('Error completing donation process:', error);
     if (axios.isAxiosError(error) && error.response) {
-      console.error('Complete donation error response:', error.response.data);
       return error.response.data as ApiResponse<DonationEvent>;
     }
     throw error;
   }
 };
 
-// Record complication
+// Record complication process
 export const recordComplicationProcess = async (data: ComplicationRequest): Promise<ApiResponse<DonationEvent>> => {
   try {
-    const response = await apiClient.post(`/DonationEvents/${data.donationEventId}/complications`, data);
+    const response = await apiClient.post(`/DonationEvents/${data.donationEventId}/complication`, {
+      complicationType: data.complicationType,
+      description: data.description,
+      collectedAmount: data.collectedAmount,
+      isUsable: data.isUsable,
+      actionTaken: data.actionTaken
+    });
     return response.data;
   } catch (error) {
-    console.error('Error recording complication:', error);
+    console.error('Error recording complication process:', error);
     if (axios.isAxiosError(error) && error.response) {
-      console.error('Record complication error response:', error.response.data);
       return error.response.data as ApiResponse<DonationEvent>;
     }
     throw error;

@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
+import React, { useState, useEffect } from 'react';
+import {
   Typography, Card, Row, Col, Descriptions, Tag, Spin, Alert, Button, Divider, Statistic,
   Modal, Form, DatePicker, Radio, Input, Select, Switch, App
 } from 'antd';
 import { useAuth } from '@/context/AuthContext';
 import { useDonorProfile } from '@/hooks/api/useDonorProfile';
 import { useBloodGroups } from '@/hooks/api/useBloodGroups';
-import { EditOutlined, HeartOutlined, CalendarOutlined, EnvironmentOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
+import { EditOutlined, HeartOutlined, CalendarOutlined, EnvironmentOutlined, SaveOutlined, CloseOutlined, CompassOutlined } from '@ant-design/icons';
 import { DonorProfileUpdateRequest } from '@/services/api/donorProfileService';
 import dayjs from 'dayjs';
 import Link from 'next/link';
+import axios from 'axios';
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
@@ -29,6 +30,8 @@ export default function ProfilePage() {
   const { profile, isLoading, error, refetch, updateProfile, isUpdating } = useDonorProfile();
   const { bloodGroups, isLoading: isLoadingBloodGroups } = useBloodGroups();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [detailedAddress, setDetailedAddress] = useState<string | null>(null);
+  const [isLoadingAddress, setIsLoadingAddress] = useState(false);
   const [form] = Form.useForm();
 
   // Format date to display
@@ -40,13 +43,49 @@ export default function ProfilePage() {
   // Calculate days until next donation is available
   const getDaysUntilNextDonation = () => {
     if (!profile?.nextAvailableDonationDate) return 0;
-    
+
     const today = dayjs();
     const nextDate = dayjs(profile.nextAvailableDonationDate);
     const days = nextDate.diff(today, 'day');
-    
+
     return Math.max(0, days);
   };
+
+  // Fetch detailed address from coordinates using Nominatim API
+  const fetchDetailedAddress = async () => {
+    if (!profile?.latitude || !profile?.longitude) return;
+
+    try {
+      setIsLoadingAddress(true);
+      const response = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
+        params: {
+          format: 'json',
+          lat: profile.latitude,
+          lon: profile.longitude,
+          zoom: 18,
+          addressdetails: 1
+        },
+        headers: {
+          'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7'
+        }
+      });
+
+      if (response.data && response.data.display_name) {
+        setDetailedAddress(response.data.display_name);
+      }
+    } catch (error) {
+      console.error('Error fetching address details:', error);
+    } finally {
+      setIsLoadingAddress(false);
+    }
+  };
+
+  // Fetch detailed address when profile is loaded
+  useEffect(() => {
+    if (profile?.latitude && profile?.longitude) {
+      fetchDetailedAddress();
+    }
+  }, [profile?.latitude, profile?.longitude]);
 
   // Handle edit button click
   const handleEditClick = () => {
@@ -71,7 +110,7 @@ export default function ProfilePage() {
       preferredDonationTime: profile?.preferredDonationTime,
       donationType: profile?.donationType || 'WholeBlood',
     });
-    
+
     setIsEditModalVisible(true);
   };
 
@@ -100,7 +139,7 @@ export default function ProfilePage() {
     };
 
     const success = await updateProfile(formattedValues);
-    
+
     if (success) {
       setIsEditModalVisible(false);
     }
@@ -110,9 +149,9 @@ export default function ProfilePage() {
   const calculateNextDonationDate = (lastDonationDate: dayjs.Dayjs, donationType: string) => {
     let waitingPeriod = 0; // days
     const gender = form.getFieldValue('gender');
-    
+
     // Calculate waiting period based on donation type and gender
-    switch(donationType) {
+    switch (donationType) {
       case 'WholeBlood':
         waitingPeriod = gender ? 90 : 120; // Male: 3 months, Female: 4 months
         break;
@@ -129,7 +168,7 @@ export default function ProfilePage() {
       default:
         waitingPeriod = 90; // Default to 3 months
     }
-    
+
     // Calculate and set the suggested next available date
     const nextDate = lastDonationDate.add(waitingPeriod, 'day');
     form.setFieldsValue({ nextAvailableDonationDate: nextDate });
@@ -161,19 +200,87 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <Alert
-        message="Profile not found"
-        description="You don't have a donor profile yet. Would you like to create one?"
-        type="info"
-        showIcon
-        action={
-          <Link href="/profile-creation">
-            <Button size="small" type="primary">
-              Create Profile
-            </Button>
-          </Link>
-        }
-      />
+      <div className="min-h-screen bg-gray-50 py-12 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <div className="bg-white p-8 rounded-lg shadow-sm">
+            <div className="text-center mb-8">
+              <HeartOutlined className="text-5xl text-red-500 mb-4" />
+              <Title level={2}>Welcome to Blood Donation Support System</Title>
+              <Paragraph className="text-gray-500 text-lg">
+                You don't have a donor profile yet. Creating a profile will allow you to:
+              </Paragraph>
+            </div>
+
+            <Row gutter={[16, 16]} className="mb-8">
+              <Col xs={24} sm={12}>
+                <Card className="h-full">
+                  <div className="flex items-start">
+                    <HeartOutlined className="text-red-500 text-xl mr-3 mt-1" />
+                    <div>
+                      <Text strong className="text-base">Donate Blood</Text>
+                      <Paragraph className="text-gray-500 mb-0">
+                        Register as a blood donor and help save lives
+                      </Paragraph>
+                    </div>
+                  </div>
+                </Card>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Card className="h-full">
+                  <div className="flex items-start">
+                    <CalendarOutlined className="text-red-500 text-xl mr-3 mt-1" />
+                    <div>
+                      <Text strong className="text-base">Schedule Donations</Text>
+                      <Paragraph className="text-gray-500 mb-0">
+                        Set your preferred donation times and availability
+                      </Paragraph>
+                    </div>
+                  </div>
+                </Card>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Card className="h-full">
+                  <div className="flex items-start">
+                    <EnvironmentOutlined className="text-red-500 text-xl mr-3 mt-1" />
+                    <div>
+                      <Text strong className="text-base">Find Nearby Requests</Text>
+                      <Paragraph className="text-gray-500 mb-0">
+                        Help people in need of blood near your location
+                      </Paragraph>
+                    </div>
+                  </div>
+                </Card>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Card className="h-full">
+                  <div className="flex items-start">
+                    <EditOutlined className="text-red-500 text-xl mr-3 mt-1" />
+                    <div>
+                      <Text strong className="text-base">Track Donations</Text>
+                      <Paragraph className="text-gray-500 mb-0">
+                        Keep a record of your donation history and impact
+                      </Paragraph>
+                    </div>
+                  </div>
+                </Card>
+              </Col>
+            </Row>
+
+            <div className="text-center">
+              <Link href="/profile-creation">
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<HeartOutlined />}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Create Donor Profile
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -188,8 +295,8 @@ export default function ProfilePage() {
             </Paragraph>
           </div>
           <div className="mt-4 md:mt-0">
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               icon={<EditOutlined />}
               onClick={handleEditClick}
             >
@@ -312,26 +419,60 @@ export default function ProfilePage() {
 
       {/* Location Information */}
       <Card title="Location Information" variant="outlined">
-        <Descriptions layout="vertical" column={{ xs: 1, sm: 2, md: 2 }}>
-          <Descriptions.Item label="Address" span={2}>
-            <div className="flex items-start">
-              <EnvironmentOutlined className="mt-1 mr-2 text-red-500" />
-              <span>{profile.address}</span>
+        <div className="mb-4">
+          <div className="font-medium text-gray-700 mb-1">Address</div>
+          <div className="flex items-start">
+            <EnvironmentOutlined className="mt-1 mr-2 text-red-500" />
+            <div className="font-medium">{profile.address}</div>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-1">
+            <div className="font-medium text-gray-700">Detailed Address</div>
+            {/* <Button
+                size="small"
+                type="primary"
+                icon={<CompassOutlined />}
+                onClick={fetchDetailedAddress}
+                loading={isLoadingAddress}
+                ghost
+              >
+                Refresh
+              </Button> */}
+          </div>
+
+          {isLoadingAddress ? (
+            <div className="text-gray-500 py-3 text-center">
+              <Spin size="small" /> <span className="ml-2">Loading detailed address...</span>
             </div>
-          </Descriptions.Item>
-          <Descriptions.Item label="Coordinates">
-            Lat: {profile.latitude}, Lng: {profile.longitude}
-          </Descriptions.Item>
-        </Descriptions>
-        
+          ) : detailedAddress ? (
+            <Input.TextArea
+              value={detailedAddress}
+              readOnly
+              autoSize={{ minRows: 3, maxRows: 6 }}
+              className="w-full bg-gray-50"
+              style={{ resize: 'none' }}
+            />
+          ) : (
+            <div className="text-gray-500 py-3 text-center border border-dashed border-gray-300 rounded-md">
+              No detailed address available. Click "Refresh" to get detailed address.
+            </div>
+          )}
+        </div>
+
+        {/* <div className="mb-4">
+          <div className="font-medium text-gray-700 mb-1">Coordinates</div>
+          <div className="flex flex-row gap-4">
+            <div><span className="font-medium">Latitude:</span> {profile.latitude}</div>
+            <div><span className="font-medium">Longitude:</span> {profile.longitude}</div>
+          </div>
+        </div> */}
+
         <Divider />
-        
-        <div className="text-right">
-          <Link href="/member/nearby-search">
-            <Button type="primary" ghost icon={<EnvironmentOutlined />}>
-              Find Nearby Donors/Recipients
-            </Button>
-          </Link>
+
+        <div className="text-gray-500">
+          <span className="text-sm">Your location is used to match you with nearby blood donation requests</span>
         </div>
       </Card>
 
@@ -416,8 +557,8 @@ export default function ProfilePage() {
                   name="dateOfBirth"
                   rules={[{ required: true, message: 'Please select your date of birth' }]}
                 >
-                  <DatePicker 
-                    className="w-full" 
+                  <DatePicker
+                    className="w-full"
                     disabledDate={(current) => current && current > dayjs().endOf('day')}
                   />
                 </Form.Item>
@@ -488,8 +629,8 @@ export default function ProfilePage() {
                   label="Last Health Check"
                   name="lastHealthCheckDate"
                 >
-                  <DatePicker 
-                    className="w-full" 
+                  <DatePicker
+                    className="w-full"
                     disabledDate={(current) => current && current > dayjs().endOf('day')}
                   />
                 </Form.Item>
@@ -508,8 +649,8 @@ export default function ProfilePage() {
                   label="Last Donation Date"
                   name="lastDonationDate"
                 >
-                  <DatePicker 
-                    className="w-full" 
+                  <DatePicker
+                    className="w-full"
                     onChange={(date) => {
                       if (date) {
                         const donationType = form.getFieldValue('donationType') || 'WholeBlood';
@@ -552,8 +693,8 @@ export default function ProfilePage() {
                     </div>
                   }
                 >
-                  <DatePicker 
-                    className="w-full" 
+                  <DatePicker
+                    className="w-full"
                     disabled={true}
                   />
                 </Form.Item>
@@ -604,15 +745,15 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button 
+            <Button
               onClick={() => setIsEditModalVisible(false)}
               icon={<CloseOutlined />}
             >
               Cancel
             </Button>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
+            <Button
+              type="primary"
+              htmlType="submit"
               loading={isUpdating}
               icon={<SaveOutlined />}
             >

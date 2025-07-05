@@ -1,12 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Badge } from 'antd';
+import { Badge, Tooltip } from 'antd';
 
-// We'll conditionally import Konva on the client side only
-let Stage: any = () => null;
-let Layer: any = () => null;
-let Rect: any = () => null;
-let Line: any = () => null;
-let Group: any = () => null;
+// Declare Konva components that will be dynamically imported
+let Stage: any;
+let Layer: any;
+let Rect: any;
+let Line: any;
+let Group: any;
+let Text: any;
 
 interface BloodVialCanvasProps {
     bloodType: string;
@@ -15,6 +16,7 @@ interface BloodVialCanvasProps {
     actualQuantity: number;
     expiring?: boolean;
     expired?: boolean;
+    status?: string;
 }
 
 const BloodVialCanvas: React.FC<BloodVialCanvasProps> = ({
@@ -24,16 +26,16 @@ const BloodVialCanvas: React.FC<BloodVialCanvasProps> = ({
     actualQuantity,
     expiring = false,
     expired = false,
+    status,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [dimensions, setDimensions] = useState({ width: 48, height: 96 });
+    const [dimensions, setDimensions] = useState({ width: 40, height: 80 }); // Smaller dimensions
     const [time, setTime] = useState(0);
     const animationRef = useRef<number | null>(null);
     const [isMounted, setIsMounted] = useState(false);
     const [konvaLoaded, setKonvaLoaded] = useState(false);
 
-    // Cải thiện cách tính toán lượng máu để phân biệt rõ ràng hơn giữa các đơn vị
-    // Tính toán lượng máu dựa trên thể tích thực tế, không chỉ số lượng đơn vị
+    // Calculate fill percentage based on quantity
     const calculateFillPercentage = () => {
         // Xác định thể tích thực tế dựa trên actualQuantity hoặc ước tính từ số đơn vị
         const realVolume = actualQuantity > 0 ? actualQuantity : quantity * 450;
@@ -84,10 +86,40 @@ const BloodVialCanvas: React.FC<BloodVialCanvasProps> = ({
         fillColor = '#facc15'; // yellow-400
     }
 
-    // Add status modifier to color
+    // Add status modifier to color and opacity
     let opacity = 1;
+    let statusBadge = null;
+    let isDispatched = status?.toLowerCase() === 'dispatched';
+    let isAvailable = status?.toLowerCase() === 'available';
+    let isUsed = status?.toLowerCase() === 'used';
+
+    // Get color and badge based on status
+    let statusColor = 'green';
+    let badgeStatus: "success" | "processing" | "error" | "default" | "warning" | undefined = "success";
+
     if (expired) {
         opacity = 0.5;
+        statusColor = 'red';
+        badgeStatus = "error";
+        statusBadge = <Badge status={badgeStatus} text="Expired" />;
+    } else if (isUsed) {
+        opacity = 0.7;
+        statusColor = 'blue';
+        badgeStatus = "processing";
+        statusBadge = <Badge status={badgeStatus} text="Used" />;
+    } else if (isDispatched) {
+        opacity = 0.9;
+        statusColor = 'purple';
+        badgeStatus = "warning";
+        statusBadge = <Badge status={badgeStatus} text="Dispatched" style={{ fontWeight: 'bold' }} />;
+    } else if (expiring) {
+        statusColor = 'orange';
+        badgeStatus = "warning";
+        statusBadge = <Badge status={badgeStatus} text="Expiring" />;
+    } else if (isAvailable) {
+        statusColor = 'green';
+        badgeStatus = "success";
+        statusBadge = <Badge status={badgeStatus} text="Available" />;
     }
 
     // Set isMounted to true when component mounts (client-side only)
@@ -96,8 +128,8 @@ const BloodVialCanvas: React.FC<BloodVialCanvasProps> = ({
 
         if (containerRef.current) {
             setDimensions({
-                width: 48, // Fixed width for the vial
-                height: 96, // Fixed height for the vial
+                width: 40, // Smaller width for the vial
+                height: 80, // Smaller height for the vial
             });
         }
 
@@ -110,6 +142,7 @@ const BloodVialCanvas: React.FC<BloodVialCanvasProps> = ({
                 Rect = ReactKonva.Rect;
                 Line = ReactKonva.Line;
                 Group = ReactKonva.Group;
+                Text = ReactKonva.Text;
                 setKonvaLoaded(true);
             } catch (error) {
                 console.error('Failed to load Konva:', error);
@@ -187,98 +220,155 @@ const BloodVialCanvas: React.FC<BloodVialCanvasProps> = ({
         return points;
     };
 
+    // Generate pattern points for dispatched blood (diagonal stripes)
+    const generateDispatchedPattern = () => {
+        const stripeWidth = 6; // Width between stripes
+        const stripeCount = Math.ceil(dimensions.width / stripeWidth) * 2;
+        const points = [];
+
+        for (let i = -dimensions.height; i < dimensions.width; i += stripeWidth) {
+            points.push(
+                i, dimensions.height - fillHeight,
+                i + fillHeight, dimensions.height
+            );
+        }
+
+        return points;
+    };
+
+    // Create tooltip content
+    const tooltipContent = (
+        <div>
+            <div><strong>Blood Type:</strong> {bloodType}</div>
+            <div><strong>Component:</strong> {componentType}</div>
+            <div><strong>Quantity:</strong> {quantity} {quantity > 1 ? 'units' : 'unit'}</div>
+            <div><strong>Volume:</strong> {actualQuantity} ml</div>
+            <div><strong>Status:</strong> {status}</div>
+        </div>
+    );
+
     // Hiển thị thông tin chi tiết về thể tích
     const renderVolumeInfo = () => {
         return (
-            <>
-                <div className="text-xs mt-2 font-medium">{quantity} {quantity > 1 ? 'units' : 'unit'}</div>
-                <div className="text-xs text-gray-500">{actualQuantity} ml</div>
-            </>
+            <div className="text-xs mt-1 font-medium">{quantity}</div>
         );
+    };
+
+    // Get the status letter to display
+    const getStatusLetter = () => {
+        if (isDispatched) return "D";
+        if (isUsed) return "U";
+        if (expired) return "E";
+        if (expiring) return "X";
+        if (isAvailable) return "A";
+        return "";
     };
 
     // Fallback for server-side rendering or when Konva is not loaded yet
     if (!isMounted || !konvaLoaded) {
         return (
-            <div className="flex flex-col items-center mb-4 mx-2">
-                <div className="text-sm font-bold mb-1">{bloodType}</div>
-                <div className="text-xs mb-2">{componentType}</div>
-                <div className="relative w-12 h-24 bg-gray-100 rounded-b-full border border-gray-300 overflow-hidden">
-                    <div
-                        className={`absolute bottom-0 w-full bg-red-600 transition-all duration-500`}
-                        style={{
-                            height: `${fillPercentage}%`,
-                            backgroundColor: fillColor,
-                            opacity: expired ? 0.5 : 1
-                        }}
-                    />
+            <Tooltip title={tooltipContent} placement="top">
+                <div className="flex flex-col items-center mb-2 mx-1">
+                    <div className={`relative w-10 h-20 bg-gray-100 rounded-b-full border-2 border-${statusColor}-500 overflow-hidden`}>
+                        <div
+                            className={`absolute bottom-0 w-full transition-all duration-500`}
+                            style={{
+                                height: `${fillPercentage}%`,
+                                backgroundColor: fillColor,
+                                opacity: expired ? 0.5 : 1,
+                                backgroundImage: isDispatched ? 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px)' : 'none'
+                            }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xs font-bold text-black bg-white bg-opacity-70 px-1 rounded">
+                                {getStatusLetter()}
+                            </span>
+                        </div>
+                    </div>
+                    {renderVolumeInfo()}
                 </div>
-                {renderVolumeInfo()}
-                {expired && <Badge status="error" text="Expired" />}
-                {expiring && !expired && <Badge status="warning" text="Expiring" />}
-            </div>
+            </Tooltip>
         );
     }
 
     return (
-        <div className="flex flex-col items-center mb-4 mx-2">
-            <div className="text-sm font-bold mb-1">{bloodType}</div>
-            <div className="text-xs mb-2">{componentType}</div>
-            <div
-                ref={containerRef}
-                className="relative w-12 h-24 bg-gray-100 rounded-b-full border border-gray-300 overflow-hidden"
-            >
-                <Stage width={dimensions.width} height={dimensions.height}>
-                    <Layer>
-                        {/* Blood fill with wave effect */}
-                        {fillHeight > 0 && (
-                            <Group>
-                                {/* Main blood fill with wave effect */}
-                                <Line
-                                    points={generateWavePoints()}
-                                    closed={true}
-                                    fill={fillColor}
-                                    opacity={opacity}
-                                />
-
-                                {/* Secondary wave for more dynamic effect - only when not expired */}
-                                {!expired && (
+        <Tooltip title={tooltipContent} placement="top">
+            <div className="flex flex-col items-center mb-2 mx-1">
+                <div
+                    ref={containerRef}
+                    className={`relative w-10 h-20 bg-gray-100 rounded-b-full border-2 border-${statusColor}-500 overflow-hidden`}
+                >
+                    <Stage width={dimensions.width} height={dimensions.height}>
+                        <Layer>
+                            {/* Blood fill with wave effect */}
+                            {fillHeight > 0 && (
+                                <Group>
+                                    {/* Main blood fill with wave effect */}
                                     <Line
-                                        points={generateSecondaryWavePoints()}
-                                        stroke={fillColor}
-                                        strokeWidth={1.5}
-                                        opacity={0.6}
-                                        tension={0.3}
+                                        points={generateWavePoints()}
+                                        closed={true}
+                                        fill={fillColor}
+                                        opacity={opacity}
                                     />
-                                )}
 
-                                {/* Highlight effect on top of the blood */}
-                                {!expired && (
-                                    <Rect
-                                        x={0}
-                                        y={dimensions.height - fillHeight + 2}
-                                        width={dimensions.width}
-                                        height={4}
-                                        fillLinearGradientStartPoint={{ x: 0, y: 0 }}
-                                        fillLinearGradientEndPoint={{ x: dimensions.width, y: 0 }}
-                                        fillLinearGradientColorStops={[
-                                            0, 'rgba(255,255,255,0.1)',
-                                            0.5, 'rgba(255,255,255,0.3)',
-                                            1, 'rgba(255,255,255,0.1)'
-                                        ]}
-                                        opacity={0.5}
-                                        offsetX={-dimensions.width * (time % 1) * 0.5}
+                                    {/* Pattern for dispatched blood */}
+                                    {isDispatched && (
+                                        <Line
+                                            points={generateDispatchedPattern()}
+                                            stroke="rgba(0,0,0,0.2)"
+                                            strokeWidth={1}
+                                            opacity={0.7}
+                                        />
+                                    )}
+
+                                    {/* Secondary wave for more dynamic effect - only when not expired */}
+                                    {!expired && (
+                                        <Line
+                                            points={generateSecondaryWavePoints()}
+                                            stroke={fillColor}
+                                            strokeWidth={1.5}
+                                            opacity={0.6}
+                                            tension={0.3}
+                                        />
+                                    )}
+
+                                    {/* Highlight effect on top of the blood */}
+                                    {!expired && (
+                                        <Rect
+                                            x={0}
+                                            y={dimensions.height - fillHeight + 2}
+                                            width={dimensions.width}
+                                            height={4}
+                                            fillLinearGradientStartPoint={{ x: 0, y: 0 }}
+                                            fillLinearGradientEndPoint={{ x: dimensions.width, y: 0 }}
+                                            fillLinearGradientColorStops={[
+                                                0, 'rgba(255,255,255,0.1)',
+                                                0.5, 'rgba(255,255,255,0.3)',
+                                                1, 'rgba(255,255,255,0.1)'
+                                            ]}
+                                            opacity={0.5}
+                                            offsetX={-dimensions.width * (time % 1) * 0.5}
+                                        />
+                                    )}
+
+                                    {/* Status indicator */}
+                                    <Text
+                                        text={getStatusLetter()}
+                                        x={dimensions.width / 2 - 5}
+                                        y={dimensions.height - fillHeight / 2 - 5}
+                                        fontSize={10}
+                                        fontStyle="bold"
+                                        fill="#000"
+                                        opacity={0.7}
                                     />
-                                )}
-                            </Group>
-                        )}
-                    </Layer>
-                </Stage>
+                                </Group>
+                            )}
+                        </Layer>
+                    </Stage>
+                </div>
+                {renderVolumeInfo()}
             </div>
-            {renderVolumeInfo()}
-            {expired && <Badge status="error" text="Expired" />}
-            {expiring && !expired && <Badge status="warning" text="Expiring" />}
-        </div>
+        </Tooltip>
     );
 };
 

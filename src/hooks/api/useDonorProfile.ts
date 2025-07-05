@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import * as donorProfileService from '@/services/api/donorProfileService';
 import { DonorProfileUpdateRequest, DonorProfile, EligibilityResponse, DonorProfilesQueryParams } from '@/services/api/donorProfileService';
 import { useAuth } from '@/context/AuthContext';
@@ -39,11 +40,23 @@ export function useDonorProfile(): UseDonorProfileReturn {
       if (response.success && response.data) {
         setProfile(response.data);
       } else {
-        setError(response.message || 'Failed to load profile');
+        // Check if it's a 404 error (profile not found)
+        if (response.statusCode === 404) {
+          // For 404, we just set profile to null but don't set an error
+          setProfile(null);
+        } else {
+          setError(response.message || 'Failed to load profile');
+        }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching profile:', err);
-      setError('An error occurred while fetching your profile');
+      // Check if it's an Axios error with a 404 status
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        // For 404, we just set profile to null but don't set an error
+        setProfile(null);
+      } else {
+        setError('An error occurred while fetching your profile');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +78,7 @@ export function useDonorProfile(): UseDonorProfileReturn {
         setError(response.message || 'Failed to update profile');
         return false;
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error updating profile:', err);
       setError('An error occurred while updating your profile');
       return false;
@@ -89,7 +102,7 @@ export function useDonorProfile(): UseDonorProfileReturn {
         setError(response.message || 'Failed to check eligibility');
         return null;
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error checking eligibility:', err);
       setError('An error occurred while checking your eligibility');
       return null;
@@ -144,7 +157,7 @@ export function useAllDonors(): UseAllDonorsReturn {
       } else {
         setError(response.message || 'Failed to load donor profiles');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching donor profiles:', err);
       setError('An error occurred while fetching donor profiles');
     } finally {
@@ -170,7 +183,7 @@ export function useAllDonors(): UseAllDonorsReturn {
         setError(response.message || 'Failed to filter donors by blood group');
         // Keep the current filtered list if there's an error
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error filtering donors by blood group:', err);
       setError('An error occurred while filtering donors');
     } finally {

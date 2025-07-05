@@ -6,6 +6,8 @@ import { ClockCircleOutlined, CheckCircleOutlined, InfoCircleOutlined, WarningOu
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { BloodRequestDetail } from '@/hooks/api/useStaffBloodRequest';
+import { useAuth } from '@/context/AuthContext';
+import HtmlContent from '@/components/Common/HtmlContent';
 
 dayjs.extend(relativeTime);
 
@@ -16,7 +18,7 @@ interface RegularRequestsTabProps {
     requests: BloodRequestDetail[];
     loading: boolean;
     checkInventory: (requestId: string) => Promise<any>;
-    createFromInventory: (requestId: string, locationId: string, notes?: string) => Promise<boolean>;
+    createFromInventory: (requestId: string, locationId: string, notes?: string, staffId?: string) => Promise<boolean>;
     createNeedingDonor: (requestId: string, locationId: string, notes?: string) => Promise<any>;
     refreshRequests: () => void;
 }
@@ -29,6 +31,7 @@ export default function RegularRequestsTab({
     createNeedingDonor,
     refreshRequests,
 }: RegularRequestsTabProps) {
+    const { user } = useAuth();
     const [selectedRequest, setSelectedRequest] = useState<BloodRequestDetail | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
@@ -54,14 +57,15 @@ export default function RegularRequestsTab({
 
     // Handle fulfilling from inventory
     const handleFulfillFromInventory = async () => {
-        if (!selectedRequest) return;
+        if (!selectedRequest || !user?.id) return;
 
         setActionLoading(true);
         try {
             const success = await createFromInventory(
                 selectedRequest.id,
                 selectedRequest.locationId,
-                `Fulfilled from inventory for request #${selectedRequest.id.substring(0, 8)}`
+                `Fulfilled from inventory for request #${selectedRequest.id.substring(0, 8)}`,
+                user.id
             );
 
             if (success) {
@@ -315,7 +319,7 @@ export default function RegularRequestsTab({
                                             {selectedRequest.medicalNotes && (
                                                 <div className="col-span-2">
                                                     <Text type="secondary">Medical Notes:</Text>
-                                                    <div>{selectedRequest.medicalNotes}</div>
+                                                    <HtmlContent content={selectedRequest.medicalNotes} />
                                                 </div>
                                             )}
                                         </div>
