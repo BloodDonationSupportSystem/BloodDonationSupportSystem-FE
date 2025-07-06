@@ -17,7 +17,8 @@ import {
     Pagination,
     DatePicker,
     Row,
-    Col
+    Col,
+    Tabs
 } from 'antd';
 import {
     SearchOutlined,
@@ -29,41 +30,42 @@ import {
     CloseCircleOutlined
 } from '@ant-design/icons';
 import AdminLayout from '@/components/Layout/AdminLayout';
-import { useAdminBlogPosts } from '@/hooks';
+import { useAdminDocuments } from '@/hooks';
 import { useAuth } from '@/context/AuthContext';
 import dayjs from 'dayjs';
-import { useBlogPosts } from '@/hooks/useBlogPosts';
 import type { ColumnsType } from 'antd/es/table';
 import SimpleRichEditor from '@/components/SimpleRichEditor';
-import { BlogPost } from '@/services/api';
+import { Document } from '@/services/api';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
+const { TabPane } = Tabs;
 
-export default function AdminBlogPage() {
-    const { blogPosts, loading, error, totalCount, pageSize, pageNumber, totalPages, fetchBlogPosts, createBlogPost, updateBlogPost, deleteBlogPost } = useAdminBlogPosts();
+export default function AdminDocumentsPage() {
+    const { documents, loading, error, totalCount, pageSize, pageNumber, totalPages, fetchDocuments, createDocument, updateDocument, deleteDocument } = useAdminDocuments();
     const { user } = useAuth();
     const { message, modal } = App.useApp();
 
     // State for search and filters
     const [searchText, setSearchText] = useState<string>('');
-    const [publishedFilter, setPublishedFilter] = useState<boolean | undefined>(undefined);
+    const [documentTypeFilter, setDocumentTypeFilter] = useState<string | undefined>('BloodType');
     const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
+    const [activeTab, setActiveTab] = useState<string>('BloodType');
 
     // State for modals
     const [isCreateModalVisible, setIsCreateModalVisible] = useState<boolean>(false);
     const [isEditModalVisible, setIsEditModalVisible] = useState<boolean>(false);
     const [isViewModalVisible, setIsViewModalVisible] = useState<boolean>(false);
-    const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
+    const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
 
     // Form instances
     const [createForm] = Form.useForm();
     const [editForm] = Form.useForm();
 
-    // Fetch blog posts on component mount
+    // Fetch documents on component mount and when tab changes
     useEffect(() => {
-        fetchBlogPosts();
-    }, []);
+        fetchDocuments({ documentType: activeTab });
+    }, [activeTab]);
 
     // Handle search input change
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,175 +76,146 @@ export default function AdminBlogPage() {
     const applyFilters = () => {
         const params: any = {
             pageNumber: 1, // Reset to first page when filtering
-            searchTerm: searchText || undefined
+            searchTerm: searchText || undefined,
+            documentType: activeTab
         };
-
-        if (publishedFilter !== undefined) {
-            params.isPublished = publishedFilter;
-        }
 
         if (dateRange && dateRange[0] && dateRange[1]) {
             params.createdDateFrom = dateRange[0].toISOString();
             params.createdDateTo = dateRange[1].toISOString();
         }
 
-        fetchBlogPosts(params);
+        fetchDocuments(params);
     };
 
     // Reset filters
     const resetFilters = () => {
         setSearchText('');
-        setPublishedFilter(undefined);
         setDateRange(null);
-        fetchBlogPosts({ pageNumber: 1 });
+        fetchDocuments({ pageNumber: 1, documentType: activeTab });
     };
 
     // Handle pagination change
     const handlePageChange = (page: number, pageSize?: number) => {
-        fetchBlogPosts({
+        fetchDocuments({
             pageNumber: page,
             pageSize: pageSize || 10,
             searchTerm: searchText || undefined,
-            isPublished: publishedFilter,
-            createdDateFrom: dateRange && dateRange[0] ? dateRange[0].toISOString() : undefined,
-            createdDateTo: dateRange && dateRange[1] ? dateRange[1].toISOString() : undefined
+            documentType: activeTab,
         });
     };
 
-    // Handle blog post creation
-    const handleCreateBlogPost = async (values: any) => {
+    // Handle tab change
+    const handleTabChange = (key: string) => {
+        setActiveTab(key);
+    };
+
+    // Handle document creation
+    const handleCreateDocument = async (values: any) => {
         if (!user?.id) {
             message.error('User information is not available');
             return;
         }
 
-        const success = await createBlogPost({
+        const success = await createDocument({
             title: values.title,
-            body: values.body,
-            isPublished: values.isPublished,
-            authorId: user.id
+            content: values.content,
+            documentType: values.documentType,
+            createdBy: user.id
         });
 
         if (success) {
             setIsCreateModalVisible(false);
             createForm.resetFields();
+            // Refresh the documents list with the current active tab
+            fetchDocuments({ documentType: activeTab });
         }
     };
 
-    // Handle blog post update
-    const handleUpdateBlogPost = async (values: any) => {
-        if (!selectedBlogPost) return;
+    // Handle document update
+    const handleUpdateDocument = async (values: any) => {
+        if (!selectedDocument) return;
 
-        const success = await updateBlogPost(selectedBlogPost.id, {
+        const success = await updateDocument(selectedDocument.id, {
             title: values.title,
-            body: values.body,
-            isPublished: values.isPublished
+            content: values.content,
+            documentType: values.documentType
         });
 
         if (success) {
             setIsEditModalVisible(false);
-            setSelectedBlogPost(null);
+            setSelectedDocument(null);
+            // Refresh the documents list with the current active tab
+            fetchDocuments({ documentType: activeTab });
         }
     };
 
-    // Handle blog post deletion
-    const handleDeleteBlogPost = (id: string) => {
+    // Handle document deletion
+    const handleDeleteDocument = (id: string) => {
         modal.confirm({
-            title: 'Are you sure you want to delete this blog post?',
+            title: 'Are you sure you want to delete this document?',
             content: 'This action cannot be undone.',
             okText: 'Yes, Delete',
             okType: 'danger',
             cancelText: 'Cancel',
             onOk: async () => {
                 try {
-                    await deleteBlogPost(id);
-                    message.success('Blog post deleted successfully');
+                    await deleteDocument(id);
+                    message.success('Document deleted successfully');
+                    // Refresh the documents list with the current active tab
+                    fetchDocuments({ documentType: activeTab });
                 } catch (error) {
-                    message.error('Failed to delete blog post');
-                    console.error('Error deleting blog post:', error);
+                    message.error('Failed to delete document');
+                    console.error('Error deleting document:', error);
                 }
             },
         });
     };
 
-    // Open edit modal with blog post data
-    const openEditModal = (blogPost: BlogPost) => {
-        setSelectedBlogPost(blogPost);
+    // Open edit modal with document data
+    const openEditModal = (document: Document) => {
+        setSelectedDocument(document);
         editForm.setFieldsValue({
-            title: blogPost.title,
-            body: blogPost.body,
-            isPublished: blogPost.isPublished
+            title: document.title,
+            content: document.content,
+            documentType: document.documentType
         });
         setIsEditModalVisible(true);
     };
 
-    // Open view modal with blog post data
-    const openViewModal = (blogPost: BlogPost) => {
-        setSelectedBlogPost(blogPost);
+    // Open view modal with document data
+    const openViewModal = (document: Document) => {
+        setSelectedDocument(document);
         setIsViewModalVisible(true);
     };
 
-    // Table columns
-    const columns: ColumnsType<BlogPost> = [
+    const columns: ColumnsType<Document> = [
         {
             title: 'Title',
             dataIndex: 'title',
             key: 'title',
-            render: (text: string, record: BlogPost) => (
-                <span
-                    className="text-blue-600 cursor-pointer hover:underline"
-                    onClick={() => openViewModal(record)}
-                >
-                    {text}
-                </span>
-            ),
-            sorter: (a: BlogPost, b: BlogPost) => a.title.localeCompare(b.title),
+            render: (text: string) => <a className="text-blue-600 hover:text-blue-800">{text}</a>,
+            sorter: (a: Document, b: Document) => a.title.localeCompare(b.title),
             width: 250,
         },
         {
-            title: 'Author',
-            dataIndex: 'authorName',
-            key: 'authorName',
-            sorter: (a: BlogPost, b: BlogPost) => a.authorName.localeCompare(b.authorName),
+            title: 'Created By',
+            dataIndex: 'createdByName',
+            key: 'createdByName',
             width: 150,
         },
         {
-            title: 'Status',
-            dataIndex: 'isPublished',
-            key: 'isPublished',
-            render: (isPublished: boolean) => (
-                isPublished ?
-                    <Tag icon={<CheckCircleOutlined />} color="success">Published</Tag> :
-                    <Tag icon={<CloseCircleOutlined />} color="default">Draft</Tag>
-            ),
-            filters: [
-                { text: 'Published', value: true },
-                { text: 'Draft', value: false },
-            ],
-            onFilter: (value: boolean | React.Key, record: BlogPost) =>
-                record.isPublished === (typeof value === 'boolean' ? value : Boolean(value)),
-            width: 120,
-        },
-        {
-            title: 'Created',
-            dataIndex: 'createdTime',
-            key: 'createdTime',
+            title: 'Created Date',
+            dataIndex: 'createdDate',
+            key: 'createdDate',
             render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
-            sorter: (a: BlogPost, b: BlogPost) => dayjs(a.createdTime).unix() - dayjs(b.createdTime).unix(),
-            width: 150,
-        },
-        {
-            title: 'Last Updated',
-            dataIndex: 'lastUpdatedTime',
-            key: 'lastUpdatedTime',
-            render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
-            sorter: (a: BlogPost, b: BlogPost) => dayjs(a.lastUpdatedTime).unix() - dayjs(b.lastUpdatedTime).unix(),
+            sorter: (a: Document, b: Document) => dayjs(a.createdDate).unix() - dayjs(b.createdDate).unix(),
             width: 150,
         },
         {
             title: 'Actions',
             key: 'actions',
-            render: (_: any, record: BlogPost) => (
+            render: (_: any, record: Document) => (
                 <Space size="small">
                     <Tooltip title="View">
                         <Button
@@ -263,7 +236,7 @@ export default function AdminBlogPage() {
                             type="text"
                             danger
                             icon={<DeleteOutlined />}
-                            onClick={() => handleDeleteBlogPost(record.id)}
+                            onClick={() => handleDeleteDocument(record.id)}
                         />
                     </Tooltip>
                 </Space>
@@ -273,47 +246,60 @@ export default function AdminBlogPage() {
     ];
 
     const breadcrumbItems = [
-        { title: 'Blog', href: '/admin/blog' },
+        { title: 'Documents', href: '/admin/documents' },
     ];
 
     return (
-        <AdminLayout
-            title="Blog Management"
-            breadcrumbItems={breadcrumbItems}
-        >
-            <Card>
-                {/* Filters */}
+        <AdminLayout breadcrumbItems={breadcrumbItems} title="Document Management">
+            <Card
+                title={
+                    <div className="flex items-center">
+                        <span className="text-xl font-semibold">Documents</span>
+                    </div>
+                }
+                extra={
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => {
+                            createForm.setFieldsValue({ documentType: activeTab });
+                            setIsCreateModalVisible(true);
+                        }}
+                    >
+                        Create Document
+                    </Button>
+                }
+                className="shadow-sm"
+            >
+                <Tabs
+                    activeKey={activeTab}
+                    onChange={handleTabChange}
+                    className="mb-4"
+                    type="card"
+                >
+                    <TabPane tab="Blood Types" key="BloodType" />
+                    <TabPane tab="Component Types" key="ComponentType" />
+                </Tabs>
+
                 <div className="mb-6">
-                    <Row gutter={[16, 16]} align="middle">
-                        <Col xs={24} md={8}>
+                    <Row gutter={16} className="mb-4">
+                        <Col xs={24} sm={12} md={8} lg={6}>
                             <Input
-                                placeholder="Search by title or content..."
+                                placeholder="Search by title"
                                 prefix={<SearchOutlined />}
                                 value={searchText}
                                 onChange={handleSearch}
-                                onPressEnter={applyFilters}
+                                allowClear
                             />
                         </Col>
-                        <Col xs={24} md={6}>
-                            <Select
-                                placeholder="Filter by status"
-                                style={{ width: '100%' }}
-                                allowClear
-                                onChange={(value) => setPublishedFilter(value)}
-                                value={publishedFilter}
-                            >
-                                <Option value={true}>Published</Option>
-                                <Option value={false}>Draft</Option>
-                            </Select>
-                        </Col>
-                        <Col xs={24} md={6}>
+                        <Col xs={24} sm={12} md={10} lg={8}>
                             <RangePicker
                                 style={{ width: '100%' }}
-                                onChange={(dates) => setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null])}
                                 value={dateRange}
+                                onChange={(dates) => setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null])}
                             />
                         </Col>
-                        <Col xs={24} md={4}>
+                        <Col xs={24} sm={12} md={6} lg={6}>
                             <Space>
                                 <Button type="primary" onClick={applyFilters}>
                                     Filter
@@ -326,50 +312,33 @@ export default function AdminBlogPage() {
                     </Row>
                 </div>
 
-                {/* Actions */}
-                <div className="flex justify-between mb-4">
-                    <div>
-                        <span className="text-gray-500">
-                            Total: {totalCount} blog posts
-                        </span>
-                    </div>
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => setIsCreateModalVisible(true)}
-                    >
-                        Create Blog Post
-                    </Button>
-                </div>
-
-                {/* Blog posts table */}
                 <Table
-                    dataSource={blogPosts}
+                    dataSource={documents}
                     columns={columns}
                     rowKey="id"
                     loading={loading}
                     pagination={false}
-                    scroll={{ x: 'max-content' }}
+                    className="mb-6"
                 />
 
-                {/* Pagination */}
-                <div className="mt-4 flex justify-end">
+                <div className="flex justify-between items-center">
+                    <div>
+                        Showing {documents.length} of {totalCount} items
+                    </div>
                     <Pagination
                         current={pageNumber}
                         pageSize={pageSize}
                         total={totalCount}
+                        onChange={handlePageChange}
                         showSizeChanger
                         showQuickJumper
-                        showTotal={(total) => `Total ${total} items`}
-                        onChange={handlePageChange}
-                        onShowSizeChange={handlePageChange}
                     />
                 </div>
             </Card>
 
-            {/* Create Blog Post Modal */}
+            {/* Create Document Modal */}
             <Modal
-                title="Create Blog Post"
+                title="Create Document"
                 open={isCreateModalVisible}
                 onCancel={() => {
                     setIsCreateModalVisible(false);
@@ -383,21 +352,32 @@ export default function AdminBlogPage() {
                 <Form
                     form={createForm}
                     layout="vertical"
-                    onFinish={handleCreateBlogPost}
-                    initialValues={{ isPublished: false }}
+                    onFinish={handleCreateDocument}
+                    initialValues={{ documentType: activeTab }}
                 >
                     <Form.Item
                         name="title"
                         label="Title"
                         rules={[{ required: true, message: 'Please enter a title' }]}
                     >
-                        <Input placeholder="Enter blog post title" />
+                        <Input placeholder="Enter document title" />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="documentType"
+                        label="Document Type"
+                        rules={[{ required: true, message: 'Please select a document type' }]}
+                    >
+                        <Select placeholder="Select document type">
+                            <Option value="BloodType">Blood Type</Option>
+                            <Option value="ComponentType">Component Type</Option>
+                        </Select>
                     </Form.Item>
 
                     <Row gutter={16}>
                         <Col span={24}>
                             <Form.Item
-                                name="body"
+                                name="content"
                                 label="Content"
                                 rules={[{ required: true, message: 'Please enter content' }]}
                             >
@@ -405,17 +385,6 @@ export default function AdminBlogPage() {
                             </Form.Item>
                         </Col>
                     </Row>
-
-                    <Form.Item
-                        name="isPublished"
-                        label="Publish Status"
-                        valuePropName="checked"
-                    >
-                        <Switch
-                            checkedChildren="Published"
-                            unCheckedChildren="Draft"
-                        />
-                    </Form.Item>
 
                     <Form.Item className="mt-10">
                         <Space>
@@ -433,9 +402,9 @@ export default function AdminBlogPage() {
                 </Form>
             </Modal>
 
-            {/* Edit Blog Post Modal */}
+            {/* Edit Document Modal */}
             <Modal
-                title="Edit Blog Post"
+                title="Edit Document"
                 open={isEditModalVisible}
                 onCancel={() => setIsEditModalVisible(false)}
                 footer={null}
@@ -446,20 +415,31 @@ export default function AdminBlogPage() {
                 <Form
                     form={editForm}
                     layout="vertical"
-                    onFinish={handleUpdateBlogPost}
+                    onFinish={handleUpdateDocument}
                 >
                     <Form.Item
                         name="title"
                         label="Title"
                         rules={[{ required: true, message: 'Please enter a title' }]}
                     >
-                        <Input placeholder="Enter blog post title" />
+                        <Input placeholder="Enter document title" />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="documentType"
+                        label="Document Type"
+                        rules={[{ required: true, message: 'Please select a document type' }]}
+                    >
+                        <Select placeholder="Select document type">
+                            <Option value="BloodType">Blood Type</Option>
+                            <Option value="ComponentType">Component Type</Option>
+                        </Select>
                     </Form.Item>
 
                     <Row gutter={16}>
                         <Col span={24}>
                             <Form.Item
-                                name="body"
+                                name="content"
                                 label="Content"
                                 rules={[{ required: true, message: 'Please enter content' }]}
                             >
@@ -467,17 +447,6 @@ export default function AdminBlogPage() {
                             </Form.Item>
                         </Col>
                     </Row>
-
-                    <Form.Item
-                        name="isPublished"
-                        label="Publish Status"
-                        valuePropName="checked"
-                    >
-                        <Switch
-                            checkedChildren="Published"
-                            unCheckedChildren="Draft"
-                        />
-                    </Form.Item>
 
                     <Form.Item className="mt-10">
                         <Space>
@@ -492,10 +461,10 @@ export default function AdminBlogPage() {
                 </Form>
             </Modal>
 
-            {/* View Blog Post Modal */}
-            {selectedBlogPost && (
+            {/* View Document Modal */}
+            {selectedDocument && (
                 <Modal
-                    title={selectedBlogPost.title}
+                    title={selectedDocument.title}
                     open={isViewModalVisible}
                     onCancel={() => setIsViewModalVisible(false)}
                     footer={[
@@ -507,7 +476,7 @@ export default function AdminBlogPage() {
                             type="primary"
                             onClick={() => {
                                 setIsViewModalVisible(false);
-                                openEditModal(selectedBlogPost);
+                                openEditModal(selectedDocument);
                             }}
                         >
                             Edit
@@ -520,28 +489,22 @@ export default function AdminBlogPage() {
                     <Row gutter={16}>
                         <Col xs={24} md={8} lg={6}>
                             <div className="mb-4">
-                                <p className="text-gray-500 mb-1">Author</p>
-                                <p>{selectedBlogPost.authorName}</p>
-                            </div>
-
-                            <div className="mb-4">
-                                <p className="text-gray-500 mb-1">Status</p>
+                                <p className="text-gray-500 mb-1">Document Type</p>
                                 <p>
-                                    {selectedBlogPost.isPublished ?
-                                        <Tag icon={<CheckCircleOutlined />} color="success">Published</Tag> :
-                                        <Tag icon={<CloseCircleOutlined />} color="default">Draft</Tag>
-                                    }
+                                    <Tag color={selectedDocument.documentType === 'BloodType' ? 'red' : 'blue'}>
+                                        {selectedDocument.documentType}
+                                    </Tag>
                                 </p>
                             </div>
 
                             <div className="mb-4">
-                                <p className="text-gray-500 mb-1">Created</p>
-                                <p>{dayjs(selectedBlogPost.createdTime).format('YYYY-MM-DD HH:mm')}</p>
+                                <p className="text-gray-500 mb-1">Created By</p>
+                                <p>{selectedDocument.createdByName}</p>
                             </div>
 
                             <div className="mb-4">
-                                <p className="text-gray-500 mb-1">Last Updated</p>
-                                <p>{dayjs(selectedBlogPost.lastUpdatedTime).format('YYYY-MM-DD HH:mm')}</p>
+                                <p className="text-gray-500 mb-1">Created Date</p>
+                                <p>{dayjs(selectedDocument.createdDate).format('YYYY-MM-DD HH:mm')}</p>
                             </div>
                         </Col>
 
@@ -549,9 +512,9 @@ export default function AdminBlogPage() {
                             <div className="mt-6 md:mt-0">
                                 <p className="text-gray-500 mb-1">Content</p>
                                 <div
-                                    className="border p-4 rounded-md bg-white blog-content"
+                                    className="border p-4 rounded-md bg-white blog-content blood-doc"
                                     style={{ minHeight: '500px', overflow: 'auto' }}
-                                    dangerouslySetInnerHTML={{ __html: selectedBlogPost.body }}
+                                    dangerouslySetInnerHTML={{ __html: selectedDocument.content }}
                                 />
                             </div>
                         </Col>

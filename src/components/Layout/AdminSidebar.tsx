@@ -69,6 +69,7 @@ export default function AdminSidebar() {
     if (path.includes('/admin/blood-drives')) return 'blood-drives';
     if (path.includes('/admin/reports')) return 'reports';
     if (path.includes('/admin/blog')) return 'blog';
+    if (path.includes('/admin/documents')) return 'documents';
     if (path.includes('/admin/notifications')) return 'notifications';
     if (path.includes('/admin/settings')) return 'settings';
     return 'dashboard';
@@ -114,6 +115,11 @@ export default function AdminSidebar() {
       key: 'blog',
       icon: <FileTextOutlined />,
       label: <Link href="/admin/blog">Blog</Link>,
+    },
+    {
+      key: 'documents',
+      icon: <FileTextOutlined />,
+      label: <Link href="/admin/documents">Documents</Link>,
     },
     // {
     //   key: 'notifications',

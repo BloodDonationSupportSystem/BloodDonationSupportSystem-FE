@@ -76,7 +76,11 @@ export type {
 export type {
   // Document types
   Document,
-  DocumentsResponse
+  DocumentsResponse,
+  DocumentResponse,
+  CreateDocumentRequest,
+  UpdateDocumentRequest,
+  DocumentsParams
 } from './documentsService';
 
 export type {
