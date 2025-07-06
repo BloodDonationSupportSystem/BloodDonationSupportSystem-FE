@@ -12,6 +12,7 @@ import * as donationAppointmentService from './donationAppointmentService';
 import * as locationService from './locationService';
 import * as componentTypeService from './componentTypeService';
 import * as userService from './userService';
+import * as dashboardService from './dashboardService';
 
 // Export the API client
 export { apiClient };
@@ -28,14 +29,15 @@ export {
   donationAppointmentService,
   locationService,
   componentTypeService,
-  userService
+  userService,
+  dashboardService
 };
 
 // Re-export types from services
 export type {
   // Auth types
-  User, 
-  LoginRequest, 
+  User,
+  LoginRequest,
   RegisterRequest,
   AuthResponse,
   LoginResponse,
@@ -81,7 +83,7 @@ export type {
   // Blog types
   BlogPost,
   PaginatedBlogPostsResponse
-} from './blogService'; 
+} from './blogService';
 
 export type {
   // Location types
@@ -119,4 +121,10 @@ export type {
   StaffsResponse,
   StaffResponse,
   RegisterStaffWithLocationRequest
-} from './userService'; 
+} from './userService';
+
+export type {
+  // Dashboard types
+  DashboardData,
+  StaffDashboardData
+} from './dashboardService'; 

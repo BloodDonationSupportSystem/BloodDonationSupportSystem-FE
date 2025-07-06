@@ -17,8 +17,8 @@ interface StaffLayoutProps {
   breadcrumbItems?: { title: React.ReactNode; href?: string }[];
 }
 
-const StaffLayout: React.FC<StaffLayoutProps> = ({ 
-  children, 
+const StaffLayout: React.FC<StaffLayoutProps> = ({
+  children,
   title,
   subtitle,
   breadcrumbItems = []
@@ -31,7 +31,7 @@ const StaffLayout: React.FC<StaffLayoutProps> = ({
   } = theme.useToken();
 
   const breadcrumbItemsWithHome = [
-    { title: 'Dashboard', href: '/staff' },
+    { title: 'Dashboard', href: '/staff/dashboard' },
     ...breadcrumbItems,
   ];
 
@@ -51,63 +51,63 @@ const StaffLayout: React.FC<StaffLayoutProps> = ({
 
   return (
     <Layout>
-          <Header
-            style={{
-              padding: '0 24px',
-              background: colorBgContainer,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              position: 'sticky',
-              top: 0,
-              zIndex: 1,
-              width: '100%',
+      <Header
+        style={{
+          padding: '0 24px',
+          background: colorBgContainer,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 1,
+          width: '100%',
           height: '64px',
-            }}
-          >
-            <div className="flex items-center">
-              <Button
-                type="text"
-                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+        }}
+      >
+        <div className="flex items-center">
+          <Button
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             onClick={toggleCollapsed}
             style={{ fontSize: '16px', width: 48, height: 48 }}
             className="mr-4"
-              />
-              <Breadcrumb items={breadcrumbItemsWithHome} />
-            </div>
-            <div className="flex items-center gap-4">
-              <Badge count={3} size="small">
-                <Button
-                  shape="circle"
-                  icon={<BellOutlined />}
-                  type="text"
-                />
-              </Badge>
-              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-                <Button type="text" className="flex items-center">
-                  <Avatar icon={<UserOutlined />} />
+          />
+          <Breadcrumb items={breadcrumbItemsWithHome} />
+        </div>
+        <div className="flex items-center gap-4">
+          <Badge count={3} size="small">
+            <Button
+              shape="circle"
+              icon={<BellOutlined />}
+              type="text"
+            />
+          </Badge>
+          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <Button type="text" className="flex items-center">
+              <Avatar icon={<UserOutlined />} />
               <span className="ml-2">{user?.firstName || 'User'} {user?.lastName || ''}</span>
-                </Button>
-              </Dropdown>
-            </div>
-          </Header>
-          <Content
-            style={{
-              margin: '24px 16px',
-              padding: 24,
-              minHeight: 280,
-              background: colorBgContainer,
-              borderRadius: borderRadiusLG,
-            }}
-          >
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold">{title}</h1>
+            </Button>
+          </Dropdown>
+        </div>
+      </Header>
+      <Content
+        style={{
+          margin: '24px 16px',
+          padding: 24,
+          minHeight: 280,
+          background: colorBgContainer,
+          borderRadius: borderRadiusLG,
+        }}
+      >
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">{title}</h1>
           {subtitle && <p className="text-red-600 font-medium mt-1">{subtitle}</p>}
-            </div>
-            {children}
-          </Content>
-        </Layout>
+        </div>
+        {children}
+      </Content>
+    </Layout>
   );
 };
 

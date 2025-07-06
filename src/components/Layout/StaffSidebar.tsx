@@ -58,8 +58,9 @@ export default function StaffSidebar() {
   } = theme.useToken();
 
   // Get active menu key based on current path
-  const getSelectedKey = () => {
+  const getActiveKey = (pathname: string): string => {
     if (pathname === '/staff') return 'dashboard';
+    if (pathname === '/staff/dashboard') return 'dashboard';
     if (pathname.includes('/staff/appointments')) return 'appointments';
     if (pathname.includes('/staff/donation-events')) return 'donation-events';
     if (pathname.includes('/staff/blood-request')) return 'blood-request';
@@ -69,14 +70,14 @@ export default function StaffSidebar() {
     if (pathname.includes('/staff/inventory')) return 'inventory';
     if (pathname.includes('/staff/capacity')) return 'capacity';
     if (pathname.includes('/staff/profile')) return 'profile';
-    return 'dashboard';
+    return '';
   };
 
   const menuItems = [
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
-      label: <Link href="/staff">Dashboard</Link>,
+      label: <Link href="/staff/dashboard">Dashboard</Link>,
     },
     {
       key: 'appointments',
@@ -163,7 +164,7 @@ export default function StaffSidebar() {
 
       <Menu
         mode="inline"
-        selectedKeys={[getSelectedKey()]}
+        selectedKeys={[getActiveKey(pathname)]}
         style={{ borderRight: 0 }}
         items={menuItems}
       />

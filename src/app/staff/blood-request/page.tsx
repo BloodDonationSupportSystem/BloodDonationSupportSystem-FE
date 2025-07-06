@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Typography, Tabs, Spin, Empty, Alert, message, notification, Select } from 'antd';
+import { Typography, Tabs, Spin, Empty, Alert, message, notification, Select, Badge } from 'antd';
 import { useBloodRequests } from '@/hooks/api/useBloodRequests';
 import EmergencyRequestList from '../../../components/Staff/BloodRequest/EmergencyRequestList';
 import RegularRequestList from '../../../components/Staff/BloodRequest/RegularRequestList';
 import * as signalR from '@microsoft/signalr';
 import { useAuth } from '@/context/AuthContext';
 import { useLocations } from '@/hooks/api/useLocations';
+import StaffLayout from '@/components/Layout/StaffLayout';
 
 const { Title } = Typography;
 const { TabPane } = Tabs;
@@ -233,128 +234,78 @@ export default function BloodRequestPage() {
     // Render error state
     if (emergencyError && regularError) {
         return (
-            <div className="p-6">
-                <Alert
-                    message="Error Loading Blood Requests"
-                    description="There was an error loading the blood requests. Please try again later."
-                    type="error"
-                    showIcon
-                />
-            </div>
+            <StaffLayout title="Blood Request Management" breadcrumbItems={[{ title: 'Blood Requests' }]}>
+                <div className="p-6">
+                    <Alert
+                        message="Error Loading Blood Requests"
+                        description="There was an error loading the blood requests. Please try again later."
+                        type="error"
+                        showIcon
+                    />
+                </div>
+            </StaffLayout>
         );
     }
 
     return (
-        <div className="p-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-                <Title level={2} className="text-red-600 mb-4 md:mb-0">Blood Request Management</Title>
-
-                <div className="w-full md:w-64">
-                    {/* <Select
-                        placeholder="Filter by location"
-                        loading={loadingLocations}
-                        value={selectedLocationId}
-                        onChange={handleLocationChange}
-                        style={{ width: '100%' }}
-                        allowClear
-                    >
-                        {locations.map(location => (
-                            <Option key={location.id} value={location.id}>
-                                {location.name}
-                            </Option>
-                        ))}
-                    </Select> */}
-                    {selectedLocationId && (
-                        <div className="text-xs text-gray-500 mt-1">
-                            Showing requests for selected location only
-                        </div>
-                    )}
+        <StaffLayout title="Blood Request Management" breadcrumbItems={[{ title: 'Blood Requests' }]}>
+            <div className="p-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                    <Title level={2} className="text-red-600 mb-4 md:mb-0">Blood Request Management</Title>
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                        <Select
+                            placeholder="Filter by Location"
+                            style={{ width: 200 }}
+                            allowClear
+                            loading={loadingLocations}
+                            onChange={(value) => handleLocationChange(value)}
+                            value={selectedLocationId}
+                        >
+                            {locations && locations.map(location => (
+                                <Option key={location.id} value={location.id}>{location.name}</Option>
+                            ))}
+                        </Select>
+                    </div>
                 </div>
+
+                <Tabs
+                    activeKey={activeTab}
+                    onChange={handleTabChange}
+                    type="card"
+                    className="blood-request-tabs"
+                    items={[
+                        {
+                            key: 'emergency',
+                            label: (
+                                <span>
+                                    Emergency Requests
+                                    {newEmergencyRequest && <Badge status="error" className="ml-2" />}
+                                </span>
+                            ),
+                            children: (
+                                <EmergencyRequestList
+                                    requests={emergencyRequests}
+                                    pagination={emergencyPagination}
+                                    onRefresh={refreshData}
+                                    onPageChange={(page) => fetchEmergencyRequests({ pageNumber: page, locationId: selectedLocationId || undefined })}
+                                />
+                            )
+                        },
+                        {
+                            key: 'regular',
+                            label: 'Regular Requests',
+                            children: (
+                                <RegularRequestList
+                                    requests={regularRequests}
+                                    pagination={regularPagination}
+                                    onRefresh={refreshData}
+                                    onPageChange={(page) => fetchRegularRequests({ pageNumber: page, locationId: selectedLocationId || undefined })}
+                                />
+                            )
+                        }
+                    ]}
+                />
             </div>
-
-            <Tabs
-                activeKey={activeTab}
-                onChange={handleTabChange}
-                className="mb-6"
-            >
-                <TabPane
-                    tab={
-                        <span className="text-red-600 font-medium">
-                            {newEmergencyRequest ? '🔴' : '🚨'} Emergency Requests
-                            {emergencyRequests.length > 0 && (
-                                <span className={`ml-2 ${newEmergencyRequest ? 'bg-red-500 text-white animate-pulse' : 'bg-red-100 text-red-800'} px-2 py-0.5 rounded-full text-xs`}>
-                                    {emergencyRequests.length}
-                                </span>
-                            )}
-                        </span>
-                    }
-                    key="emergency"
-                >
-                    {emergencyLoading ? (
-                        <div className="flex justify-center py-12">
-                            <Spin size="large" tip="Loading emergency requests..." />
-                        </div>
-                    ) : emergencyRequests.length === 0 ? (
-                        <Empty
-                            description={
-                                selectedLocationId
-                                    ? "No emergency blood requests found for this location"
-                                    : "No emergency blood requests found"
-                            }
-                            image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        />
-                    ) : (
-                        <EmergencyRequestList
-                            requests={emergencyRequests}
-                            pagination={emergencyPagination}
-                            onRefresh={refreshData}
-                            onPageChange={(page: number) => fetchEmergencyRequests({
-                                pageNumber: page,
-                                locationId: selectedLocationId || undefined
-                            })}
-                        />
-                    )}
-                </TabPane>
-
-                <TabPane
-                    tab={
-                        <span className="font-medium">
-                            📋 Regular Requests
-                            {regularRequests.length > 0 && (
-                                <span className="ml-2 bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full text-xs">
-                                    {regularRequests.length}
-                                </span>
-                            )}
-                        </span>
-                    }
-                    key="regular"
-                >
-                    {regularLoading ? (
-                        <div className="flex justify-center py-12">
-                            <Spin size="large" tip="Loading regular requests..." />
-                        </div>
-                    ) : regularRequests.length === 0 ? (
-                        <Empty
-                            description={
-                                selectedLocationId
-                                    ? "No regular blood requests found for this location"
-                                    : "No regular blood requests found"
-                            }
-                            image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        />
-                    ) : (
-                        <RegularRequestList
-                            requests={regularRequests}
-                            pagination={regularPagination}
-                            onRefresh={refreshData}
-                            onPageChange={(page: number) => fetchRegularRequests({
-                                pageNumber: page,
-                                locationId: selectedLocationId || undefined
-                            })}
-                        />
-                    )}
-                </TabPane>
-            </Tabs>
-        </div>
+        </StaffLayout>
     );
 } 

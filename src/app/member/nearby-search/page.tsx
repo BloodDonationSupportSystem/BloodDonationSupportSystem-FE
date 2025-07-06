@@ -103,7 +103,7 @@ export default function NearbySearchPage() {
 
   const onFinish = (values: any) => {
     console.log('Search Values:', values);
-    
+
     // Simulate API call with mock data
     setTimeout(() => {
       if (searchType === 'donors') {
@@ -145,9 +145,9 @@ export default function NearbySearchPage() {
 
     if (searchResults.length === 0) {
       return (
-        <Empty 
-          description="No donors found matching your criteria" 
-          image={Empty.PRESENTED_IMAGE_SIMPLE} 
+        <Empty
+          description="No donors found matching your criteria"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       );
     }
@@ -171,7 +171,7 @@ export default function NearbySearchPage() {
                 <div className="flex items-center">
                   <span className="mr-2">{donor.name}</span>
                   <Tag color="red">{donor.bloodType}</Tag>
-                  <Tag color="blue">{donor.distance.toFixed(1)} km away</Tag>
+                  <Tag color="blue">{donor.distance !== null && donor.distance !== undefined ? `${donor.distance.toFixed(1)} km away` : 'Distance unknown'}</Tag>
                 </div>
               }
               description={
@@ -207,9 +207,9 @@ export default function NearbySearchPage() {
 
     if (searchResults.length === 0) {
       return (
-        <Empty 
-          description="No recipients found matching your criteria" 
-          image={Empty.PRESENTED_IMAGE_SIMPLE} 
+        <Empty
+          description="No recipients found matching your criteria"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       );
     }
@@ -233,7 +233,7 @@ export default function NearbySearchPage() {
                 <div className="flex items-center">
                   <span className="mr-2">{recipient.name}</span>
                   <Tag color="red">{recipient.bloodType}</Tag>
-                  <Tag color="blue">{recipient.distance.toFixed(1)} km away</Tag>
+                  <Tag color="blue">{recipient.distance !== null && recipient.distance !== undefined ? `${recipient.distance.toFixed(1)} km away` : 'Distance unknown'}</Tag>
                   {recipient.urgency === 'high' && (
                     <Tag color="red">Urgent</Tag>
                   )}
@@ -298,8 +298,8 @@ export default function NearbySearchPage() {
         </div>
 
         <Card className="shadow-md mb-8">
-          <Tabs 
-            defaultActiveKey="donors" 
+          <Tabs
+            defaultActiveKey="donors"
             onChange={(key) => {
               setSearchType(key);
               setSearchResults([]);
@@ -338,8 +338,8 @@ export default function NearbySearchPage() {
                       </Form.Item>
 
                       <Form.Item label=" " className="flex items-end">
-                        <Button 
-                          type="primary" 
+                        <Button
+                          type="primary"
                           htmlType="submit"
                           icon={<SearchOutlined />}
                           className="bg-red-600 hover:bg-red-700 w-full"
@@ -394,8 +394,8 @@ export default function NearbySearchPage() {
                       </Form.Item>
 
                       <Form.Item label=" " className="flex items-end">
-                        <Button 
-                          type="primary" 
+                        <Button
+                          type="primary"
                           htmlType="submit"
                           icon={<SearchOutlined />}
                           className="bg-red-600 hover:bg-red-700 w-full"

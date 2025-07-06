@@ -130,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         router.push('/admin');
         break;
       case 'Staff':
-        router.push('/staff');
+        router.push('/staff/dashboard');
         break;
       default:
         router.push('/');

@@ -46,7 +46,7 @@ const RoleBasedRedirect = ({ children }: { children: React.ReactNode }) => {
             router.push('/admin');
             break;
           case 'Staff':
-            router.push('/staff');
+            router.push('/staff/dashboard');
             break;
           default:
             // Leave on homepage for other roles or no role
