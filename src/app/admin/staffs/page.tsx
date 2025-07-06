@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Table, Card, Button, Input, Space, Tag, Tooltip, Modal, Form, Select, Tabs, Collapse, Switch, App } from 'antd';
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, EnvironmentOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, EnvironmentOutlined, CheckOutlined, CloseOutlined, UserOutlined } from '@ant-design/icons';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { useStaffs, useRegisterStaff, useActivateUser } from '@/hooks/api/useUsers';
 import { useLocations } from '@/hooks/api/useLocations';
@@ -31,7 +31,7 @@ export default function AdminStaffsPage() {
     setSearchText(e.target.value);
   };
 
-  const filteredStaffs = staffs.filter(staff => 
+  const filteredStaffs = staffs.filter(staff =>
     staff.staff.userName.toLowerCase().includes(searchText.toLowerCase()) ||
     staff.staff.email.toLowerCase().includes(searchText.toLowerCase()) ||
     `${staff.staff.firstName} ${staff.staff.lastName}`.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -181,7 +181,7 @@ export default function AdminStaffsPage() {
       title: 'Status',
       dataIndex: ['staff', 'isActivated'],
       key: 'isActivated',
-      render: (isActivated: boolean) => 
+      render: (isActivated: boolean) =>
         isActivated !== undefined ? (
           <Tag color={isActivated ? 'success' : 'error'} icon={isActivated ? <CheckOutlined /> : <CloseOutlined />}>
             {isActivated ? 'Active' : 'Inactive'}
@@ -273,8 +273,8 @@ export default function AdminStaffsPage() {
   ];
 
   return (
-    <AdminLayout 
-      title="Staff Management" 
+    <AdminLayout
+      title="Staff Management"
       breadcrumbItems={breadcrumbItems}
     >
       <Card>
@@ -302,11 +302,17 @@ export default function AdminStaffsPage() {
 
       {/* Edit Staff Modal */}
       <Modal
-        title="Edit Staff Member"
+        title={
+          <div className="flex items-center">
+            <EditOutlined className="mr-2" />
+            <span>Edit Staff</span>
+          </div>
+        }
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={() => setIsModalVisible(false)}
-        width={700}
+        width={900}
+        centered
       >
         <Form
           form={form}
@@ -363,13 +369,19 @@ export default function AdminStaffsPage() {
 
       {/* Add Staff Modal */}
       <Modal
-        title="Add Staff Member"
+        title={
+          <div className="flex items-center">
+            <PlusOutlined className="mr-2" />
+            <span>Create New Staff</span>
+          </div>
+        }
         open={addStaffModalVisible}
         onOk={handleAddStaffOk}
         onCancel={() => setAddStaffModalVisible(false)}
         confirmLoading={registerLoading}
         okText="Add Staff"
-        width={800}
+        width={900}
+        centered
       >
         <Form
           form={addStaffForm}
@@ -380,7 +392,7 @@ export default function AdminStaffsPage() {
             canViewReports: false,
           }}
         >
-          <Tabs 
+          <Tabs
             defaultActiveKey="1"
             items={[
               {
@@ -531,24 +543,24 @@ export default function AdminStaffsPage() {
 
       {/* Staff Details Modal */}
       <Modal
-        title="Staff Member Details"
+        title={
+          <div className="flex items-center">
+            <UserOutlined className="mr-2" />
+            <span>Staff Details</span>
+          </div>
+        }
         open={detailsVisible}
         onCancel={() => setDetailsVisible(false)}
         footer={[
-          <Button key="back" onClick={() => setDetailsVisible(false)}>
+          <Button key="close" onClick={() => setDetailsVisible(false)}>
             Close
-          </Button>,
-          <Button key="edit" type="primary" onClick={() => {
-            setDetailsVisible(false);
-            handleEdit(selectedStaff);
-          }}>
-            Edit
-          </Button>,
+          </Button>
         ]}
-        width={800}
+        width={900}
+        centered
       >
         {selectedStaff && (
-          <Tabs 
+          <Tabs
             defaultActiveKey="1"
             items={[
               {
@@ -624,8 +636,8 @@ export default function AdminStaffsPage() {
                               <div>
                                 <p className="text-gray-500 mb-1">Status</p>
                                 <p className="font-medium">
-                                  {location.isActive ? 
-                                    <Tag icon={<CheckOutlined />} color="success">Active</Tag> : 
+                                  {location.isActive ?
+                                    <Tag icon={<CheckOutlined />} color="success">Active</Tag> :
                                     <Tag icon={<CloseOutlined />} color="error">Inactive</Tag>
                                   }
                                 </p>

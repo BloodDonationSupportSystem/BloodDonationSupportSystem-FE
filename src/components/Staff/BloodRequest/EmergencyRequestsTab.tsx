@@ -260,7 +260,8 @@ export default function EmergencyRequestsTab({
                 open={modalVisible}
                 onCancel={() => setModalVisible(false)}
                 footer={null}
-                width={700}
+                width={900}
+                centered
             >
                 {actionLoading ? (
                     <div className="text-center py-6">

@@ -119,6 +119,7 @@ export interface StaffAssignmentRequest {
   notes?: string;
   isUrgent?: boolean;
   priority?: number;
+  relatedBloodRequestId?: string;
   autoExpireHours?: number;
 }
 

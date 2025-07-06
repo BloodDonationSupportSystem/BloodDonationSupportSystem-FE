@@ -666,7 +666,7 @@ export default function MyBloodRequestsPage() {
               </Button>
             )
           ]}
-          width={800}
+          width={1000}
         >
           {selectedRequest && (
             <div>

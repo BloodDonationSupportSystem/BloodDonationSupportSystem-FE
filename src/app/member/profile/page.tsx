@@ -478,11 +478,17 @@ export default function ProfilePage() {
 
       {/* Edit Profile Modal */}
       <Modal
-        title="Edit Donor Profile"
+        title={
+          <div className="flex items-center">
+            <EditOutlined className="mr-2" />
+            <span>Edit Profile</span>
+          </div>
+        }
         open={isEditModalVisible}
         onCancel={() => setIsEditModalVisible(false)}
         footer={null}
-        width={800}
+        width={900}
+        centered
       >
         <Form
           form={form}

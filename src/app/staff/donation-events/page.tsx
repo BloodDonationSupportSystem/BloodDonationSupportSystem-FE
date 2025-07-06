@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Space, Select, DatePicker, Input, Card, Spin, Typography, Form, Modal, Descriptions, Empty, Divider, Alert } from 'antd';
-import { SearchOutlined, FilterOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
+import { SearchOutlined, FilterOutlined, ReloadOutlined, PlusOutlined, CalendarOutlined, EditOutlined } from '@ant-design/icons';
 import StaffLayout from '@/components/Layout/StaffLayout';
 import { useAuth } from '@/context/AuthContext';
 import apiClient from '@/services/api/apiConfig';
@@ -578,16 +578,21 @@ export default function StaffDonationEventsPage() {
 
             {/* Donation Event Detail Modal */}
             <Modal
-                title="Chi tiết sự kiện hiến máu"
+                title={
+                    <div className="flex items-center">
+                        <CalendarOutlined className="mr-2" />
+                        <span>Event Details</span>
+                    </div>
+                }
                 open={isDetailModalVisible}
                 onCancel={() => setIsDetailModalVisible(false)}
                 footer={[
                     <Button key="close" onClick={() => setIsDetailModalVisible(false)}>
-                        Đóng
+                        Close
                     </Button>
                 ]}
-                width={800}
-                bodyStyle={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}
+                width={900}
+                centered
             >
                 {loadingEventDetail ? (
                     <div className="flex justify-center items-center py-10">
@@ -795,12 +800,17 @@ export default function StaffDonationEventsPage() {
 
             {/* Walk-in Donation Modal */}
             <Modal
-                title="Create Walk-in Donation"
+                title={
+                    <div className="flex items-center">
+                        <PlusOutlined className="mr-2" />
+                        <span>Create Donation Event</span>
+                    </div>
+                }
                 open={isWalkInModalVisible}
                 onCancel={() => setIsWalkInModalVisible(false)}
                 footer={null}
-                width={800}
-                bodyStyle={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}
+                width={900}
+                centered
             >
                 <Spin spinning={loadingInitialData || creatingWalkIn}>
                     <Form

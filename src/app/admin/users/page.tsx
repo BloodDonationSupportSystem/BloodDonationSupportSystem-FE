@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Table, Card, Button, Input, Space, Tag, Tooltip, Modal, Form, Select, DatePicker, Switch, App } from 'antd';
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, MailOutlined, CheckCircleOutlined, CloseCircleOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, MailOutlined, CheckCircleOutlined, CloseCircleOutlined, CheckOutlined, CloseOutlined, UserOutlined } from '@ant-design/icons';
 import AdminLayout from '@/components/Layout/AdminLayout';
 import { useMembers, useActivateUser } from '@/hooks/api/useUsers';
 import dayjs from 'dayjs';
@@ -23,7 +23,7 @@ export default function AdminUsersPage() {
     setSearchText(e.target.value);
   };
 
-  const filteredUsers = members.filter(user => 
+  const filteredUsers = members.filter(user =>
     user.userName.toLowerCase().includes(searchText.toLowerCase()) ||
     user.email.toLowerCase().includes(searchText.toLowerCase()) ||
     `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -144,7 +144,7 @@ export default function AdminUsersPage() {
       title: 'Status',
       dataIndex: 'isActivated',
       key: 'isActivated',
-      render: (isActivated: boolean) => 
+      render: (isActivated: boolean) =>
         isActivated !== undefined ? (
           <Tag color={isActivated ? 'success' : 'error'} icon={isActivated ? <CheckOutlined /> : <CloseOutlined />}>
             {isActivated ? 'Active' : 'Inactive'}
@@ -163,9 +163,9 @@ export default function AdminUsersPage() {
       title: 'Email Verified',
       dataIndex: 'isEmailVerified',
       key: 'isEmailVerified',
-      render: (verified: boolean) => 
-        verified ? 
-          <Tag icon={<CheckCircleOutlined />} color="success">Verified</Tag> : 
+      render: (verified: boolean) =>
+        verified ?
+          <Tag icon={<CheckCircleOutlined />} color="success">Verified</Tag> :
           <Tag icon={<CloseCircleOutlined />} color="error">Not Verified</Tag>,
       filters: [
         { text: 'Verified', value: true },
@@ -234,8 +234,8 @@ export default function AdminUsersPage() {
   ];
 
   return (
-    <AdminLayout 
-      title="User Management" 
+    <AdminLayout
+      title="User Management"
       breadcrumbItems={breadcrumbItems}
     >
       <Card>
@@ -263,11 +263,18 @@ export default function AdminUsersPage() {
 
       {/* Edit User Modal */}
       <Modal
-        title="Edit User"
+        title={
+          <div className="flex items-center">
+            <EditOutlined className="mr-2" />
+            <span>Edit User</span>
+          </div>
+        }
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={() => setIsModalVisible(false)}
-        width={700}
+        footer={null}
+        width={900}
+        centered
       >
         <Form
           form={form}
@@ -335,21 +342,21 @@ export default function AdminUsersPage() {
 
       {/* User Details Modal */}
       <Modal
-        title="User Details"
+        title={
+          <div className="flex items-center">
+            <UserOutlined className="mr-2" />
+            <span>User Details</span>
+          </div>
+        }
         open={detailsVisible}
         onCancel={() => setDetailsVisible(false)}
         footer={[
-          <Button key="back" onClick={() => setDetailsVisible(false)}>
+          <Button key="close" onClick={() => setDetailsVisible(false)}>
             Close
-          </Button>,
-          <Button key="edit" type="primary" onClick={() => {
-            setDetailsVisible(false);
-            handleEdit(selectedUser);
-          }}>
-            Edit
-          </Button>,
+          </Button>
         ]}
-        width={700}
+        width={900}
+        centered
       >
         {selectedUser && (
           <div className="grid grid-cols-2 gap-4 mb-4">
@@ -373,9 +380,9 @@ export default function AdminUsersPage() {
               <p className="text-gray-500 mb-1">Role</p>
               <p className="font-medium">
                 <Tag color={
-                  selectedUser.roleName === 'Admin' ? 'gold' : 
-                  selectedUser.roleName === 'Staff' ? 'blue' : 
-                  selectedUser.roleName === 'Member' ? 'green' : 'default'
+                  selectedUser.roleName === 'Admin' ? 'gold' :
+                    selectedUser.roleName === 'Staff' ? 'blue' :
+                      selectedUser.roleName === 'Member' ? 'green' : 'default'
                 }>
                   {selectedUser.roleName}
                 </Tag>
@@ -396,8 +403,8 @@ export default function AdminUsersPage() {
             <div>
               <p className="text-gray-500 mb-1">Email Verification</p>
               <p className="font-medium">
-                {selectedUser.isEmailVerified ? 
-                  <Tag icon={<CheckCircleOutlined />} color="success">Verified</Tag> : 
+                {selectedUser.isEmailVerified ?
+                  <Tag icon={<CheckCircleOutlined />} color="success">Verified</Tag> :
                   <Tag icon={<CloseCircleOutlined />} color="error">Not Verified</Tag>
                 }
               </p>

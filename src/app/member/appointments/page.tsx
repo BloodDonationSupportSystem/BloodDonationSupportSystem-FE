@@ -1134,7 +1134,7 @@ export default function AppointmentsPage() {
           </Card>
         </div>
 
-        <Alert
+        {/* <Alert
           message="Next Eligible Donation Date"
           description={
             <div className="flex items-center">
@@ -1148,7 +1148,7 @@ export default function AppointmentsPage() {
           type="info"
           showIcon={false}
           className="mt-8 bg-blue-50"
-        />
+        /> */}
 
         {/* Modal for responding to staff-initiated appointments */}
         <Modal
@@ -1168,6 +1168,8 @@ export default function AppointmentsPage() {
               {responseType}
             </Button>,
           ]}
+          width={700}
+          centered
         >
           <div className="mb-4">
             <p className="font-medium">
@@ -1211,15 +1213,21 @@ export default function AppointmentsPage() {
 
         {/* Appointment Detail Modal */}
         <Modal
-          title="Chi tiết cuộc hẹn hiến máu"
+          title={
+            <div className="flex items-center">
+              <CalendarOutlined className="mr-2" />
+              <span>Appointment Details</span>
+            </div>
+          }
           open={isAppointmentDetailModalVisible}
           onCancel={() => setIsAppointmentDetailModalVisible(false)}
           footer={[
             <Button key="close" onClick={() => setIsAppointmentDetailModalVisible(false)}>
-              Đóng
+              Close
             </Button>
           ]}
-          width={800}
+          width={900}
+          centered
         >
           {loadingAppointmentDetail ? (
             <div className="flex justify-center items-center py-10">

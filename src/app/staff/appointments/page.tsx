@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Space, Select, DatePicker, Input, Card, Tabs, Modal, Form, Spin, Tooltip, App, Alert, Calendar, TimePicker, List, Radio, Badge, Typography, Descriptions, Empty } from 'antd';
-import { SearchOutlined, CheckOutlined, CloseOutlined, CalendarOutlined, ExclamationCircleOutlined, ClockCircleOutlined, InfoCircleOutlined, UserOutlined, PlusOutlined, EnvironmentOutlined, ScheduleOutlined, TeamOutlined, LeftOutlined, RightOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { SearchOutlined, CheckOutlined, CloseOutlined, CalendarOutlined, ExclamationCircleOutlined, ClockCircleOutlined, InfoCircleOutlined, UserOutlined, PlusOutlined, EnvironmentOutlined, ScheduleOutlined, TeamOutlined, LeftOutlined, RightOutlined, CheckCircleOutlined, CloseCircleOutlined, UserAddOutlined } from '@ant-design/icons';
 import StaffLayout from '@/components/Layout/StaffLayout';
 import { useAuth } from '@/context/AuthContext';
 import apiClient from '@/services/api/apiConfig';
@@ -422,6 +422,15 @@ export default function StaffAppointmentsPage() {
     setModalAction(action);
     setIsModalVisible(true);
     form.resetFields();
+
+    // If action is fail, set up the form for complication details
+    if (action === 'fail') {
+      form.setFieldsValue({
+        hasComplication: true,
+        complicationType: 'Other',
+        complicationSeverity: 'Mild'
+      });
+    }
   };
 
   // Function to check in donor directly using the donation events API
@@ -438,8 +447,8 @@ export default function StaffAppointmentsPage() {
 
       message.loading({ content: 'Checking in donor...', key: 'checkin' });
 
-      // Call the API directly
-      const response = await apiClient.post('/DonationEvents/check-in', request);
+      // Call the API with the correct endpoint format
+      const response = await apiClient.post(`/DonationEvents/${appointment.id}/check-in`, request);
 
       if (response.data.success) {
         message.success({ content: 'Donor checked in successfully', key: 'checkin' });
@@ -450,6 +459,26 @@ export default function StaffAppointmentsPage() {
     } catch (error) {
       console.error('Error checking in donor:', error);
       message.error({ content: 'An error occurred while checking in the donor', key: 'checkin' });
+    }
+  };
+
+  // Function to record donation complications
+  const recordComplication = async (appointmentId: string, complicationDetails: any) => {
+    try {
+      message.loading({ content: 'Recording complication...', key: 'complication' });
+
+      // Call the API for recording complications
+      const response = await apiClient.post(`/DonationEvents/${appointmentId}/complication`, complicationDetails);
+
+      if (response.data.success) {
+        message.success({ content: 'Complication recorded successfully', key: 'complication' });
+        fetchAppointments(); // Refresh the appointments list
+      } else {
+        message.error({ content: response.data.message || 'Failed to record complication', key: 'complication' });
+      }
+    } catch (error) {
+      console.error('Error recording complication:', error);
+      message.error({ content: 'An error occurred while recording the complication', key: 'complication' });
     }
   };
 
@@ -475,6 +504,18 @@ export default function StaffAppointmentsPage() {
           break;
         case 'fail':
           newStatus = 'Failed';
+          // If there's a complication, record it
+          if (values.hasComplication) {
+            const complicationDetails = {
+              appointmentId: selectedAppointment.id,
+              complicationType: values.complicationType,
+              severity: values.complicationSeverity,
+              description: values.note,
+              reportedByUserId: user?.id,
+              reportedTime: dayjs().toISOString()
+            };
+            recordComplication(selectedAppointment.id, complicationDetails);
+          }
           break;
       }
 
@@ -578,7 +619,7 @@ export default function StaffAppointmentsPage() {
               View Details
             </Button>
             {renderDonorResponseStatus()}
-            <Tag color="blue">Waiting for donor response</Tag>
+            {/* <Tag color="blue">Waiting for donor response</Tag> */}
           </Space>
         );
       }
@@ -1110,6 +1151,7 @@ export default function StaffAppointmentsPage() {
         notes: formValues.notes,
         isUrgent: isUrgent,
         priority: priority,
+        relatedBloodRequestId: undefined, // No related blood request for regular appointments
         autoExpireHours: formValues.autoExpireHours || 0
       };
 
@@ -1263,11 +1305,65 @@ export default function StaffAppointmentsPage() {
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={() => setIsModalVisible(false)}
+        width={800}
+        centered
       >
         <Form form={form} layout="vertical">
+          {modalAction === 'fail' && (
+            <>
+              <Form.Item
+                name="hasComplication"
+                label="Record Complication"
+                valuePropName="checked"
+              >
+                <Radio.Group>
+                  <Radio value={true}>Yes</Radio>
+                  <Radio value={false}>No</Radio>
+                </Radio.Group>
+              </Form.Item>
+
+              <Form.Item
+                noStyle
+                shouldUpdate={(prevValues, currentValues) => prevValues.hasComplication !== currentValues.hasComplication}
+              >
+                {({ getFieldValue }) =>
+                  getFieldValue('hasComplication') ? (
+                    <div className="bg-yellow-50 p-4 rounded-md mb-4 border border-yellow-200">
+                      <Form.Item
+                        name="complicationType"
+                        label="Complication Type"
+                        rules={[{ required: true, message: 'Please select complication type' }]}
+                      >
+                        <Select>
+                          <Option value="Vasovagal">Vasovagal Reaction (Fainting)</Option>
+                          <Option value="Hematoma">Hematoma (Bruising)</Option>
+                          <Option value="AllergicReaction">Allergic Reaction</Option>
+                          <Option value="NeedleInjury">Needle Injury</Option>
+                          <Option value="Other">Other</Option>
+                        </Select>
+                      </Form.Item>
+
+                      <Form.Item
+                        name="complicationSeverity"
+                        label="Severity"
+                        rules={[{ required: true, message: 'Please select severity' }]}
+                      >
+                        <Radio.Group>
+                          <Radio value="Mild">Mild</Radio>
+                          <Radio value="Moderate">Moderate</Radio>
+                          <Radio value="Severe">Severe</Radio>
+                        </Radio.Group>
+                      </Form.Item>
+                    </div>
+                  ) : null
+                }
+              </Form.Item>
+            </>
+          )}
+
           <Form.Item
             name="note"
-            label="Add a note (optional)"
+            label={modalAction === 'fail' ? "Describe the issue/complication" : "Add a note (optional)"}
             rules={[
               {
                 required: modalAction === 'reject' || modalAction === 'fail',
@@ -1298,7 +1394,8 @@ export default function StaffAppointmentsPage() {
             Đóng
           </Button>
         ]}
-        width={800}
+        width={1000}
+        centered
       >
         {loadingAppointmentDetail ? (
           <div className="flex justify-center items-center py-10">
@@ -1456,15 +1553,12 @@ export default function StaffAppointmentsPage() {
 
       {/* Donor Profile Modal */}
       <Modal
-        title="Thông tin người hiến máu"
+        title="Donor Profile"
         open={isDonorProfileModalVisible}
         onCancel={() => setIsDonorProfileModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsDonorProfileModalVisible(false)}>
-            Đóng
-          </Button>
-        ]}
-        width={800}
+        footer={null}
+        width={900}
+        centered
       >
         {selectedDonor && (
           <div>
@@ -1506,14 +1600,19 @@ export default function StaffAppointmentsPage() {
         )}
       </Modal>
 
-      {/* Donor Assignment Modal */}
+      {/* Assign Donor Modal */}
       <Modal
-        title="Assign Donor to Appointment"
+        title={
+          <div className="flex items-center">
+            <UserAddOutlined className="mr-2" />
+            <span>Assign Donor to Appointment</span>
+          </div>
+        }
         open={isAssignDonorModalVisible}
         onCancel={() => setIsAssignDonorModalVisible(false)}
         footer={null}
-        width={800}
-        destroyOnClose
+        width={1000}
+        centered
       >
         <div className="px-2">
           {/* Progress indicator */}

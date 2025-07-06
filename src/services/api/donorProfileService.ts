@@ -317,34 +317,27 @@ export const getNearbyAvailableDonors = async (
 
 /**
  * Gets nearby emergency donors for emergency blood requests
+ * Updated to match the API parameters from Swagger
  */
 export const getNearbyEmergencyDonors = async (
   latitude: string,
   longitude: string,
   bloodGroupId?: string,
   radiusKm: number = 50,
-  isAvailable: boolean = true,
-  isAvailableForEmergency: boolean = true
+  forEmergency: boolean = true
 ): Promise<ApiResponse<DonorProfile[]>> => {
   try {
     const queryParams = new URLSearchParams();
 
-    // Required parameters
+    // Required parameters based on Swagger UI
     queryParams.append('Latitude', latitude);
     queryParams.append('Longitude', longitude);
     queryParams.append('RadiusKm', radiusKm.toString());
+    queryParams.append('ForEmergency', forEmergency.toString());
 
     // Optional parameters
     if (bloodGroupId) {
       queryParams.append('BloodGroupId', bloodGroupId);
-    }
-
-    if (isAvailable !== undefined) {
-      queryParams.append('IsAvailable', isAvailable.toString());
-    }
-
-    if (isAvailableForEmergency !== undefined) {
-      queryParams.append('IsAvailableForEmergency', isAvailableForEmergency.toString());
     }
 
     const response = await apiClient.get<ApiResponse<DonorProfile[]>>(

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Descriptions, Tag, Button, Card, Row, Col, Divider, Typography } from 'antd';
 import { DonorProfile } from '@/services/api/donorProfileService';
-import { UserOutlined, EnvironmentOutlined, PhoneOutlined, MailOutlined, CalendarOutlined } from '@ant-design/icons';
+import { UserOutlined, EnvironmentOutlined, PhoneOutlined, MailOutlined, CalendarOutlined, EditOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -10,12 +10,16 @@ interface DonorProfileDetailsProps {
     visible: boolean;
     onClose: () => void;
     donor: DonorProfile | null;
+    isEditModalVisible: boolean;
+    setIsEditModalVisible: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const DonorProfileDetails: React.FC<DonorProfileDetailsProps> = ({
     visible,
     onClose,
     donor,
+    isEditModalVisible,
+    setIsEditModalVisible,
 }) => {
     if (!donor) {
         return null;
@@ -38,11 +42,17 @@ const DonorProfileDetails: React.FC<DonorProfileDetailsProps> = ({
 
     return (
         <Modal
-            title="Donor Profile"
-            open={visible}
-            onCancel={onClose}
-            footer={<Button onClick={onClose}>Close</Button>}
-            width={800}
+            title={
+                <div className="flex items-center">
+                    <EditOutlined className="mr-2" />
+                    <span>Edit Profile</span>
+                </div>
+            }
+            open={isEditModalVisible}
+            onCancel={() => setIsEditModalVisible(false)}
+            footer={null}
+            width={900}
+            centered
         >
             <Card className="mb-4">
                 <Row gutter={24}>

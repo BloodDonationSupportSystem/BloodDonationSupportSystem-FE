@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { Modal, Table, Tag, Empty, Spin, message } from 'antd';
+import { Modal, Table, Tag, Empty, Spin, message, Button } from 'antd';
 import { useDonorAppointmentHistory } from '@/hooks/api/useDonationAppointment';
 import { DonationAppointment, AppointmentHistoryQueryParams } from '@/services/api/donationAppointmentService';
 import dayjs from 'dayjs';
+import { CalendarOutlined } from '@ant-design/icons';
 
 interface DonorAppointmentHistoryProps {
     visible: boolean;
@@ -176,11 +177,21 @@ const DonorAppointmentHistory: React.FC<DonorAppointmentHistoryProps> = ({
 
     return (
         <Modal
-            title={`Donation History - ${donorName || 'Donor'}`}
+            title={
+                <div className="flex items-center">
+                    <CalendarOutlined className="mr-2" />
+                    <span>Appointment Details</span>
+                </div>
+            }
             open={visible}
             onCancel={onClose}
-            footer={null}
-            width={1000}
+            footer={[
+                <Button key="close" onClick={onClose}>
+                    Close
+                </Button>
+            ]}
+            width={900}
+            centered
         >
             {isLoading ? (
                 <div className="flex justify-center items-center py-10">

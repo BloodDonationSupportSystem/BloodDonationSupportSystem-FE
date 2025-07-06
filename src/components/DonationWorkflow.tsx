@@ -1209,7 +1209,8 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
                     open={hasComplication}
                     onCancel={() => setHasComplication(false)}
                     footer={null}
-                    width={700}
+                    width={900}
+                    centered
                 >
                     <Form
                         form={complicationForm}

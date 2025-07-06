@@ -714,12 +714,17 @@ export default function StaffCapacityPage() {
       </div>
 
       <Modal
-        title={modalMode === 'create' ? 'Add New Capacity Slot' : 'Edit Capacity Slot'}
+        title={
+          <div className="flex items-center">
+            <PlusOutlined className="mr-2" />
+            <span>Add New Capacity</span>
+          </div>
+        }
         open={isModalVisible}
-        onOk={handleModalOk}
         onCancel={handleModalCancel}
-        width={600}
-        okButtonProps={{ className: 'bg-red-500 hover:bg-red-600' }}
+        footer={null}
+        width={900}
+        centered
       >
         <Form
           form={form}
