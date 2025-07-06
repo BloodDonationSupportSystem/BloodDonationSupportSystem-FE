@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   User,
   LoginResponse,
@@ -11,6 +11,7 @@ import {
   logout as logoutService,
   setupAuthInterceptor
 } from '@/services/api/authService';
+import { hasAccessToRoute, getRedirectPath } from '@/utils/roleBasedAccess';
 
 export interface AuthContextType {
   user: User | null;
@@ -20,6 +21,7 @@ export interface AuthContextType {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<LoginResponse>;
   redirectBasedOnRole: () => void;
+  checkAccess: (path: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -41,7 +43,8 @@ const AuthContext = createContext<AuthContextType>({
     },
     count: 0
   }),
-  redirectBasedOnRole: () => { }
+  redirectBasedOnRole: () => { },
+  checkAccess: (path: string) => false
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -56,6 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isBrowser, setIsBrowser] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   // Check if we're in the browser
   useEffect(() => {
@@ -124,19 +128,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const redirectBasedOnRole = () => {
     if (!user) return;
-
-    switch (user.roleName) {
-      case 'Admin':
-        router.push('/admin');
-        break;
-      case 'Staff':
-        router.push('/staff/dashboard');
-        break;
-      default:
-        router.push('/');
-        break;
-    }
+    const redirectPath = getRedirectPath(user);
+    router.push(redirectPath);
   };
+
+  const checkAccess = (path: string): boolean => {
+    return hasAccessToRoute(user, path);
+  };
+
+  // Check access on path change
+  useEffect(() => {
+    if (!loading && isLoggedIn && user && pathname) {
+      if (!checkAccess(pathname)) {
+        redirectBasedOnRole();
+      }
+    }
+  }, [pathname, isLoggedIn, user, loading]);
 
   const value = {
     user,
@@ -145,7 +152,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     isLoading: loading,
     login,
-    redirectBasedOnRole
+    redirectBasedOnRole,
+    checkAccess
   };
 
   return (

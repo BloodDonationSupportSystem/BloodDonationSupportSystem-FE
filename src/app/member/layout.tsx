@@ -6,6 +6,7 @@ import { Layout, Breadcrumb } from 'antd';
 import { usePathname } from 'next/navigation';
 import MemberSidebar from '@/components/Layout/MemberSidebar';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { hasAccessToRoute } from '@/utils/roleBasedAccess';
 
 const { Content } = Layout;
 

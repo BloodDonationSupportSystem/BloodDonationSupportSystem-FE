@@ -4,6 +4,7 @@ import { useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Spin, Alert, Button, Card } from 'antd';
+import { hasAccessToRoute } from '@/utils/roleBasedAccess';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -11,7 +12,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) => {
-  const { isLoggedIn, loading, user, redirectBasedOnRole } = useAuth();
+  const { isLoggedIn, loading, user, redirectBasedOnRole, checkAccess } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -22,20 +23,32 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('redirectAfterLogin', pathname);
         }
+        router.push('/login');
         return;
       }
 
-      // Check if user has appropriate role
+      // First check if user has the appropriate role if roles are specified
       if (isLoggedIn && user && allowedRoles.length > 0) {
-        const hasAccess = allowedRoles.includes(user.roleName);
+        const hasRoleAccess = allowedRoles.includes(user.roleName);
 
-        if (!hasAccess) {
+        if (!hasRoleAccess) {
           // Redirect to appropriate dashboard based on role
+          redirectBasedOnRole();
+          return;
+        }
+      }
+
+      // Then check if the user has access to the current path
+      if (isLoggedIn && user && pathname) {
+        // Use hasAccessToRoute directly from utils instead of checkAccess
+        const hasRouteAccess = user ? hasAccessToRoute(user, pathname) : false;
+
+        if (!hasRouteAccess) {
           redirectBasedOnRole();
         }
       }
     }
-  }, [isLoggedIn, loading, pathname, router, user, allowedRoles, redirectBasedOnRole]);
+  }, [isLoggedIn, loading, pathname, router, user, allowedRoles, redirectBasedOnRole, checkAccess]);
 
   if (loading) {
     return (

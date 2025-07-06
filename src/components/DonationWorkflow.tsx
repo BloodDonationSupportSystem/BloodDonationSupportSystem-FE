@@ -31,7 +31,13 @@ import {
     ArrowLeftOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
 import { useDonationEvents } from '@/hooks/api/useDonationEvents';
+
+// Configure dayjs to use timezone
+dayjs.extend(utc);
+dayjs.extend(timezone);
 import {
     DonationEvent,
     CheckInRequest,
@@ -841,7 +847,20 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
                             label="Donation Completion Time"
                             rules={[{ required: true, message: 'Please select completion time' }]}
                         >
-                            <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" style={{ width: '100%' }} />
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                                <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" style={{ width: '100%' }} />
+                                <Button
+                                    onClick={() => {
+                                        // Set current time in Vietnam timezone (UTC+7)
+                                        const nowInVietnam = dayjs().tz("Asia/Ho_Chi_Minh");
+                                        completeDonationForm.setFieldsValue({
+                                            donationDate: nowInVietnam
+                                        });
+                                    }}
+                                >
+                                    Set to Current Time
+                                </Button>
+                            </Space>
                         </Form.Item>
 
                         <Row gutter={16}>

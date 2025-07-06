@@ -10,16 +10,12 @@ interface DonorProfileDetailsProps {
     visible: boolean;
     onClose: () => void;
     donor: DonorProfile | null;
-    isEditModalVisible: boolean;
-    setIsEditModalVisible: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const DonorProfileDetails: React.FC<DonorProfileDetailsProps> = ({
     visible,
     onClose,
-    donor,
-    isEditModalVisible,
-    setIsEditModalVisible,
+    donor
 }) => {
     if (!donor) {
         return null;
@@ -45,11 +41,11 @@ const DonorProfileDetails: React.FC<DonorProfileDetailsProps> = ({
             title={
                 <div className="flex items-center">
                     <EditOutlined className="mr-2" />
-                    <span>Edit Profile</span>
+                    <span>Donor Profile</span>
                 </div>
             }
-            open={isEditModalVisible}
-            onCancel={() => setIsEditModalVisible(false)}
+            open={visible}
+            onCancel={onClose}
             footer={null}
             width={900}
             centered
