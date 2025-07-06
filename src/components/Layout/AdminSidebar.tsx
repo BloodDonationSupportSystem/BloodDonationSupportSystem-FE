@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, createContext, useContext } from 'react';
 import { Layout, Menu, Button, theme, Typography } from 'antd';
 import {
   DashboardOutlined,
@@ -24,8 +24,33 @@ import { useAuth } from '@/context/AuthContext';
 const { Sider } = Layout;
 const { Title } = Typography;
 
-export default function AdminSidebar() {
+// Create a context for the sidebar collapsed state
+export const AdminSidebarContext = createContext({
+  collapsed: false,
+  setCollapsed: (collapsed: boolean) => { },
+  toggleCollapsed: () => { }
+});
+
+// Custom hook to use the sidebar context
+export const useAdminSidebar = () => useContext(AdminSidebarContext);
+
+// Sidebar Provider component
+export function AdminSidebarProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+
+  const toggleCollapsed = () => {
+    setCollapsed(!collapsed);
+  };
+
+  return (
+    <AdminSidebarContext.Provider value={{ collapsed, setCollapsed, toggleCollapsed }}>
+      {children}
+    </AdminSidebarContext.Provider>
+  );
+}
+
+export default function AdminSidebar() {
+  const { collapsed, setCollapsed } = useAdminSidebar();
   const pathname = usePathname();
   const { logout } = useAuth();
 
@@ -36,7 +61,7 @@ export default function AdminSidebar() {
   // Get active menu key based on current path
   const getSelectedKey = () => {
     const path = pathname || '';
-    if (path === '/admin') return 'dashboard';
+    if (path === '/admin' || path === '/admin/dashboard') return 'dashboard';
     if (path.includes('/admin/users')) return 'users';
     if (path.includes('/admin/staffs')) return 'staffs';
     if (path.includes('/admin/appointments')) return 'appointments';
@@ -53,7 +78,7 @@ export default function AdminSidebar() {
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
-      label: <Link href="/admin">Dashboard</Link>,
+      label: <Link href="/admin/dashboard">Dashboard</Link>,
     },
     {
       key: 'users',
@@ -65,45 +90,46 @@ export default function AdminSidebar() {
       icon: <TeamOutlined />,
       label: <Link href="/admin/staffs">Staff</Link>,
     },
-    {
-      key: 'appointments',
-      icon: <CalendarOutlined />,
-      label: <Link href="/admin/appointments">Appointments</Link>,
-    },
+    // {
+    //   key: 'appointments',
+    //   icon: <CalendarOutlined />,
+    //   label: <Link href="/admin/appointments">Appointments</Link>,
+    // },
     {
       key: 'locations',
       icon: <EnvironmentOutlined />,
       label: <Link href="/admin/locations">Locations</Link>,
     },
-    {
-      key: 'blood-drives',
-      icon: <HeartOutlined />,
-      label: <Link href="/admin/blood-drives">Blood Drives</Link>,
-    },
-    {
-      key: 'reports',
-      icon: <BarChartOutlined />,
-      label: <Link href="/admin/reports">Reports</Link>,
-    },
+    // {
+    //   key: 'blood-drives',
+    //   icon: <HeartOutlined />,
+    //   label: <Link href="/admin/blood-drives">Blood Drives</Link>,
+    // },
+    // {
+    //   key: 'reports',
+    //   icon: <BarChartOutlined />,
+    //   label: <Link href="/admin/reports">Reports</Link>,
+    // },
     {
       key: 'blog',
       icon: <FileTextOutlined />,
       label: <Link href="/admin/blog">Blog</Link>,
     },
-    {
-      key: 'notifications',
-      icon: <NotificationOutlined />,
-      label: <Link href="/admin/notifications">Notifications</Link>,
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: <Link href="/admin/settings">Settings</Link>,
-    },
+    // {
+    //   key: 'notifications',
+    //   icon: <NotificationOutlined />,
+    //   label: <Link href="/admin/notifications">Notifications</Link>,
+    // },
+    // {
+    //   key: 'settings',
+    //   icon: <SettingOutlined />,
+    //   label: <Link href="/admin/settings">Settings</Link>,
+    // },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: <span onClick={logout} className="cursor-pointer">Logout</span>,
+      label: <span className="cursor-pointer">Logout</span>,
+      onClick: () => logout(),
     },
   ];
 
@@ -129,29 +155,14 @@ export default function AdminSidebar() {
       <div className="flex items-center p-4 border-b border-gray-200">
         {!collapsed ? (
           <div className="flex items-center">
-            <span className="text-2xl mr-2" role="img" aria-label="Blood Drop">🩸</span>
-            <Title level={4} className="mb-0 text-red-600">Admin Portal</Title>
+            <span className="text-2xl mr-2 text-red-500" role="img" aria-label="Blood Drop">🩸</span>
+            <Title level={4} className="mb-0 text-red-500">Admin Portal</Title>
           </div>
         ) : (
-          <span className="text-2xl mx-auto" role="img" aria-label="Blood Drop">🩸</span>
+          <span className="text-2xl mx-auto text-red-500" role="img" aria-label="Blood Drop">🩸</span>
         )}
       </div>
-      
-      <Button
-        type="text"
-        icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-        onClick={() => setCollapsed(!collapsed)}
-        style={{
-          width: '100%',
-          padding: '8px 16px',
-          textAlign: 'left',
-          marginTop: '8px',
-          marginBottom: '8px',
-        }}
-      >
-        {!collapsed && 'Collapse Menu'}
-      </Button>
-      
+
       <Menu
         mode="inline"
         selectedKeys={[getSelectedKey()]}

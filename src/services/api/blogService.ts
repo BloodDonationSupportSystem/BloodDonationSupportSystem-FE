@@ -51,6 +51,19 @@ export interface BlogPostsQueryParams {
   sortAscending?: boolean;
 }
 
+export interface CreateBlogPostRequest {
+  title: string;
+  body: string;
+  isPublished: boolean;
+  authorId: string;
+}
+
+export interface UpdateBlogPostRequest {
+  title: string;
+  body: string;
+  isPublished: boolean;
+}
+
 /**
  * Fetches paginated blog posts with optional filters
  */
@@ -122,5 +135,53 @@ export const getBlogPostBySlug = async (slug: string): Promise<PaginatedBlogPost
       return error.response.data as PaginatedBlogPostsResponse;
     }
     throw new Error(`Failed to fetch blog post with slug: ${slug}`);
+  }
+};
+
+/**
+ * Creates a new blog post
+ */
+export const createBlogPost = async (blogPost: CreateBlogPostRequest): Promise<BlogPostResponse> => {
+  try {
+    const response = await apiClient.post<BlogPostResponse>('/BlogPosts', blogPost);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating blog post:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as BlogPostResponse;
+    }
+    throw new Error('Failed to create blog post');
+  }
+};
+
+/**
+ * Updates an existing blog post
+ */
+export const updateBlogPost = async (id: string, blogPost: UpdateBlogPostRequest): Promise<BlogPostResponse> => {
+  try {
+    const response = await apiClient.put<BlogPostResponse>(`/BlogPosts/${id}`, blogPost);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating blog post:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as BlogPostResponse;
+    }
+    throw new Error(`Failed to update blog post with ID: ${id}`);
+  }
+};
+
+/**
+ * Deletes a blog post
+ */
+export const deleteBlogPost = async (id: string): Promise<BlogPostResponse> => {
+  try {
+    const response = await apiClient.delete<BlogPostResponse>(`/BlogPosts/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting blog post:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      return error.response.data as BlogPostResponse;
+    }
+    throw new Error(`Failed to delete blog post with ID: ${id}`);
   }
 }; 

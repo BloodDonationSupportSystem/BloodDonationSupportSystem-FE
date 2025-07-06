@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, createContext, useContext } from 'react';
-import { Layout, Menu, Button, theme, Typography } from 'antd';
+import { Layout, Menu, Button, theme, Typography, Badge } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
@@ -19,6 +19,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useStaffNotificationContext } from '@/context/StaffNotificationContext';
 
 const { Sider } = Layout;
 const { Title } = Typography;
@@ -52,6 +53,7 @@ export default function StaffSidebar() {
   const { collapsed, setCollapsed } = useSidebar();
   const pathname = usePathname() || '';
   const { logout } = useAuth();
+  const { newEmergencyRequest, notificationCount, resetNotificationCount } = useStaffNotificationContext();
 
   const {
     token: { colorBgContainer },
@@ -73,6 +75,13 @@ export default function StaffSidebar() {
     return '';
   };
 
+  // Reset notification count when navigating to blood request page
+  React.useEffect(() => {
+    if (pathname.includes('/staff/blood-request') && notificationCount > 0) {
+      resetNotificationCount();
+    }
+  }, [pathname, notificationCount, resetNotificationCount]);
+
   const menuItems = [
     {
       key: 'dashboard',
@@ -87,7 +96,14 @@ export default function StaffSidebar() {
     {
       key: 'blood-request',
       icon: <FileTextOutlined />,
-      label: <Link href="/staff/blood-request">Blood Requests</Link>,
+      label: (
+        <div className="flex items-center justify-between w-full">
+          <Link href="/staff/blood-request">Blood Requests</Link>
+          {notificationCount > 0 && (
+            <Badge count={notificationCount} size="small" className="ml-2" />
+          )}
+        </div>
+      ),
     },
     {
       key: 'donation-events',

@@ -82,7 +82,11 @@ export type {
 export type {
   // Blog types
   BlogPost,
-  PaginatedBlogPostsResponse
+  BlogPostsQueryParams,
+  CreateBlogPostRequest,
+  UpdateBlogPostRequest,
+  PaginatedBlogPostsResponse,
+  BlogPostResponse
 } from './blogService';
 
 export type {
@@ -126,5 +130,6 @@ export type {
 export type {
   // Dashboard types
   DashboardData,
-  StaffDashboardData
+  StaffDashboardData,
+  AdminDashboardData
 } from './dashboardService'; 

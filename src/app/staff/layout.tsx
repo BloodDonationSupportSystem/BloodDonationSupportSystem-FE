@@ -4,6 +4,8 @@ import React from 'react';
 import StaffProtectedRoute from '@/components/StaffProtectedRoute';
 import StaffSidebar, { SidebarProvider, useSidebar } from '@/components/Layout/StaffSidebar';
 import { Layout } from 'antd';
+import { StaffNotificationProvider } from '@/context/StaffNotificationContext';
+import EmergencyAlert from '@/components/Staff/EmergencyAlert';
 
 const { Content } = Layout;
 
@@ -20,7 +22,10 @@ function ContentWrapper({ children }: { children: React.ReactNode }) {
         background: '#fff'
       }}
     >
-      {children}
+      <div className="p-6">
+        <EmergencyAlert />
+        {children}
+      </div>
     </Content>
   );
 }
@@ -33,12 +38,14 @@ export default function StaffRootLayout({
   return (
     <StaffProtectedRoute>
       <SidebarProvider>
-        <Layout style={{ minHeight: '100vh' }}>
-          <StaffSidebar />
-          <ContentWrapper>
-            {children}
-          </ContentWrapper>
-        </Layout>
+        <StaffNotificationProvider>
+          <Layout style={{ minHeight: '100vh' }}>
+            <StaffSidebar />
+            <ContentWrapper>
+              {children}
+            </ContentWrapper>
+          </Layout>
+        </StaffNotificationProvider>
       </SidebarProvider>
     </StaffProtectedRoute>
   );

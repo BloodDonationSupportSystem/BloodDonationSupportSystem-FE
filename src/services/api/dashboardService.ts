@@ -519,6 +519,85 @@ export interface StaffDashboardData {
     };
 }
 
+// Admin Dashboard data interface
+export interface AdminDashboardData {
+    systemStats: {
+        totalUsers: number;
+        totalDonors: number;
+        totalBloodRequests: number;
+        totalDonations: number;
+        totalVolumeCollected: number;
+        totalLivesSaved: number;
+        requestFulfillmentRate: number;
+        averageResponseTime: number;
+    };
+    userStats: {
+        usersByRole: Record<string, number>;
+        newUsersLast30Days: number;
+        activeUsersLast30Days: number;
+    };
+    inventoryStats: {
+        currentInventory: Array<{
+            bloodGroupId: string;
+            bloodGroupName: string;
+            componentTypeId: string;
+            componentTypeName: string;
+            availableQuantity: number;
+            minimumRecommended: number;
+            optimalQuantity: number;
+            status: string;
+            availabilityPercentage: number;
+        }>;
+        expiringItems7Days: number;
+        expiringItems30Days: number;
+        wasteRate: number;
+        turnoverRate: number;
+        averageShelfLife: number;
+    };
+    donationStats: {
+        timePeriod: string;
+        startDate: string;
+        endDate: string;
+        totalDonations: number;
+        totalVolumeCollected: number;
+        firstTimeDonors: number;
+        repeatDonors: number;
+    };
+    requestStats: {
+        timePeriod: string;
+        startDate: string;
+        endDate: string;
+    };
+    activeEmergencyRequests: Array<{
+        id: string;
+        patientName: string;
+        urgencyLevel: string;
+        contactInfo: string;
+        hospitalName: string;
+        quantityUnits: number;
+        bloodGroupId: string;
+        bloodGroupName: string;
+        componentTypeId: string;
+        componentTypeName: string;
+        address: string;
+        latitude: string;
+        longitude: string;
+        medicalNotes: string;
+        status: string;
+        requestDate: string;
+        createdTime: string;
+    }>;
+    performanceMetrics: {
+        averageRequestResponseTime: number;
+        averageEmergencyResponseTime: number;
+        donorRecruitmentRate: number;
+        donorRetentionRate: number;
+        inventoryTurnoverRate: number;
+        wasteReductionRate: number;
+        averageAppointmentWaitTime: number;
+    };
+}
+
 export interface ApiResponse<T> {
     success: boolean;
     message: string;
@@ -541,8 +620,8 @@ export const getMemberDashboard = async (): Promise<ApiResponse<DashboardData>> 
  * Get admin dashboard data
  * @returns Promise with dashboard data
  */
-export const getAdminDashboard = async (): Promise<ApiResponse<any>> => {
-    const response = await apiClient.get<ApiResponse<any>>('/Dashboard/admin');
+export const getAdminDashboard = async (): Promise<ApiResponse<AdminDashboardData>> => {
+    const response = await apiClient.get<ApiResponse<AdminDashboardData>>('/Dashboard/admin');
     return response.data;
 };
 
