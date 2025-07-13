@@ -4,7 +4,7 @@ import { useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Spin, Alert, Button, Card } from 'antd';
-import { hasAccessToRoute } from '@/utils/roleBasedAccess';
+import { hasAccessToRoute, isPublicRoute } from '@/utils/roleBasedAccess';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -18,6 +18,11 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
 
   useEffect(() => {
     if (!loading) {
+      // Allow access to public routes without authentication
+      if (pathname && isPublicRoute(pathname)) {
+        return;
+      }
+
       if (!isLoggedIn && pathname) {
         // Store the current path to redirect back after login
         if (typeof window !== 'undefined') {
@@ -56,6 +61,11 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
         <Spin size="large" fullscreen />
       </div>
     );
+  }
+
+  // Allow access to public routes without authentication
+  if (!isLoggedIn && pathname && isPublicRoute(pathname)) {
+    return <>{children}</>;
   }
 
   if (!isLoggedIn) {

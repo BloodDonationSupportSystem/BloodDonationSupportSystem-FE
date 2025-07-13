@@ -1,13 +1,14 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '@/context/AuthContext';
-import { usePathname, useRouter } from 'next/navigation';
+import { isPublicRoute } from '@/utils/roleBasedAccess';
 
 interface AppLayoutProps {
-  children: ReactNode;
+  children: React.ReactNode;
 }
 
 const AppLayout = ({ children }: AppLayoutProps) => {
@@ -18,8 +19,8 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   // Check access rights when route changes
   useEffect(() => {
     if (isLoggedIn && user && pathname) {
-      // Skip access check for login and public routes
-      if (pathname === '/login' || pathname === '/' || pathname === '/register' || pathname === '/forgot-password') {
+      // Skip access check for login, public routes, and member routes for members
+      if (isPublicRoute(pathname)) {
         return;
       }
 

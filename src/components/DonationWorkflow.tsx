@@ -28,7 +28,8 @@ import {
     CheckCircleOutlined,
     WarningOutlined,
     LoadingOutlined,
-    ArrowLeftOutlined
+    ArrowLeftOutlined,
+    ClockCircleOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
@@ -401,10 +402,9 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
             // Update the form values with the current donation event ID
             values.donationEventId = eventId;
 
-            // Format date properly
-            if (values.donationDate) {
-                values.donationDate = values.donationDate.toISOString();
-            }
+            // Always use current time in Vietnam timezone
+            values.donationDate = dayjs().tz("Asia/Ho_Chi_Minh").toISOString();
+            console.log('Using current time for donation completion:', values.donationDate);
 
             // Call the API to complete donation
             const result = await completeDonation(values);
@@ -843,24 +843,15 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
                         />
 
                         <Form.Item
-                            name="donationDate"
                             label="Donation Completion Time"
-                            rules={[{ required: true, message: 'Please select completion time' }]}
                         >
-                            <Space direction="vertical" style={{ width: '100%' }}>
-                                <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" style={{ width: '100%' }} />
-                                <Button
-                                    onClick={() => {
-                                        // Set current time in Vietnam timezone (UTC+7)
-                                        const nowInVietnam = dayjs().tz("Asia/Ho_Chi_Minh");
-                                        completeDonationForm.setFieldsValue({
-                                            donationDate: nowInVietnam
-                                        });
-                                    }}
-                                >
-                                    Set to Current Time
-                                </Button>
-                            </Space>
+                            <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                                <div className="flex items-center">
+                                    <ClockCircleOutlined className="mr-2 text-blue-500" />
+                                    <span>{dayjs().tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD HH:mm:ss")}</span>
+                                </div>
+                                <div className="text-gray-500 text-sm mt-1">Current time will be used automatically.</div>
+                            </div>
                         </Form.Item>
 
                         <Row gutter={16}>
@@ -957,6 +948,17 @@ const DonationWorkflow: React.FC<DonationWorkflowProps> = ({
             }, 100);
         }
     }, [currentStep, currentEvent]);
+
+    // Auto-set current time when reaching the CompleteDonation step
+    useEffect(() => {
+        if (currentStep === DonationStep.CompleteDonation) {
+            // Set current time in Vietnam timezone
+            const nowInVietnam = dayjs().tz("Asia/Ho_Chi_Minh");
+            completeDonationForm.setFieldsValue({
+                donationDate: nowInVietnam
+            });
+        }
+    }, [currentStep]);
 
     // Render completion summary
     const renderCompletionSummary = () => {

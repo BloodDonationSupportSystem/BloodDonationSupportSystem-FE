@@ -50,7 +50,7 @@ export default function MemberLayout({
   }, [pathname]);
 
   return (
-    <ProtectedRoute allowedRoles={['Member', 'Donor']}>
+    <ProtectedRoute allowedRoles={['Member']}>
       <Layout className="min-h-screen">
         <MemberSidebar />
         <Layout className="site-layout">

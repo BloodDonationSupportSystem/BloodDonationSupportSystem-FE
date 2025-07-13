@@ -7,9 +7,10 @@ interface UserProtectedRouteProps {
     children: ReactNode;
 }
 
+// Renamed to MemberProtectedRoute but keeping the file name for compatibility
 const UserProtectedRoute = ({ children }: UserProtectedRouteProps) => {
     return (
-        <ProtectedRoute allowedRoles={['User']}>
+        <ProtectedRoute allowedRoles={['Member']}>
             {children}
         </ProtectedRoute>
     );

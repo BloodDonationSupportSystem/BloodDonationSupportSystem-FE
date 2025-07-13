@@ -11,7 +11,7 @@ import {
   logout as logoutService,
   setupAuthInterceptor
 } from '@/services/api/authService';
-import { hasAccessToRoute, getRedirectPath } from '@/utils/roleBasedAccess';
+import { hasAccessToRoute, getRedirectPath, isPublicRoute } from '@/utils/roleBasedAccess';
 
 export interface AuthContextType {
   user: User | null;
@@ -22,6 +22,7 @@ export interface AuthContextType {
   login: (username: string, password: string) => Promise<LoginResponse>;
   redirectBasedOnRole: () => void;
   checkAccess: (path: string) => boolean;
+  isPublicRoute: (path: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -44,7 +45,8 @@ const AuthContext = createContext<AuthContextType>({
     count: 0
   }),
   redirectBasedOnRole: () => { },
-  checkAccess: (path: string) => false
+  checkAccess: (path: string) => false,
+  isPublicRoute: (path: string) => false
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -139,6 +141,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Check access on path change
   useEffect(() => {
     if (!loading && isLoggedIn && user && pathname) {
+      // Skip access check for public routes
+      if (isPublicRoute(pathname)) {
+        return;
+      }
+
       if (!checkAccess(pathname)) {
         redirectBasedOnRole();
       }
@@ -153,7 +160,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading: loading,
     login,
     redirectBasedOnRole,
-    checkAccess
+    checkAccess,
+    isPublicRoute
   };
 
   return (

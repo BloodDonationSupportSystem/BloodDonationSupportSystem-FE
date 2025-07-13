@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Typography, Card, Row, Col, Button, Steps, DatePicker, Input, Select, Radio, Switch, Alert, Spin, notification, message } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Typography, Card, Row, Col, Button, Steps, DatePicker, Input, Select, Radio, Switch, Alert, Spin, notification, message, Space, Modal } from 'antd';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
@@ -10,7 +10,11 @@ import { UserOutlined, HeartOutlined, EnvironmentOutlined, MedicineBoxOutlined, 
 import { useBloodGroups } from '@/hooks/api/useBloodGroups';
 import { createDonorProfile, DonorProfileRequest } from '@/services/api/donorProfileService';
 import { useAuth } from '@/context/AuthContext';
-import type { Map, Marker, LeafletMouseEvent, DragEndEvent } from 'leaflet';
+import dynamic from 'next/dynamic';
+
+// Dynamically import map components to avoid SSR issues
+const MapSelector = dynamic(() => import('@/components/MapSelector'), { ssr: false });
+const LocationViewer = dynamic(() => import('@/components/LocationViewer'), { ssr: false });
 
 const { Title, Paragraph, Text } = Typography;
 const { Step } = Steps;
@@ -34,10 +38,8 @@ export default function ProfileCreationPage() {
   const [location, setLocation] = useState<{ lat: string; lng: string } | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const markerRef = useRef<any>(null);
-  
+  const [mapVisible, setMapVisible] = useState<boolean>(false);
+
   const router = useRouter();
   const { user, isLoggedIn, loading: authLoading } = useAuth();
   const { bloodGroups, isLoading: bloodGroupsLoading } = useBloodGroups();
@@ -93,9 +95,9 @@ export default function ProfileCreationPage() {
       // Suggest next available date based on donation type and gender
       let waitingPeriod = 0; // days
       const gender = getValues('gender');
-      
+
       // Calculate waiting period based on donation type and gender
-      switch(watchDonationType) {
+      switch (watchDonationType) {
         case 'WholeBlood':
           waitingPeriod = gender ? 90 : 120; // Male: 3 months, Female: 4 months
           break;
@@ -112,7 +114,7 @@ export default function ProfileCreationPage() {
         default:
           waitingPeriod = 90; // Default to 3 months
       }
-      
+
       // Calculate and set the suggested next available date
       const nextDate = dayjs(watchLastDonation).add(waitingPeriod, 'day').format('YYYY-MM-DD');
       if (nextDate && nextDate !== 'Invalid Date') {
@@ -141,12 +143,12 @@ export default function ProfileCreationPage() {
       if (currentStep === 1) {
         const healthStatus = getValues('healthStatus');
         const bloodGroupId = getValues('bloodGroupId');
-        
+
         // If healthStatus is same as bloodGroupId, it was likely pre-filled
         if (healthStatus === bloodGroupId) {
           setValue('healthStatus', 'Healthy'); // Reset to default
         }
-        
+
         // Check if lastHealthCheckDate got pre-filled with dateOfBirth
         const lastHealthCheckDate = getValues('lastHealthCheckDate');
         const dateOfBirth = getValues('dateOfBirth');
@@ -154,154 +156,43 @@ export default function ProfileCreationPage() {
           setValue('lastHealthCheckDate', null);
         }
       }
-      
+
       // Step 2 (Location) - Check if any fields were pre-filled with values from Step 1
       if (currentStep === 2) {
         const address = getValues('address');
         const healthStatus = getValues('healthStatus');
         const totalDonations = getValues('totalDonations');
-        
+
         // If address is same as healthStatus or totalDonations, it was likely pre-filled
         if (address === healthStatus || (totalDonations !== undefined && address === totalDonations.toString())) {
           setValue('address', '');
         }
       }
-      
+
       // Step 3 (Preferences) - Check if any fields were pre-filled with values from Step 2
       if (currentStep === 3) {
         const preferredDonationTime = getValues('preferredDonationTime');
         const address = getValues('address');
-        
+
         // If preferredDonationTime contains part of address, it was likely pre-filled
         if (preferredDonationTime && !['Morning', 'Afternoon', 'Evening', 'Weekend', 'Any'].includes(preferredDonationTime)) {
           setValue('preferredDonationTime', 'Morning'); // Reset to default
         }
       }
     };
-    
+
     clearCrossContaminatedFields();
   }, [currentStep, getValues, setValue]);
 
-  // Load leaflet map when on location step
-  useEffect(() => {
-    if (currentStep === 2 && mapContainerRef.current) {
-      // Reset map reference when leaving the location step
-      const initializeMap = async () => {
-        try {
-          // Dynamically import leaflet
-          const L = await import('leaflet');
-          // Also import the CSS
-          await import('leaflet/dist/leaflet.css');
-          
-          if (!mapContainerRef.current) return;
-          
-          // If map already exists, remove it to prevent duplicates
-          if (mapRef.current) {
-            mapRef.current.remove();
-            mapRef.current = null;
-            markerRef.current = null;
-          }
-          
-          // Create map
-          const map = L.map(mapContainerRef.current).setView([10.8231, 106.6297], 13); // Default view on Ho Chi Minh City
-          
-          // Add OpenStreetMap tile layer
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          }).addTo(map);
-          
-          // Wait for the map to be fully initialized
-          await new Promise(resolve => {
-            map.whenReady(() => {
-              resolve(true);
-            });
-          });
-          
-          // Custom marker icon
-          const customIcon = L.icon({
-            iconUrl: '/images/map/marker-icon.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-          });
-          
-          // Create a marker but don't add it to the map yet
-          const marker = L.marker([10.8231, 106.6297], {
-            draggable: true,
-            icon: customIcon
-          });
-          
-          // Update coordinates when marker is dragged
-          marker.on('dragend', function(e: DragEndEvent) {
-            const position = marker.getLatLng();
-            setValue('latitude', position.lat.toString());
-            setValue('longitude', position.lng.toString());
-            setLocation({ lat: position.lat.toString(), lng: position.lng.toString() });
-          });
-          
-          // Click on map to set marker
-          map.on('click', function(e: LeafletMouseEvent) {
-            const { lat, lng } = e.latlng;
-            
-            if (markerRef.current) {
-              markerRef.current.setLatLng([lat, lng]);
-              if (!map.hasLayer(markerRef.current)) {
-                markerRef.current.addTo(map);
-              }
-            } else {
-              markerRef.current = L.marker([lat, lng], { icon: customIcon }).addTo(map);
-            }
-            
-            setValue('latitude', lat.toString());
-            setValue('longitude', lng.toString());
-            setLocation({ lat: lat.toString(), lng: lng.toString() });
-          });
-          
-          // Save references
-          mapRef.current = map;
-          markerRef.current = marker;
-          
-          // If we already have coordinates, show the marker
-          const { latitude, longitude } = getValues();
-          if (latitude && longitude) {
-            marker.setLatLng([parseFloat(latitude), parseFloat(longitude)]).addTo(map);
-            map.setView([parseFloat(latitude), parseFloat(longitude)], 15);
-          }
-          
-          // Force map to update its size after rendering
-          setTimeout(() => {
-            map.invalidateSize();
-          }, 200);
-          
-          // Get user's current location if possible
-          if (!location && !latitude && !longitude) {
-            getUserLocation();
-          }
-        } catch (error) {
-          console.error("Error initializing map:", error);
-        }
-      };
-      
-      initializeMap();
-      
-      // Cleanup function to remove map when component unmounts or step changes
-      return () => {
-        if (mapRef.current) {
-          // Don't actually remove the map here, we'll handle it in the initialization
-        }
-      };
-    }
-  }, [currentStep, location, setValue, getValues]);
-
-  // If address changes, try to geocode it
-  useEffect(() => {
-    if (currentStep === 2 && watchAddress && mapRef.current) {
-      // You could implement geocoding here with a service like Nominatim
-      // This is a simplified example - in production you might want to use a geocoding service
-      // geocodeAddress(watchAddress);
-    }
-  }, [watchAddress, currentStep]);
+  // Handle map selection
+  const handleMapSelection = (lat: string, lng: string, address: string) => {
+    setValue('latitude', lat);
+    setValue('longitude', lng);
+    setValue('address', address);
+    setLocation({ lat, lng });
+    setMapVisible(false);
+    toast.success('Location selected successfully');
+  };
 
   // Get user's current location
   const getUserLocation = () => {
@@ -309,76 +200,40 @@ export default function ProfileCreationPage() {
       setLocationError('Geolocation is not supported by your browser');
       return;
     }
-    
+
     setIsLoadingLocation(true);
     setLocationError(null);
-    
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        
+
         // Update form values
         setValue('latitude', latitude.toString());
         setValue('longitude', longitude.toString());
         setLocation({ lat: latitude.toString(), lng: longitude.toString() });
-        
-        // Update map and marker
-        if (mapRef.current && markerRef.current) {
-          try {
-            markerRef.current.setLatLng([latitude, longitude]);
-            if (!mapRef.current.hasLayer(markerRef.current)) {
-              markerRef.current.addTo(mapRef.current);
+
+        // Fetch address using reverse geocoding
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`)
+          .then(response => response.json())
+          .then(data => {
+            if (data && data.display_name) {
+              setValue('address', data.display_name);
             }
-            mapRef.current.setView([latitude, longitude], 15);
-          } catch (error) {
-            console.error("Error updating map with location:", error);
-            
-            // If there was an error with the marker, try to create a new one
-            if (mapRef.current) {
-              try {
-                // Dynamic import for leaflet
-                import('leaflet').then((L) => {
-                  // Create custom icon
-                  const customIcon = L.icon({
-                    iconUrl: '/images/map/marker-icon.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41],
-                    popupAnchor: [1, -34],
-                    shadowSize: [41, 41]
-                  });
-                  
-                  // Remove old marker if it exists
-                  if (markerRef.current && mapRef.current.hasLayer(markerRef.current)) {
-                    mapRef.current.removeLayer(markerRef.current);
-                  }
-                  
-                  // Create new marker
-                  markerRef.current = L.marker([latitude, longitude], { icon: customIcon }).addTo(mapRef.current);
-                  mapRef.current.setView([latitude, longitude], 15);
-                });
-              } catch (err) {
-                console.error("Failed to recreate marker:", err);
-              }
-            }
-          }
-        }
-        
-        setIsLoadingLocation(false);
-        
-        // Only show toast if it's a user-initiated action (not automatic on page load)
-        if (document.hasFocus()) {
-          toast.success('Location successfully detected');
-        }
+          })
+          .catch(error => {
+            console.error('Error fetching address:', error);
+          })
+          .finally(() => {
+            setIsLoadingLocation(false);
+            toast.success('Location successfully detected');
+          });
       },
       (error) => {
         console.error('Error getting user location:', error);
         setLocationError('Failed to get your location. Please set it manually on the map.');
         setIsLoadingLocation(false);
-        
-        // Only show toast if it's a user-initiated action
-        if (document.hasFocus()) {
-          toast.error('Failed to get your location. Please set it manually on the map.');
-        }
+        toast.error('Failed to get your location. Please set it manually on the map.');
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -420,7 +275,7 @@ export default function ProfileCreationPage() {
       console.log('Submitting profile data:', formattedData);
 
       const response = await createDonorProfile(formattedData);
-      
+
       if (response.success) {
         toast.success('Donor profile created successfully');
         // Navigate to the profile page or dashboard
@@ -448,20 +303,20 @@ export default function ProfileCreationPage() {
         setValue('address', '');
       }
     }
-    
+
     // Perform manual validation for the current step before proceeding
     let canProceed = true;
-    
+
     if (currentStep === 0) {
       // Validate Personal Info step
       const dateOfBirth = getValues('dateOfBirth');
       const bloodGroupId = getValues('bloodGroupId');
-      
+
       if (!dateOfBirth) {
         toast.error('Please enter your date of birth');
         canProceed = false;
       }
-      
+
       if (!bloodGroupId) {
         toast.error('Please select your blood group');
         canProceed = false;
@@ -471,17 +326,17 @@ export default function ProfileCreationPage() {
       const totalDonations = getValues('totalDonations');
       const lastDonationDate = getValues('lastDonationDate');
       const donationType = getValues('donationType');
-      
+
       if (totalDonations && totalDonations > 0 && !lastDonationDate) {
         toast.error('Please enter your last donation date');
         canProceed = false;
       }
-      
+
       if (totalDonations && totalDonations > 0 && !donationType) {
         toast.error('Please select your last donation type');
         canProceed = false;
       }
-      
+
       // If totalDonations is 0, clear lastDonationDate to prevent inconsistency
       if (totalDonations !== undefined && totalDonations <= 0 && lastDonationDate) {
         setValue('lastDonationDate', null);
@@ -492,22 +347,22 @@ export default function ProfileCreationPage() {
       const address = getValues('address');
       const latitude = getValues('latitude');
       const longitude = getValues('longitude');
-      
+
       if (!address) {
         toast.error('Please enter your address');
         canProceed = false;
       }
-      
+
       if (!latitude || !longitude) {
         toast.error('Please set your location on the map');
         canProceed = false;
       }
     }
-    
+
     if (canProceed) {
       // Prevent field cross-contamination when moving to next step
       const nextStepIndex = currentStep + 1;
-      
+
       // Reset fields in the next step that might have been pre-filled
       if (nextStepIndex === 1) { // Moving to Health Info
         // Check if health fields got pre-filled with personal info values
@@ -516,7 +371,7 @@ export default function ProfileCreationPage() {
         if (healthStatus === bloodGroupId) {
           setValue('healthStatus', 'Healthy');
         }
-      } 
+      }
       else if (nextStepIndex === 2) { // Moving to Location
         // Clear address field to prevent pre-filling from health status
         setValue('address', '');
@@ -529,7 +384,7 @@ export default function ProfileCreationPage() {
           setValue('preferredDonationTime', 'Morning');
         }
       }
-      
+
       setCurrentStep(nextStepIndex);
     }
   };
@@ -537,7 +392,7 @@ export default function ProfileCreationPage() {
   const prevStep = () => {
     // When moving back to a previous step, ensure fields are not cross-contaminated
     const prevStepIndex = currentStep - 1;
-    
+
     // Check for any field contamination when moving back
     if (prevStepIndex === 0) { // Moving back to Personal Info
       // No specific checks needed for first step
@@ -558,7 +413,7 @@ export default function ProfileCreationPage() {
         setValue('address', '');
       }
     }
-    
+
     setCurrentStep(prevStepIndex);
   };
 
@@ -615,8 +470,8 @@ export default function ProfileCreationPage() {
                   name="gender"
                   control={control}
                   render={({ field }) => (
-                    <Radio.Group 
-                      {...field} 
+                    <Radio.Group
+                      {...field}
                       onChange={e => field.onChange(e.target.value)}
                       value={field.value}
                     >
@@ -628,7 +483,7 @@ export default function ProfileCreationPage() {
               </div>
             </Col>
           </Row>
-          
+
           <div className="mb-4">
             <label htmlFor="bloodGroupId" className="block text-sm font-medium text-gray-700 mb-1">
               Blood Group <span className="text-red-500">*</span>
@@ -665,7 +520,7 @@ export default function ProfileCreationPage() {
       content: (
         <div className="space-y-6">
           <Title level={4}>Health Information</Title>
-          
+
           <div className="mb-4">
             <label htmlFor="healthStatus" className="block text-sm font-medium text-gray-700 mb-1">
               Current Health Status <span className="text-red-500">*</span>
@@ -679,18 +534,18 @@ export default function ProfileCreationPage() {
                 const currentValue = field.value;
                 const validOptions = ['Excellent', 'Good', 'Fair', 'Poor', 'Healthy'];
                 const bloodGroupId = getValues('bloodGroupId');
-                
+
                 // If value is not in valid options or matches bloodGroupId, reset to default
                 if (!validOptions.includes(currentValue) || currentValue === bloodGroupId) {
                   setTimeout(() => setValue('healthStatus', 'Healthy'), 0);
                 }
-                
+
                 return (
-                <Select
-                  id="healthStatus"
-                  placeholder="Select your current health status"
-                  className="w-full"
-                  {...field}
+                  <Select
+                    id="healthStatus"
+                    placeholder="Select your current health status"
+                    className="w-full"
+                    {...field}
                     onFocus={() => {
                       // Double-check on focus that we have a valid option
                       const value = field.value;
@@ -698,12 +553,12 @@ export default function ProfileCreationPage() {
                         setValue('healthStatus', 'Healthy');
                       }
                     }}
-                >
-                  <Option value="Excellent">Excellent</Option>
-                  <Option value="Good">Good</Option>
-                  <Option value="Fair">Fair</Option>
-                  <Option value="Poor">Poor (Not eligible for donation)</Option>
-                </Select>
+                  >
+                    <Option value="Excellent">Excellent</Option>
+                    <Option value="Good">Good</Option>
+                    <Option value="Fair">Fair</Option>
+                    <Option value="Poor">Poor (Not eligible for donation)</Option>
+                  </Select>
                 );
               }}
             />
@@ -711,7 +566,7 @@ export default function ProfileCreationPage() {
               <p className="mt-1 text-sm text-red-600">{errors.healthStatus.message}</p>
             )}
           </div>
-          
+
           <div className="mb-4">
             <label htmlFor="lastHealthCheckDate" className="block text-sm font-medium text-gray-700 mb-1">
               Last Health Check Date
@@ -733,7 +588,7 @@ export default function ProfileCreationPage() {
               )}
             />
           </div>
-          
+
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <div className="mb-4">
@@ -766,8 +621,8 @@ export default function ProfileCreationPage() {
                 <Controller
                   name="lastDonationDate"
                   control={control}
-                  rules={{ 
-                    required: watchDonationCount && watchDonationCount > 0 ? 'Last donation date is required if you have donated before' : false 
+                  rules={{
+                    required: watchDonationCount && watchDonationCount > 0 ? 'Last donation date is required if you have donated before' : false
                   }}
                   render={({ field: { onChange, value, ...restField } }) => (
                     <DatePicker
@@ -790,7 +645,7 @@ export default function ProfileCreationPage() {
               </div>
             </Col>
           </Row>
-          
+
           <div className="mb-4">
             <label htmlFor="donationType" className="block text-sm font-medium text-gray-700 mb-1">
               Last Donation Type {watchDonationCount && watchDonationCount > 0 && <span className="text-red-500">*</span>}
@@ -798,8 +653,8 @@ export default function ProfileCreationPage() {
             <Controller
               name="donationType"
               control={control}
-              rules={{ 
-                required: watchDonationCount && watchDonationCount > 0 ? 'Donation type is required if you have donated before' : false 
+              rules={{
+                required: watchDonationCount && watchDonationCount > 0 ? 'Donation type is required if you have donated before' : false
               }}
               render={({ field }) => (
                 <Select
@@ -815,9 +670,9 @@ export default function ProfileCreationPage() {
                     if (lastDonationDate && watchDonationCount && watchDonationCount > 0) {
                       let waitingPeriod = 0; // days
                       const gender = getValues('gender');
-                      
+
                       // Calculate waiting period based on donation type and gender
-                      switch(value) {
+                      switch (value) {
                         case 'WholeBlood':
                           waitingPeriod = gender ? 90 : 120; // Male: 3 months, Female: 4 months
                           break;
@@ -834,7 +689,7 @@ export default function ProfileCreationPage() {
                         default:
                           waitingPeriod = 90; // Default to 3 months
                       }
-                      
+
                       // Calculate and set the suggested next available date
                       const nextDate = dayjs(lastDonationDate).add(waitingPeriod, 'day').format('YYYY-MM-DD');
                       if (nextDate && nextDate !== 'Invalid Date') {
@@ -858,7 +713,7 @@ export default function ProfileCreationPage() {
               Your most recent type of blood donation
             </div>
           </div>
-          
+
           <div className="mb-4">
             <label htmlFor="nextAvailableDonationDate" className="block text-sm font-medium text-gray-700 mb-1">
               Next Available Donation Date
@@ -903,7 +758,7 @@ export default function ProfileCreationPage() {
       content: (
         <div className="space-y-6">
           <Title level={4}>Location Information</Title>
-          
+
           <div className="mb-4">
             <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
               Address <span className="text-red-500">*</span>
@@ -917,31 +772,31 @@ export default function ProfileCreationPage() {
                 const currentValue = field.value;
                 const healthStatus = getValues('healthStatus');
                 const totalDonations = getValues('totalDonations');
-                
+
                 // If address matches a value from another field, clear it
-                if (currentValue === healthStatus || 
-                    (totalDonations !== undefined && currentValue === totalDonations.toString()) || 
-                    (typeof currentValue === 'number')) {
+                if (currentValue === healthStatus ||
+                  (totalDonations !== undefined && currentValue === totalDonations.toString()) ||
+                  (typeof currentValue === 'number')) {
                   setTimeout(() => setValue('address', ''), 0);
                 }
-                
+
                 return (
-                <TextArea
-                  id="address"
-                  rows={3}
-                  className="w-full"
-                  placeholder="Enter your full address"
-                  {...field}
+                  <TextArea
+                    id="address"
+                    rows={3}
+                    className="w-full"
+                    placeholder="Enter your full address"
+                    {...field}
                     onFocus={() => {
                       // Double-check on focus that we don't have contaminated data
                       const value = field.value;
-                      if (value === healthStatus || 
-                          (totalDonations !== undefined && value === totalDonations.toString()) || 
-                          (typeof value === 'number')) {
+                      if (value === healthStatus ||
+                        (totalDonations !== undefined && value === totalDonations.toString()) ||
+                        (typeof value === 'number')) {
                         setValue('address', '');
                       }
                     }}
-                />
+                  />
                 );
               }}
             />
@@ -949,35 +804,46 @@ export default function ProfileCreationPage() {
               <p className="mt-1 text-sm text-red-600">{errors.address.message}</p>
             )}
           </div>
-          
+
           <div className="mb-4">
             <div className="flex justify-between items-center mb-2">
               <label className="block text-sm font-medium text-gray-700">
                 Your Location <span className="text-red-500">*</span>
               </label>
-              <Button
-                type="primary"
-                icon={isLoadingLocation ? <LoadingOutlined /> : <CompassOutlined />}
-                size="small"
-                onClick={getUserLocation}
-                loading={isLoadingLocation}
-                className="bg-blue-500 hover:bg-blue-600"
-              >
-                Detect My Location
-              </Button>
+              <Space>
+                <Button
+                  onClick={() => setMapVisible(true)}
+                  icon={<EnvironmentOutlined />}
+                  type="primary"
+                  ghost
+                  size="middle"
+                >
+                  Select on Map
+                </Button>
+                {/* <Button
+                  onClick={getUserLocation}
+                  icon={isLoadingLocation ? <LoadingOutlined /> : <CompassOutlined />}
+                  type="primary"
+                  size="middle"
+                  loading={isLoadingLocation}
+                  className="bg-blue-500 hover:bg-blue-600"
+                >
+                  Detect My Location
+                </Button> */}
+              </Space>
             </div>
-            
+
             {locationError && (
-              <Alert 
-                message={locationError} 
-                type="error" 
-                showIcon 
-                className="mb-3" 
-                closable 
+              <Alert
+                message={locationError}
+                type="error"
+                showIcon
+                className="mb-3"
+                closable
                 onClose={() => setLocationError(null)}
               />
             )}
-            
+
             {/* Hidden inputs for latitude and longitude */}
             <Controller
               name="latitude"
@@ -991,34 +857,50 @@ export default function ProfileCreationPage() {
               rules={{ required: 'Longitude is required' }}
               render={({ field }) => <input type="hidden" {...field} />}
             />
-            
-            {/* Map container */}
-            <div 
-              ref={mapContainerRef} 
-              className="w-full h-80 rounded-lg border border-gray-300 relative z-0 mb-2"
-            />
-            
+
+            {/* Map preview */}
+            <div className="mt-4">
+              {getValues('latitude') && getValues('longitude') ? (
+                <div className="border border-gray-300 rounded-lg overflow-hidden" style={{ height: '250px' }}>
+                  <LocationViewer
+                    latitude={getValues('latitude') || ''}
+                    longitude={getValues('longitude') || ''}
+                    address={getValues('address') || ''}
+                    height="250px"
+                  />
+                </div>
+              ) : (
+                <div className="border border-gray-300 rounded-lg flex items-center justify-center" style={{ height: '250px' }}>
+                  <div className="text-center text-gray-500">
+                    <EnvironmentOutlined className="text-3xl mb-2" />
+                    <p>No location selected</p>
+                    <p className="text-sm">Please select your location on the map</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {location ? (
-              <div className="text-sm text-gray-600 flex items-center">
+              <div className="text-sm text-gray-600 flex items-center mt-2">
                 <CheckCircleOutlined className="text-green-500 mr-1" />
                 Location set: {parseFloat(location.lat).toFixed(6)}, {parseFloat(location.lng).toFixed(6)}
               </div>
             ) : (
-              <div className="text-sm text-red-500 flex items-center">
+              <div className="text-sm text-red-500 flex items-center mt-2">
                 <EnvironmentOutlined className="mr-1" />
                 Please set your location by clicking on the map or using the "Detect My Location" button
               </div>
             )}
-            
+
             {(errors.latitude || errors.longitude) && (
               <p className="mt-1 text-sm text-red-600">Please set your location on the map</p>
             )}
           </div>
-          
+
           <div className="bg-blue-50 p-4 rounded-md">
             <Text className="text-blue-600 font-medium">
-              Note: Your location information helps us connect you with nearby donation centers and 
-              blood recipients in need. Your privacy is important to us, and this information will 
+              Note: Your location information helps us connect you with nearby donation centers and
+              blood recipients in need. Your privacy is important to us, and this information will
               only be used for blood donation purposes.
             </Text>
           </div>
@@ -1031,7 +913,7 @@ export default function ProfileCreationPage() {
       content: (
         <div className="space-y-6">
           <Title level={4}>Donation Preferences</Title>
-          
+
           <div className="mb-6">
             <label htmlFor="preferredDonationTime" className="block text-sm font-medium text-gray-700 mb-1">
               Preferred Donation Time <span className="text-red-500">*</span>
@@ -1044,17 +926,17 @@ export default function ProfileCreationPage() {
                 // Check if preferredDonationTime has been pre-filled with an invalid value
                 const currentValue = field.value || '';
                 const validOptions = ['Morning', 'Afternoon', 'Evening', 'Weekend', 'Any'];
-                
+
                 // If value is not in valid options, reset to default
                 if (!validOptions.includes(currentValue)) {
                   setTimeout(() => setValue('preferredDonationTime', 'Morning'), 0);
                 }
-                
+
                 return (
-                <Select
-                  id="preferredDonationTime"
-                  className="w-full"
-                  {...field}
+                  <Select
+                    id="preferredDonationTime"
+                    className="w-full"
+                    {...field}
                     onFocus={() => {
                       // Double-check on focus that we have a valid option
                       const value = field.value || '';
@@ -1062,13 +944,13 @@ export default function ProfileCreationPage() {
                         setValue('preferredDonationTime', 'Morning');
                       }
                     }}
-                >
-                  <Option value="Morning">Morning (8:00 AM - 12:00 PM)</Option>
-                  <Option value="Afternoon">Afternoon (12:00 PM - 4:00 PM)</Option>
-                  <Option value="Evening">Evening (4:00 PM - 8:00 PM)</Option>
-                  <Option value="Weekend">Weekends Only</Option>
-                  <Option value="Any">Any Time</Option>
-                </Select>
+                  >
+                    <Option value="Morning">Morning (8:00 AM - 12:00 PM)</Option>
+                    <Option value="Afternoon">Afternoon (12:00 PM - 4:00 PM)</Option>
+                    <Option value="Evening">Evening (4:00 PM - 8:00 PM)</Option>
+                    <Option value="Weekend">Weekends Only</Option>
+                    <Option value="Any">Any Time</Option>
+                  </Select>
                 );
               }}
             />
@@ -1076,15 +958,15 @@ export default function ProfileCreationPage() {
               <p className="mt-1 text-sm text-red-600">{errors.preferredDonationTime.message}</p>
             )}
           </div>
-          
+
           <div className="mb-6">
             <label className="flex items-center space-x-2">
               <Controller
                 name="isAvailableForEmergency"
                 control={control}
                 render={({ field }) => (
-                  <Switch 
-                    checked={field.value} 
+                  <Switch
+                    checked={field.value}
                     onChange={field.onChange}
                   />
                 )}
@@ -1097,7 +979,7 @@ export default function ProfileCreationPage() {
               If enabled, you may be contacted for urgent blood donation needs in your area.
             </Text>
           </div>
-          
+
           <div className="bg-red-50 p-4 rounded-md mb-6">
             <Title level={5} className="text-red-600 mb-1">Important Information</Title>
             <Paragraph className="text-red-600 mb-0">
@@ -1120,16 +1002,16 @@ export default function ProfileCreationPage() {
             Complete your donor profile to help us match you with donation opportunities
             and blood recipients in need.
           </Paragraph>
-          
-          <Steps 
-            current={currentStep} 
+
+          <Steps
+            current={currentStep}
             className="mb-8"
             items={steps.map(step => ({
               title: step.title,
               icon: step.icon
             }))}
           />
-          
+
           {submitError && (
             <Alert
               message="Error"
@@ -1141,32 +1023,32 @@ export default function ProfileCreationPage() {
               onClose={() => setSubmitError(null)}
             />
           )}
-          
+
           <div className="mb-6">
             {steps[currentStep].content}
           </div>
-          
+
           <div className="flex justify-between mt-8">
             {currentStep > 0 && (
-              <Button 
+              <Button
                 onClick={prevStep}
               >
                 Previous
               </Button>
             )}
-            
+
             {currentStep < steps.length - 1 ? (
-              <Button 
+              <Button
                 type="primary"
-                onClick={nextStep} 
+                onClick={nextStep}
                 className="ml-auto bg-red-600 hover:bg-red-700"
                 disabled={currentStep === 2 && (!location || !getValues('address'))}
               >
                 Next
               </Button>
             ) : (
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 onClick={handleSubmit(onSubmit)}
                 loading={isSubmitting}
                 className="ml-auto bg-red-600 hover:bg-red-700"
@@ -1177,6 +1059,33 @@ export default function ProfileCreationPage() {
           </div>
         </Card>
       </div>
+
+      {/* Map Selection Modal */}
+      <Modal
+        title={
+          <div className="flex items-center text-red-500">
+            <EnvironmentOutlined className="mr-2 text-xl" />
+            <span className="text-xl font-semibold">Select Location on Map</span>
+          </div>
+        }
+        open={mapVisible}
+        onCancel={() => setMapVisible(false)}
+        footer={null}
+        width="90%"
+        style={{ top: 10, height: 'calc(100vh - 20px)' }}
+        bodyStyle={{ height: 'calc(100vh - 80px)', padding: 0 }}
+        className="location-modal map-modal"
+        maskClosable={false}
+        destroyOnClose
+        zIndex={1060}
+      >
+        <MapSelector
+          onSelect={handleMapSelection}
+          initialLatitude={getValues('latitude') || ''}
+          initialLongitude={getValues('longitude') || ''}
+          initialAddress={getValues('address') || ''}
+        />
+      </Modal>
     </div>
   );
 } 

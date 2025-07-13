@@ -7,8 +7,8 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
-import { Card, Steps, Button, Alert, Spin, Form, Select, DatePicker, Input, Checkbox, Result, Calendar, Badge, Row, Col, Tag, Empty } from 'antd';
-import { EnvironmentOutlined, CalendarOutlined, ClockCircleOutlined, LeftOutlined, RightOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Card, Steps, Button, Alert, Spin, Form, Select, DatePicker, Input, Checkbox, Result, Calendar, Badge, Row, Col, Tag, Empty, Typography } from 'antd';
+import { EnvironmentOutlined, CalendarOutlined, ClockCircleOutlined, LeftOutlined, RightOutlined, CheckCircleOutlined, CloseCircleOutlined, HeartOutlined, EditOutlined } from '@ant-design/icons';
 import { useDonorProfile } from '@/hooks/api';
 import { useLocations } from '@/hooks/api/useLocations';
 import { useBloodGroups } from '@/hooks/api/useBloodGroups';
@@ -18,6 +18,7 @@ import { EligibilityResponse, DonationAppointmentRequest, AvailableTimeSlot, Tim
 import type { Dayjs } from 'dayjs';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import React from 'react';
+import Link from 'next/link';
 
 // Configure dayjs to use timezone
 dayjs.extend(utc);
@@ -28,6 +29,7 @@ dayjs.tz.setDefault('Asia/Ho_Chi_Minh'); // Set Vietnam timezone
 const { Step } = Steps;
 const { Option } = Select;
 const { TextArea } = Input;
+const { Title, Paragraph, Text } = Typography;
 
 // Time slots configuration
 const timeSlots = [
@@ -83,7 +85,7 @@ const DonateBloodPage = () => {
   const [form] = Form.useForm();
 
   // Custom hooks
-  const { checkEligibility, isCheckingEligibility } = useDonorProfile();
+  const { checkEligibility, isCheckingEligibility, profile, isLoading: isLoadingProfile } = useDonorProfile();
   const {
     locations,
     isLoading: isLoadingLocations,
@@ -107,6 +109,7 @@ const DonateBloodPage = () => {
   const [selectedBloodGroupId, setSelectedBloodGroupId] = useState<string | undefined>(undefined);
   const [selectedComponentTypeId, setSelectedComponentTypeId] = useState<string | undefined>(undefined);
   const [loadingCapacities, setLoadingCapacities] = useState(false);
+  const [isDonorProfileMissing, setIsDonorProfileMissing] = useState(false);
 
   // State for capacity schedule view
   const [currentWeekStart, setCurrentWeekStart] = useState<dayjs.Dayjs>(dayjs().tz().startOf('week'));
@@ -140,14 +143,45 @@ const DonateBloodPage = () => {
   // Check eligibility on component mount
   useEffect(() => {
     const checkDonorEligibility = async () => {
-      const result = await checkEligibility();
-      if (result) {
-        setEligibilityData(result);
+      try {
+        const result = await checkEligibility();
+        if (result) {
+          setEligibilityData(result);
+        }
+      } catch (error: any) {
+        console.error('Error checking eligibility:', error);
+
+        // Check for our specific error code
+        if (error.code === 'DONOR_PROFILE_NOT_FOUND') {
+          console.log('Donor profile not found error detected, setting isDonorProfileMissing to true');
+          setIsDonorProfileMissing(true);
+          return;
+        }
+
+        // Check if the error is a 404 (donor profile not found)
+        if (error.response && error.response.status === 404) {
+          console.log('Donor profile not found, setting isDonorProfileMissing to true');
+          setIsDonorProfileMissing(true);
+        } else if (error.message && error.message.includes('404')) {
+          console.log('404 error detected in message, setting isDonorProfileMissing to true');
+          setIsDonorProfileMissing(true);
+        } else if (error.toString().includes('404')) {
+          console.log('404 error detected in error string, setting isDonorProfileMissing to true');
+          setIsDonorProfileMissing(true);
+        }
       }
     };
 
     checkDonorEligibility();
   }, []);
+
+  // Check if donor profile exists
+  useEffect(() => {
+    if (!isLoadingProfile && profile === null) {
+      console.log('Profile is null after loading, setting isDonorProfileMissing to true');
+      setIsDonorProfileMissing(true);
+    }
+  }, [isLoadingProfile, profile]);
 
   // Handle location and date selection for time slots
   useEffect(() => {
@@ -1022,6 +1056,11 @@ const DonateBloodPage = () => {
 
   // Render step content based on current step
   const renderStepContent = () => {
+    // If donor profile is missing, don't render any step content
+    if (isDonorProfileMissing) {
+      return null;
+    }
+
     switch (currentStep) {
       case 0:
         return renderEligibilityStep();
@@ -1041,17 +1080,105 @@ const DonateBloodPage = () => {
   return (
     <ProtectedRoute>
       <div className="container mx-auto px-4 py-8">
-        <Card className="max-w-4xl mx-auto shadow-sm">
-          <Steps current={currentStep} className="mb-8">
-            <Step title="Eligibility" description="Check eligibility" />
-            <Step title="Location" description="Select donation center" />
-            <Step title="Schedule" description="Choose date & time" />
-            <Step title="Confirmation" description="Review & submit" />
-            <Step title="Success" description="Appointment booked" />
-          </Steps>
+        {isLoadingProfile ? (
+          <div className="flex justify-center items-center min-h-[200px]">
+            <Spin size="large" />
+          </div>
+        ) : isDonorProfileMissing ? (
+          <div className="min-h-screen bg-gray-50 py-12 px-4">
+            <div className="container mx-auto max-w-6xl">
+              <div className="bg-white p-8 rounded-lg shadow-sm">
+                <div className="text-center mb-8">
+                  <HeartOutlined className="text-5xl text-red-500 mb-4" />
+                  <Title level={2}>Welcome to Blood Donation Support System</Title>
+                  <Paragraph className="text-gray-500 text-lg">
+                    You don't have a donor profile yet. Creating a profile will allow you to:
+                  </Paragraph>
+                </div>
 
-          {renderStepContent()}
-        </Card>
+                <Row gutter={[16, 16]} className="mb-8">
+                  <Col xs={24} sm={12}>
+                    <Card className="h-full">
+                      <div className="flex items-start">
+                        <HeartOutlined className="text-red-500 text-xl mr-3 mt-1" />
+                        <div>
+                          <Text strong className="text-base">Donate Blood</Text>
+                          <Paragraph className="text-gray-500 mb-0">
+                            Register as a blood donor and help save lives
+                          </Paragraph>
+                        </div>
+                      </div>
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Card className="h-full">
+                      <div className="flex items-start">
+                        <CalendarOutlined className="text-red-500 text-xl mr-3 mt-1" />
+                        <div>
+                          <Text strong className="text-base">Schedule Appointments</Text>
+                          <Paragraph className="text-gray-500 mb-0">
+                            Set your preferred donation times and availability
+                          </Paragraph>
+                        </div>
+                      </div>
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Card className="h-full">
+                      <div className="flex items-start">
+                        <EnvironmentOutlined className="text-red-500 text-xl mr-3 mt-1" />
+                        <div>
+                          <Text strong className="text-base">Find Nearby Requests</Text>
+                          <Paragraph className="text-gray-500 mb-0">
+                            Help people in need of blood near your location
+                          </Paragraph>
+                        </div>
+                      </div>
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Card className="h-full">
+                      <div className="flex items-start">
+                        <EditOutlined className="text-red-500 text-xl mr-3 mt-1" />
+                        <div>
+                          <Text strong className="text-base">Track Donations</Text>
+                          <Paragraph className="text-gray-500 mb-0">
+                            Keep a record of your donation history and impact
+                          </Paragraph>
+                        </div>
+                      </div>
+                    </Card>
+                  </Col>
+                </Row>
+
+                <div className="text-center">
+                  <Link href="/profile-creation">
+                    <Button
+                      type="primary"
+                      size="large"
+                      icon={<HeartOutlined />}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Create Donor Profile
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Card className="max-w-4xl mx-auto shadow-sm">
+            <Steps current={currentStep} className="mb-8">
+              <Step title="Eligibility" description="Check eligibility" />
+              <Step title="Location" description="Select donation center" />
+              <Step title="Schedule" description="Choose date & time" />
+              <Step title="Confirmation" description="Review & submit" />
+              <Step title="Success" description="Appointment booked" />
+            </Steps>
+
+            {renderStepContent()}
+          </Card>
+        )}
       </div>
     </ProtectedRoute>
   );

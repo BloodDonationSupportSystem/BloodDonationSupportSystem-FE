@@ -99,11 +99,31 @@ export function useDonorProfile(): UseDonorProfileReturn {
         setEligibility(response.data);
         return response.data;
       } else {
+        // Check if it's a 404 error (profile not found)
+        if (response.statusCode === 404) {
+          // For 404, we throw a specific error that can be caught by the donate-blood page
+          const error = new Error('Donor profile not found');
+          (error as any).code = 'DONOR_PROFILE_NOT_FOUND';
+          throw error;
+        }
         setError(response.message || 'Failed to check eligibility');
         return null;
       }
     } catch (err: unknown) {
       console.error('Error checking eligibility:', err);
+
+      // If it's already our custom error, just re-throw it
+      if (err instanceof Error && (err as any).code === 'DONOR_PROFILE_NOT_FOUND') {
+        throw err;
+      }
+
+      // Check if it's an Axios error with a 404 status
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        const error = new Error('Donor profile not found');
+        (error as any).code = 'DONOR_PROFILE_NOT_FOUND';
+        throw error;
+      }
+
       setError('An error occurred while checking your eligibility');
       return null;
     } finally {
