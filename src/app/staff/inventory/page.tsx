@@ -6,6 +6,8 @@ import { SearchOutlined, ReloadOutlined, WarningOutlined, CheckCircleOutlined, C
 import StaffLayout from '@/components/Layout/StaffLayout';
 import { useBloodInventory } from '@/hooks/api/useBloodInventory';
 import { BloodInventory, BloodInventoryParams } from '@/services/api/bloodInventoryService';
+import { useBloodGroups } from '@/hooks/api/useBloodGroups';
+import { useComponentTypes } from '@/hooks/api/useComponentTypes';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -20,26 +22,6 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 const { TabPane } = Tabs;
 
-// Define blood groups for filtering
-const bloodGroups = [
-    { value: 'A+', label: 'A+' },
-    { value: 'A-', label: 'A-' },
-    { value: 'B+', label: 'B+' },
-    { value: 'B-', label: 'B-' },
-    { value: 'AB+', label: 'AB+' },
-    { value: 'AB-', label: 'AB-' },
-    { value: 'O+', label: 'O+' },
-    { value: 'O-', label: 'O-' },
-];
-
-// Define component types for filtering
-const componentTypes = [
-    { value: 'Whole Blood', label: 'Whole Blood' },
-    { value: 'Plasma', label: 'Plasma' },
-    { value: 'Platelets', label: 'Platelets' },
-    { value: 'Red Cells', label: 'Red Cells' },
-];
-
 export default function StaffInventoryPage() {
     // States for filters
     const [bloodGroupFilter, setBloodGroupFilter] = useState<string | null>(null);
@@ -49,6 +31,10 @@ export default function StaffInventoryPage() {
     const [activeTab, setActiveTab] = useState('all');
     const [sortedInfo, setSortedInfo] = useState<any>({});
     const [filteredInfo, setFilteredInfo] = useState<any>({});
+
+    // Use hooks for blood groups and component types
+    const { bloodGroups, isLoading: isLoadingBloodGroups } = useBloodGroups();
+    const { componentTypes, isLoading: isLoadingComponentTypes } = useComponentTypes();
 
     // Use the blood inventory hook
     const {
@@ -60,29 +46,48 @@ export default function StaffInventoryPage() {
         inventorySummary
     } = useBloodInventory();
 
-    // Apply filters when they change
+    // Initial data load
     useEffect(() => {
+        // Load initial data
         const params: BloodInventoryParams = {
-            pageNumber: pagination.current,
+            pageNumber: 1,
+            pageSize: pagination.pageSize,
+            isExpired: false,
+            isExpiringSoon: false
+        };
+
+        console.log("Initial data load with params:", params);
+        fetchInventories(params);
+    }, []);
+
+    // Handle tab change
+    const handleTabChange = (key: string) => {
+        console.log("Tab changed to:", key);
+
+        // Reset pagination to first page when changing tabs
+        pagination.current = 1;
+
+        // Clear table filters when changing tabs
+        setFilteredInfo({});
+        setSortedInfo({});
+
+        // Prepare params - ONLY include pagination
+        const params: BloodInventoryParams = {
+            pageNumber: 1,
             pageSize: pagination.pageSize
         };
 
-        // Apply manual filters
-        if (bloodGroupFilter) {
-            params.bloodGroupId = bloodGroupFilter;
-        }
+        // Clear other filters when changing tabs to avoid conflicting filters
+        setBloodGroupFilter(null);
+        setComponentTypeFilter(null);
+        setExpirationDateRange(null);
+        setSearchText('');
 
-        if (componentTypeFilter) {
-            params.componentTypeId = componentTypeFilter;
-        }
+        // Update the active tab
+        setActiveTab(key);
 
-        if (expirationDateRange && expirationDateRange[0] && expirationDateRange[1]) {
-            params.expirationStartDate = expirationDateRange[0].format('YYYY-MM-DD');
-            params.expirationEndDate = expirationDateRange[1].format('YYYY-MM-DD');
-        }
-
-        // Apply tab-based filters
-        switch (activeTab) {
+        // Apply tab-based filters based on the new tab
+        switch (key) {
             case 'expired':
                 params.isExpired = true;
                 params.isExpiringSoon = false;
@@ -116,72 +121,267 @@ export default function StaffInventoryPage() {
                 break;
         }
 
+        // Explicitly ensure filter params are undefined
+        params.bloodGroupId = undefined;
+        params.componentTypeId = undefined;
+        params.expirationStartDate = undefined;
+        params.expirationEndDate = undefined;
+
+        // Call API directly
+        console.log("Calling API after tab change with params:", params);
         fetchInventories(params);
-    }, [bloodGroupFilter, componentTypeFilter, expirationDateRange, activeTab, pagination.current, pagination.pageSize]);
-
-    // Handle tab change
-    const handleTabChange = (key: string) => {
-        // Reset pagination to first page when changing tabs
-        const newPagination = { ...pagination, current: 1 };
-        pagination.current = 1;
-
-        // Clear table filters when changing tabs
-        setFilteredInfo({});
-        setSortedInfo({});
-
-        // Update the active tab
-        setActiveTab(key);
-
-        // Clear other filters when changing tabs to avoid conflicting filters
-        setBloodGroupFilter(null);
-        setComponentTypeFilter(null);
-        setExpirationDateRange(null);
-        setSearchText('');
     };
 
-    // Handle table change
-    const handleTableChange = (pagination: any, filters: any, sorter: any) => {
-        setFilteredInfo(filters);
-        setSortedInfo(sorter);
-    };
-
-    // Clear all filters
-    const clearFilters = () => {
-        setBloodGroupFilter(null);
-        setComponentTypeFilter(null);
-        setExpirationDateRange(null);
-        setSearchText('');
-        setFilteredInfo({});
-        setSortedInfo({});
+    // Handle blood group filter change
+    const handleBloodGroupFilterChange = (value: string | null) => {
+        console.log("Blood group filter changed to:", value);
 
         // Reset pagination
         pagination.current = 1;
 
-        // Prepare params based on active tab
+        // Prepare params
         const params: BloodInventoryParams = {
             pageNumber: 1,
             pageSize: pagination.pageSize
         };
 
-        // Maintain the active tab's filter
+        // Apply filters
+        if (value) {
+            params.bloodGroupId = value;
+        } else {
+            params.bloodGroupId = undefined;
+        }
+
+        if (componentTypeFilter) {
+            params.componentTypeId = componentTypeFilter;
+        }
+
+        if (expirationDateRange && expirationDateRange[0] && expirationDateRange[1]) {
+            params.expirationStartDate = expirationDateRange[0].format('YYYY-MM-DD');
+            params.expirationEndDate = expirationDateRange[1].format('YYYY-MM-DD');
+        }
+
+        // Apply tab-based filters
+        applyTabFilters(params);
+
+        // Update state
+        setBloodGroupFilter(value);
+
+        // Call API directly
+        console.log("Calling API after blood group filter change with params:", params);
+        fetchInventories(params);
+    };
+
+    // Handle component type filter change
+    const handleComponentTypeFilterChange = (value: string | null) => {
+        console.log("Component type filter changed to:", value);
+
+        // Reset pagination
+        pagination.current = 1;
+
+        // Prepare params
+        const params: BloodInventoryParams = {
+            pageNumber: 1,
+            pageSize: pagination.pageSize
+        };
+
+        // Apply filters
+        if (bloodGroupFilter) {
+            params.bloodGroupId = bloodGroupFilter;
+        }
+
+        if (value) {
+            params.componentTypeId = value;
+        } else {
+            params.componentTypeId = undefined;
+        }
+
+        if (expirationDateRange && expirationDateRange[0] && expirationDateRange[1]) {
+            params.expirationStartDate = expirationDateRange[0].format('YYYY-MM-DD');
+            params.expirationEndDate = expirationDateRange[1].format('YYYY-MM-DD');
+        }
+
+        // Apply tab-based filters
+        applyTabFilters(params);
+
+        // Update state
+        setComponentTypeFilter(value);
+
+        // Call API directly
+        console.log("Calling API after component type filter change with params:", params);
+        fetchInventories(params);
+    };
+
+    // Handle date range filter change
+    const handleDateRangeChange = (dates: any) => {
+        console.log("Date range changed to:", dates);
+
+        // Reset pagination
+        pagination.current = 1;
+
+        // Prepare params
+        const params: BloodInventoryParams = {
+            pageNumber: 1,
+            pageSize: pagination.pageSize
+        };
+
+        // Apply filters
+        if (bloodGroupFilter) {
+            params.bloodGroupId = bloodGroupFilter;
+        }
+
+        if (componentTypeFilter) {
+            params.componentTypeId = componentTypeFilter;
+        }
+
+        if (dates && dates[0] && dates[1]) {
+            params.expirationStartDate = dates[0].format('YYYY-MM-DD');
+            params.expirationEndDate = dates[1].format('YYYY-MM-DD');
+        } else {
+            params.expirationStartDate = undefined;
+            params.expirationEndDate = undefined;
+        }
+
+        // Apply tab-based filters
+        applyTabFilters(params);
+
+        // Update state
+        setExpirationDateRange(dates);
+
+        // Call API directly
+        console.log("Calling API after date range filter change with params:", params);
+        fetchInventories(params);
+    };
+
+    // Handle table change
+    const handleTableChange = (paginationParams: any, filters: any, sorter: any) => {
+        console.log("Table changed - Pagination:", paginationParams, "Filters:", filters, "Sorter:", sorter);
+
+        // Update filter and sort info
+        setFilteredInfo(filters);
+        setSortedInfo(sorter);
+
+        // Update pagination
+        pagination.current = paginationParams.current;
+        pagination.pageSize = paginationParams.pageSize;
+
+        // Prepare params
+        const params: BloodInventoryParams = {
+            pageNumber: paginationParams.current,
+            pageSize: paginationParams.pageSize
+        };
+
+        // Apply manual filters
+        if (bloodGroupFilter) {
+            params.bloodGroupId = bloodGroupFilter;
+        } else {
+            params.bloodGroupId = undefined;
+        }
+
+        if (componentTypeFilter) {
+            params.componentTypeId = componentTypeFilter;
+        } else {
+            params.componentTypeId = undefined;
+        }
+
+        if (expirationDateRange && expirationDateRange[0] && expirationDateRange[1]) {
+            params.expirationStartDate = expirationDateRange[0].format('YYYY-MM-DD');
+            params.expirationEndDate = expirationDateRange[1].format('YYYY-MM-DD');
+        } else {
+            params.expirationStartDate = undefined;
+            params.expirationEndDate = undefined;
+        }
+
+        // Apply tab-based filters
+        applyTabFilters(params);
+
+        // Apply sorting if available
+        if (sorter && sorter.columnKey && sorter.order) {
+            params.sortBy = sorter.columnKey;
+            params.sortAscending = sorter.order === 'ascend';
+        }
+
+        // Call API directly
+        console.log("Calling API after table change with params:", params);
+        fetchInventories(params);
+    };
+
+    // Helper function to apply tab-based filters
+    const applyTabFilters = (params: BloodInventoryParams) => {
+        // First reset all tab-specific filters
+        params.isExpired = false;
+        params.isExpiringSoon = false;
+        params.status = undefined;
+
+        // Then apply specific tab filters
         switch (activeTab) {
             case 'expired':
                 params.isExpired = true;
+                params.isExpiringSoon = false;
+                params.status = undefined;
                 break;
             case 'expiring':
+                params.isExpired = false;
                 params.isExpiringSoon = true;
+                params.status = undefined;
                 break;
             case 'available':
+                params.isExpired = false;
+                params.isExpiringSoon = false;
                 params.status = 'Available';
                 break;
             case 'used':
+                params.isExpired = false;
+                params.isExpiringSoon = false;
                 params.status = 'Used';
                 break;
             case 'dispatched':
+                params.isExpired = false;
+                params.isExpiringSoon = false;
                 params.status = 'Dispatched';
                 break;
+            default:
+                // All tab - clear all specific filters
+                params.isExpired = false;
+                params.isExpiringSoon = false;
+                params.status = undefined;
+                break;
         }
+    };
 
+    // Clear all filters
+    const clearFilters = () => {
+        console.log("Clearing all filters");
+
+        // Reset pagination
+        pagination.current = 1;
+
+        // Prepare params - ONLY include pagination and tab-based filters
+        const params: BloodInventoryParams = {
+            pageNumber: 1,
+            pageSize: pagination.pageSize
+        };
+
+        // Apply tab-based filters only
+        applyTabFilters(params);
+
+        console.log("Calling API after clearing filters with params:", params);
+
+        // Clear all filter states - do this after preparing params
+        setBloodGroupFilter(null);
+        setComponentTypeFilter(null);
+        setExpirationDateRange(null);
+        setSearchText('');
+        setFilteredInfo({});
+        setSortedInfo({});
+
+        // Explicitly ensure these are undefined in the API call
+        params.bloodGroupId = undefined;
+        params.componentTypeId = undefined;
+        params.expirationStartDate = undefined;
+        params.expirationEndDate = undefined;
+
+        // Actually call the API with the cleared filters
         fetchInventories(params);
     };
 
@@ -284,18 +484,18 @@ export default function StaffInventoryPage() {
             dataIndex: 'bloodGroupName',
             key: 'bloodGroupName',
             render: (text: string) => <Tag color="red">{text}</Tag>,
-            filters: bloodGroups.map(group => ({ text: group.label, value: group.value })),
+            filters: bloodGroups.map(group => ({ text: group.groupName, value: group.id })),
             filteredValue: filteredInfo.bloodGroupName || null,
-            onFilter: (value: any, record: BloodInventory) => record.bloodGroupName === value,
+            onFilter: (value: any, record: BloodInventory) => record.bloodGroupId === value,
         },
         {
             title: 'Component Type',
             dataIndex: 'componentTypeName',
             key: 'componentTypeName',
             render: (text: string) => <Tag color="blue">{text}</Tag>,
-            filters: componentTypes.map(type => ({ text: type.label, value: type.value })),
+            filters: componentTypes.map(type => ({ text: type.name, value: type.id })),
             filteredValue: filteredInfo.componentTypeName || null,
-            onFilter: (value: any, record: BloodInventory) => record.componentTypeName === value,
+            onFilter: (value: any, record: BloodInventory) => record.componentTypeId === value,
         },
         {
             title: 'Donor',
@@ -540,11 +740,12 @@ export default function StaffInventoryPage() {
                                 style={{ width: 120 }}
                                 placeholder="Blood Group"
                                 allowClear
-                                onChange={setBloodGroupFilter}
+                                onChange={handleBloodGroupFilterChange}
                                 value={bloodGroupFilter}
+                                loading={isLoadingBloodGroups}
                             >
                                 {bloodGroups.map(group => (
-                                    <Option key={group.value} value={group.value}>{group.label}</Option>
+                                    <Option key={group.id} value={group.id}>{group.groupName}</Option>
                                 ))}
                             </Select>
                         </div>
@@ -554,11 +755,12 @@ export default function StaffInventoryPage() {
                                 style={{ width: 150 }}
                                 placeholder="Component Type"
                                 allowClear
-                                onChange={setComponentTypeFilter}
+                                onChange={handleComponentTypeFilterChange}
                                 value={componentTypeFilter}
+                                loading={isLoadingComponentTypes}
                             >
                                 {componentTypes.map(type => (
-                                    <Option key={type.value} value={type.value}>{type.label}</Option>
+                                    <Option key={type.id} value={type.id}>{type.name}</Option>
                                 ))}
                             </Select>
                         </div>
@@ -567,7 +769,7 @@ export default function StaffInventoryPage() {
                             <RangePicker
                                 style={{ width: '100%' }}
                                 value={expirationDateRange}
-                                onChange={(dates) => setExpirationDateRange(dates)}
+                                onChange={handleDateRangeChange}
                             />
                         </div>
                         <div className="flex-grow">

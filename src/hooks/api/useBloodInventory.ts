@@ -36,13 +36,13 @@ export function useBloodInventory(initialParams?: BloodInventoryParams): UseBloo
     const [error, setError] = useState<string | null>(null);
     const [params, setParams] = useState<BloodInventoryParams>(initialParams || {
         pageNumber: 1,
-        pageSize: 10,
+        pageSize: 50,
         sortBy: 'expirationDate',
         sortAscending: true
     });
     const [pagination, setPagination] = useState({
         current: 1,
-        pageSize: 10,
+        pageSize: 50,
         total: 0,
         totalPages: 0
     });
@@ -69,7 +69,7 @@ export function useBloodInventory(initialParams?: BloodInventoryParams): UseBloo
                 setInventories(response.data);
                 setPagination({
                     current: response.pageNumber || 1,
-                    pageSize: response.pageSize || 10,
+                    pageSize: response.pageSize || 50,
                     total: response.totalCount || 0,
                     totalPages: response.totalPages || 0
                 });
