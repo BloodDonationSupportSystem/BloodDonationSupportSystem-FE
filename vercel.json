@@ -1,8 +1,6 @@
 {
   "buildCommand": "npm run build",
+  "installCommand": "npm install --legacy-peer-deps",
   "outputDirectory": ".next",
-  "framework": "nextjs",
-  "env": {
-    "NEXT_PUBLIC_API_URL": "@next_public_api_url"
-  }
+  "framework": "nextjs"
 }
