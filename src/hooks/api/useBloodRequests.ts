@@ -68,7 +68,7 @@ export function useBloodRequests(
             const response: PaginatedResponse<BloodRequestDetail> = await getBloodRequests(queryParams);
 
             if (response.success) {
-                setBloodRequests(response.data);
+                setBloodRequests(response.data ?? []);
                 setPagination({
                     current: response.pageNumber,
                     pageSize: response.pageSize,
