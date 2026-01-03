@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Typography, Card, Alert, Spin, Form, Input, Button } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
@@ -12,7 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 
 const { Title, Paragraph } = Typography;
 
-export default function LoginPage() {
+function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -148,5 +148,13 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><Spin size="large" /></div>}>
+      <LoginContent />
+    </Suspense>
   );
 } 

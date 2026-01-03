@@ -3,41 +3,13 @@ import { message } from 'antd';
 import {
     getBloodRequests,
     getEmergencyBloodRequests,
-    checkInventory
+    checkInventory,
+    BloodRequestDetail
 } from '@/services/api/bloodRequestService';
 import { createDonationEvent } from '@/services/api/donationEventService';
 
-export interface BloodRequestDetail {
-    id: string;
-    patientName: string;
-    urgencyLevel?: 'Critical' | 'High' | 'Medium';
-    contactInfo: string;
-    hospitalName?: string;
-    quantityUnits: number;
-    bloodGroupId: string;
-    bloodGroupName: string;
-    componentTypeId: string;
-    componentTypeName: string;
-    locationId: string;
-    locationName: string;
-    address: string;
-    latitude?: string;
-    longitude?: string;
-    medicalNotes?: string;
-    status: string;
-    isEmergency: boolean;
-    neededByDate: string;
-    requestedBy: string;
-    requestedByName?: string;
-    fulfilledDate?: string;
-    fulfilledByStaffId?: string;
-    fulfilledByStaffName?: string;
-    isPickedUp?: boolean;
-    pickupDate?: string;
-    pickupNotes?: string;
-    createdAt: string;
-    updatedAt: string;
-}
+// Re-export for backward compatibility
+export type { BloodRequestDetail };
 
 interface InventoryCheckResult {
     available: boolean;
@@ -60,8 +32,8 @@ export function useStaffBloodRequest() {
 
             try {
                 // Get regular requests
-                const regularResponse = await getBloodRequests(undefined, false);
-                if (regularResponse.success) {
+                const regularResponse = await getBloodRequests({});
+                if (regularResponse.data) {
                     setRegularRequests(regularResponse.data);
                 } else {
                     throw new Error('Failed to fetch regular blood requests');

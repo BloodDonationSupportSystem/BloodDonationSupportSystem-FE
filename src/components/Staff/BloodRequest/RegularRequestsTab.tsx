@@ -116,7 +116,7 @@ export default function RegularRequestsTab({
                         ID: {record.id.substring(0, 8)}...
                     </div>
                     <div className="text-xs text-gray-500">
-                        Created: {dayjs(record.createdAt).format('MMM D, YYYY')}
+                        Created: {dayjs(record.createdTime).format('MMM D, YYYY')}
                     </div>
                 </div>
             ),
@@ -126,7 +126,7 @@ export default function RegularRequestsTab({
             key: 'requester',
             render: (_: any, record: BloodRequestDetail) => (
                 <div>
-                    <div className="font-medium">{record.requestedByName || record.requestedBy.substring(0, 8)}</div>
+                    <div className="font-medium">{record.requesterName || record.requestedBy.substring(0, 8)}</div>
                     <div className="text-xs text-gray-500">{record.contactInfo}</div>
                 </div>
             ),
@@ -286,7 +286,7 @@ export default function RegularRequestsTab({
                                             </div>
                                             <div>
                                                 <Text type="secondary">Requested By:</Text>
-                                                <div>{selectedRequest.requestedByName || selectedRequest.requestedBy}</div>
+                                                <div>{selectedRequest.requesterName || selectedRequest.requestedBy}</div>
                                             </div>
                                             <div>
                                                 <Text type="secondary">Contact:</Text>

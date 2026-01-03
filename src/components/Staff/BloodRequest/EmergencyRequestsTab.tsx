@@ -191,7 +191,7 @@ export default function EmergencyRequestsTab({
                     <div>
                         <Badge status={statusColor as any} text={record.status} />
                         <div className="text-xs text-gray-500 mt-1">
-                            {dayjs(record.createdAt).fromNow()}
+                            {dayjs(record.createdTime).fromNow()}
                         </div>
                     </div>
                 );
