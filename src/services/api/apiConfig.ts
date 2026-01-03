@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { API_BASE_URL } from '@/config/constants';
 
 // Helper to check if we're in a browser environment
 const isBrowser = (): boolean => {
@@ -7,7 +8,7 @@ const isBrowser = (): boolean => {
 
 // Create axios instance with base URL
 const apiClient = axios.create({
-  baseURL: 'http://localhost:5222/api',
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
