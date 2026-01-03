@@ -102,8 +102,8 @@ export function useLocations(): UseLocationsReturn {
 
   const sortLocationsByDistance = useCallback((userLat: number, userLng: number) => {
     const locationsWithDistance = locations.map(location => {
-      const lat = parseFloat(location.latitude);
-      const lng = parseFloat(location.longitude);
+      const lat = parseFloat(location.latitude ?? '0');
+      const lng = parseFloat(location.longitude ?? '0');
 
       if (isNaN(lat) || isNaN(lng)) {
         return { ...location, distance: Infinity };
@@ -134,8 +134,8 @@ export function useLocations(): UseLocationsReturn {
         // If we have user coordinates, calculate distances
         if (userCoordinates.latitude && userCoordinates.longitude) {
           const locationsWithDistance = fetchedLocations.map(location => {
-            const lat = parseFloat(location.latitude);
-            const lng = parseFloat(location.longitude);
+            const lat = parseFloat(location.latitude ?? '0');
+            const lng = parseFloat(location.longitude ?? '0');
 
             if (isNaN(lat) || isNaN(lng)) {
               return { ...location, distance: Infinity };
