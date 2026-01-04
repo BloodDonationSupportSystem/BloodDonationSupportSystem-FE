@@ -28,11 +28,18 @@
   }
 }
 
+/* Prevent FOUC by ensuring body has background immediately */
+html {
+  background: white;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: white;
   margin: 0;
   padding: 0;
+  /* Prevent layout shift during font loading */
+  font-display: swap;
 }
 
 /* Override Ant Design button styles for Tailwind compatibility */
