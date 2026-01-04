@@ -10,6 +10,7 @@ import { store } from '@/store';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import 'react-toastify/dist/ReactToastify.css';
 import ThemeProvider from '@/theme/ThemeProvider';
+import AntdRegistry from '@/components/AntdRegistry';
 import { App } from 'antd';
 
 // Create a client
@@ -63,18 +64,20 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
-        <App>
-          <AuthProvider>
-            <ThemeProvider>
-              <ScrollToTop>
-                <RoleBasedRedirect>
-                  {children}
-                  <ToastContainer position="top-right" autoClose={5000} />
-                </RoleBasedRedirect>
-              </ScrollToTop>
-            </ThemeProvider>
-          </AuthProvider>
-        </App>
+        <AntdRegistry>
+          <App>
+            <AuthProvider>
+              <ThemeProvider>
+                <ScrollToTop>
+                  <RoleBasedRedirect>
+                    {children}
+                    <ToastContainer position="top-right" autoClose={5000} />
+                  </RoleBasedRedirect>
+                </ScrollToTop>
+              </ThemeProvider>
+            </AuthProvider>
+          </App>
+        </AntdRegistry>
       </QueryClientProvider>
     </Provider>
   );

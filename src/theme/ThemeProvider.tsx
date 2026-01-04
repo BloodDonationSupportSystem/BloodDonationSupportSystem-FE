@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { ConfigProvider } from 'antd';
-import { StyleProvider } from '@ant-design/cssinjs';
 
 const theme = {
   token: {
@@ -24,10 +23,8 @@ export default function ThemeProvider({
   children: React.ReactNode;
 }) {
   return (
-    <StyleProvider hashPriority="high">
-      <ConfigProvider theme={theme}>
-        {children}
-      </ConfigProvider>
-    </StyleProvider>
+    <ConfigProvider theme={theme}>
+      {children}
+    </ConfigProvider>
   );
 } 
