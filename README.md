@@ -12,7 +12,7 @@
 
 *A modern, responsive web application for blood donation management, featuring real-time updates, interactive maps, and comprehensive donor/staff portals.*
 
-[Live Demo](#) • [Documentation](#) • [Report Bug](#-contributing) • [Request Feature](#-contributing)
+[Live Demo](https://blood-donation-support-system-v.vercel.app/) • [API Backend](https://blood-donation-api-asb9esgvbfhwfhbf.southeastasia-01.azurewebsites.net/swagger) • [Report Bug](#-contributing) • [Request Feature](#-contributing)
 
 </div>
 
